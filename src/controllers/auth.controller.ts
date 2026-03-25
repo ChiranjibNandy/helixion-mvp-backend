@@ -13,12 +13,11 @@ export const signup = async (
   next: NextFunction
 ) => {
   try {
-    const user = await signupService(req.body);
+    await signupService(req.body);
 
     res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: MESSAGES.USER_CREATED_SUCCESSFULLY,
-      data: user,
     });
 
   } catch (error) {
@@ -39,7 +38,7 @@ export const login = async (
       password
     );
 
-    // Safe payload
+    // Safe payload for creating token
     const payload: JwtPayloadType = {
       userId: user._id!.toString(),
       email: user.email,

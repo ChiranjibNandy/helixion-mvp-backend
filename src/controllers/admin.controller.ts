@@ -6,7 +6,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 interface ApproveUserParams {
    id: string;
 }
-//pending registered user get
+// Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrations = async (
    req: Request,
    res: Response,

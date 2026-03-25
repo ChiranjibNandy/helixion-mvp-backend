@@ -1,10 +1,8 @@
 import bcrypt from "bcryptjs";
-import User from '../models/user.model.js'
 import { MESSAGES } from "../constants/messages.js";
 import { ApprovalStatus } from "../constants/approval-status.js";
 import { UserStatus } from "../constants/user-status.js";
 import { createUserRepository, getUserByEmailRepository } from "../repositories/user.repository.js";
-import { mapUserToResponseDto } from "../mapper/user.mapper.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 import { IUser } from "../interfaces/user.interface.js";
 
@@ -26,12 +24,11 @@ export const signupService = async (
     10
   );
 
-  const user = await createUserRepository({
+  return await createUserRepository({
     ...userData,
     password: hashedPassword,
   });
 
-  return mapUserToResponseDto(user);
 };
 
 // -----------------------------

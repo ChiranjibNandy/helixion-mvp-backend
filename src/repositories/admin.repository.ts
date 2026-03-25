@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { ApprovalStatus } from "../constants/approval-status.js";
 
+// Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsRepository = async (
    page: number,
    limit: number

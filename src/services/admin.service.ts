@@ -6,7 +6,7 @@ import { getPendingRegistrationsRepository } from "../repositories/admin.reposit
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
 import { getUserByIdRepository, updateApprovalStatusRepository } from "../repositories/user.repository.js";
 
-//get regitered user 
+// Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsService = async (
   page: number,
   limit: number
