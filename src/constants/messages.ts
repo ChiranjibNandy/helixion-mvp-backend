@@ -22,5 +22,10 @@ export const MESSAGES = {
   LIMIT_MUST_BE_GREATER_THAN_ZERO: "Limit must be greater than 0",
   LIMIT_CANNOT_EXCEED_100: "Limit cannot exceed 100",
 
-  PENDING_REGISTRATIONS_FETCHED: "Pending user registrations fetched successfully"
+  PENDING_REGISTRATIONS_FETCHED: "Pending user registrations fetched successfully",
+  
+   TOKEN_REQUIRED: "Access token is required",
+  INVALID_TOKEN: "Invalid token",
+  INVALID_OR_EXPIRED_TOKEN: "Invalid or expired token",
+  ADMIN_ACCESS_REQUIRED: "Admin access required",
 } as const;
