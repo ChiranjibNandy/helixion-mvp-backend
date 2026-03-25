@@ -29,7 +29,9 @@ const userSchema = new Schema<IUser>({
     type: String,
     enum: ["active", "deactive"],
     default: "active"
-  }
+  },
+}, {
+  timestamps: true,
 });
 
 export default mongoose.model<IUser>("User", userSchema);

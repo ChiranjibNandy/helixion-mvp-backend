@@ -2,48 +2,63 @@ import { NextFunction, Request, Response } from "express";
 import { loginService, signupService } from "../services/auth.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
+import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setRefreshTokenCookie } from "../utils/cookies.js";
+import { LoginRequestDto } from "../dtos/login.dto.js";
 
 //register the user
-export const signup = async (req: Request, res: Response, next: NextFunction) => {
+export const signup = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { username, email, password } = req.body;
-
-    const user = await signupService(username, email, password);
+    const user = await signupService(req.body);
 
     res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: MESSAGES.USER_CREATED_SUCCESSFULLY,
-      user,
+      data: user,
     });
-  } catch (error: any) {
-    next(error)
+
+  } catch (error) {
+    next(error);
   }
 };
-
 //login the user
-export const login = async (req: Request, res: Response, next: NextFunction) => {
+export const login = async (
+  req: Request<{}, {}, LoginRequestDto>,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { email, password } = req.body;
-    const user = await loginService(email, password);
-    const payload = {
-      userId: user._id.toString(),
+
+    const user = await loginService(
+      email,
+      password
+    );
+
+    // Safe payload
+    const payload: JwtPayloadType = {
+      userId: user._id!.toString(),
       email: user.email,
-      role:user.role
+      role: user.role,
     };
 
     const accessToken = generateAccessToken(payload);
+
     const refreshToken = generateRefreshToken(payload);
 
-
     setRefreshTokenCookie(res, refreshToken);
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
-      accessToken
+      accessToken,
     });
-  } catch (error: any) {
-    next(error)
+
+  } catch (error) {
+    next(error);
   }
-}
+};

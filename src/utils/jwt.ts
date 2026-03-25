@@ -4,7 +4,7 @@ import { ENV } from "../config/env.js";
 export interface JwtPayloadType {
   userId: string;
   email: string;
-  role:string
+  role?:string
 }
 
 export const generateAccessToken = (payload: JwtPayloadType) => {
