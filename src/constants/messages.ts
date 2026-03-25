@@ -14,5 +14,13 @@ export const MESSAGES = {
   PASSWORD_COMPLEXITY: "Password must contain at least one letter, one number, and one special character",
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
-  USER_APPROVED_SUCCESSFULLY: "User approved successfully"
+  USER_APPROVED_SUCCESSFULLY: "User approved successfully",
+
+  PAGE_MUST_BE_A_VALID_NUMBER: "Page must be a valid number",
+  PAGE_MUST_BE_GREATER_THAN_ZERO: "Page must be greater than 0",
+  LIMIT_MUST_BE_A_VALID_NUMBER: "Limit must be a valid number",
+  LIMIT_MUST_BE_GREATER_THAN_ZERO: "Limit must be greater than 0",
+  LIMIT_CANNOT_EXCEED_100: "Limit cannot exceed 100",
+
+  PENDING_REGISTRATIONS_FETCHED: "Pending user registrations fetched successfully"
 } as const;
