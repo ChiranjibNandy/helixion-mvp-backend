@@ -4,7 +4,7 @@ import { approveUserService, getPendingRegistrationsService } from "../services/
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 interface ApproveUserParams {
-   userId: string;
+   id: string;
 }
 //pending registered user get
 export const getPendingRegistrations = async (
@@ -42,9 +42,9 @@ export const approveUser = async (
 
    try {
 
-      const { userId } = req.params;
+      const { id } = req.params;
 
-      const user = await approveUserService(userId);
+      const user = await approveUserService(id);
 
       res.status(HTTP_STATUS.OK).json({
          success: true,

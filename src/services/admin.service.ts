@@ -4,6 +4,7 @@ import { ApprovalStatus } from "../constants/approval-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
+import { getUserByIdRepository, updateApprovalStatusRepository } from "../repositories/user.repository.js";
 
 //get regitered user 
 export const getPendingRegistrationsService = async (
@@ -36,15 +37,14 @@ export const getPendingRegistrationsService = async (
 
 export const approveUserService = async (userId: string) => {
 
-  const user = await User.findById(userId);
+  const user = await getUserByIdRepository(userId);
 
   if (!user) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
 
-  user.approval_status = ApprovalStatus.APPROVED;
+  await updateApprovalStatusRepository(userId, ApprovalStatus.APPROVED)
 
-  await user.save();
 
   return user;
 };

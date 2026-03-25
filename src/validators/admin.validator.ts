@@ -29,3 +29,12 @@ export const pendingRegistrationsQuerySchema = z.object({
       message: MESSAGES.LIMIT_CANNOT_EXCEED_100,
     }),
 });
+
+export const approveUserParamsSchema = z.object({
+  id: z
+    .string()
+    .trim()
+    .min(1, {
+      message: MESSAGES.USER_ID_REQUIRED,
+    }),
+});

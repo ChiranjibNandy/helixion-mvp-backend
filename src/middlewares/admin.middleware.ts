@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { ROLE } from "../constants/role.js";
+import { verifyAccessToken } from "../utils/jwt.js";
 
 interface JwtPayload {
    userId: string;
@@ -35,10 +36,7 @@ export const adminAuthMiddleware = (
       }
 
       //  Verify token
-      const decoded = jwt.verify(
-         token,
-         process.env.JWT_ACCESS_SECRET as string
-      ) as JwtPayload;
+      const decoded = verifyAccessToken(token)
 
       //  Check role
       if (decoded.role !== ROLE.ADMIN) {
