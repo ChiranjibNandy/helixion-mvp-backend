@@ -28,5 +28,6 @@ export const MESSAGES = {
   INVALID_TOKEN: "Invalid token",
   INVALID_OR_EXPIRED_TOKEN: "Invalid or expired token",
   ADMIN_ACCESS_REQUIRED: "Admin access required",
-  USER_ID_REQUIRED: "User Id is required"
+  USER_ID_REQUIRED: "User Id is required",
+  ROLE_REQUIRED:"Role is required"
 } as const;

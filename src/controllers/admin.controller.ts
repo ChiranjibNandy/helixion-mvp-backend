@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { MESSAGES } from "../constants/messages.js";
-import { approveUserService, getPendingRegistrationsService } from "../services/admin.service.js";
+import { approveUserAndAddRoleService, getPendingRegistrationsService } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { TypeOf } from "zod/v3";
+import { approveUserBodySchema, approveUserParamsSchema } from "../validators/admin.validator.js";
 
-interface ApproveUserParams {
-   id: string;
-}
 // Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrations = async (
    req: Request,
@@ -34,26 +33,24 @@ export const getPendingRegistrations = async (
    }
 };
 
+
 export const approveUser = async (
-   req: Request<ApproveUserParams>,
-   res: Response,
-   next: NextFunction
+  req: Request,
+  res: Response,
+  next: NextFunction
 ) => {
+  try {
+    const { id } = req.params;
+    const { role, description } = req.body;
 
-   try {
+    const user = await approveUserAndAddRoleService(String(id), role, description);
 
-      const { id } = req.params;
-
-      const user = await approveUserService(id);
-
-      res.status(HTTP_STATUS.OK).json({
-         success: true,
-         message: MESSAGES.USER_APPROVED_SUCCESSFULLY,
-         data: user
-      });
-
-   } catch (error) {
-      next(error);
-   }
-
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USER_APPROVED_SUCCESSFULLY,
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
 };

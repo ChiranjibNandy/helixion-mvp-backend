@@ -1,3 +1,5 @@
+import { ApprovalStatus } from "../constants/approval-status.js";
+import { UserStatus } from "../constants/user-status.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
@@ -23,9 +25,24 @@ export const getUserByIdRepository = async (
    return await User.findById(userId);
 };
 
-export const updateApprovalStatusRepository = async (
-   userId: string,
-   status: string
-): Promise<IUser | null> => {
-   return await User.findByIdAndUpdate(userId, { approval_status: status })
+//approve user repository
+export const approveUserRepository = async (
+   id: string,
+   role: string,
+   description?: string
+) => {
+   const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+         role: role,
+         status: UserStatus.ACTIVE,
+         approval_status: ApprovalStatus.APPROVED,
+         description: description,
+      },
+      {
+         new: true,
+      }
+   );
+
+   return updatedUser;
 };
