@@ -1,24 +1,65 @@
 import { Request, Response, NextFunction } from "express";
-import { ZodTypeAny, z } from "zod";
+import { ZodTypeAny } from "zod";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 
-export const validate = (schema: ZodTypeAny) => {
-   return (req: Request, res: Response, next: NextFunction) => {
+type ValidationSchema = {
+  body?: ZodTypeAny;
+  query?: ZodTypeAny;
+  params?: ZodTypeAny;
+};
 
-      const result = schema.safeParse(req.body);
+export const validate = (schema: ValidationSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // BODY
+      if (schema.body) {
+        const result = schema.body.safeParse(req.body);
 
-      if (!result.success) {
-         const formattedError = z.treeifyError(result.error);
-
-         return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        if (!result.success) {
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({
             message: MESSAGES.VALIDATION_FAILED,
-            errors: formattedError
-         });
+            errors: result.error.issues.map(
+              (err) => err.message
+            ),
+          });
+        }
+
+        req.body = result.data;
       }
 
-      req.body = result.data;
+      // QUERY
+      if (schema.query) {
+        const result = schema.query.safeParse(req.query);
+
+        if (!result.success) {
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({
+            message: MESSAGES.VALIDATION_FAILED,
+            errors: result.error.issues.map(
+              (err) => err.message
+            ),
+          });
+        }
+      }
+
+      // PARAMS
+      if (schema.params) {
+        const result = schema.params.safeParse(req.params);
+
+        if (!result.success) {
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({
+            message: MESSAGES.VALIDATION_FAILED,
+            errors: result.error.issues.map(
+              (err) => err.message
+            ),
+          });
+        }
+      }
 
       next();
-   };
+
+    } catch (error) {
+      next(error);
+    }
+  };
 };

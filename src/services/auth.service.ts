@@ -1,36 +1,34 @@
 import bcrypt from "bcryptjs";
-import User from '../models/user.model.js'
 import { MESSAGES } from "../constants/messages.js";
 import { ApprovalStatus } from "../constants/approval-status.js";
 import { UserStatus } from "../constants/user-status.js";
+import { createUserRepository, getUserByEmailRepository } from "../repositories/user.repository.js";
+import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
+import { IUser } from "../interfaces/user.interface.js";
 
 // -----------------------------
 // Register User Service
 // -----------------------------
 export const signupService = async (
-  username: string,
-  email:string,
-  password: string,
-) => {
+  userData: CreateUserDto
+): Promise<UserResponseDto> => {
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await getUserByEmailRepository(userData.email);
 
-  // Check if user already exists
   if (existingUser) {
     throw new Error(MESSAGES.USER_ALREADY_EXISTS);
   }
 
-  // Hash the password before storing
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(
+    userData.password,
+    10
+  );
 
-  // Create new user
-  const user = await User.create({
-    username,
-    email,
+  return await createUserRepository({
+    ...userData,
     password: hashedPassword,
   });
 
-  return user;
 };
 
 // -----------------------------
@@ -39,23 +37,30 @@ export const signupService = async (
 export const loginService = async (
   email: string,
   password: string
-) => {
+): Promise<IUser> => {
 
-  const user = await User.findOne({ email });
+  // Find user by email
+  const user = await getUserByEmailRepository(email);
 
-  // Find user by username
   if (!user) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
 
   // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    user.password
+  );
+
   if (!isPasswordValid) {
     throw new Error(MESSAGES.INVALID_CREDENTIALS);
   }
 
-  // Check user approval and status
-  if (user.approval_status !== ApprovalStatus.APPROVED || user.status !== UserStatus.ACTIVE) {
+  // Check approval and status
+  if (
+    user.approval_status !== ApprovalStatus.APPROVED ||
+    user.status !== UserStatus.ACTIVE
+  ) {
     throw new Error(MESSAGES.USER_NO_PERMISSION);
   }
 
