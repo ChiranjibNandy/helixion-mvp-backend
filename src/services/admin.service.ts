@@ -2,7 +2,7 @@ import { MESSAGES } from "../constants/messages.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
-import { approveUserRepository,   } from "../repositories/user.repository.js";
+import { approveUserRepository, } from "../repositories/user.repository.js";
 
 // Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsService = async (
@@ -50,7 +50,4 @@ export const approveUserAndAddRoleService = async (
   if (!updatedUser) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
-  const mapUser = mapUserToPendingRegistrationDto(updatedUser)
-
-  return mapUser;
 };

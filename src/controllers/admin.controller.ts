@@ -43,12 +43,11 @@ export const approveUser = async (
     const { id } = req.params;
     const { role, description } = req.body;
 
-    const user = await approveUserAndAddRoleService(String(id), role, description);
+    await approveUserAndAddRoleService(String(id), role, description);
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: MESSAGES.USER_APPROVED_SUCCESSFULLY,
-      data: user,
+      message: MESSAGES.USER_APPROVED_SUCCESSFULLY
     });
   } catch (error) {
     next(error);
