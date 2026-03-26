@@ -33,8 +33,16 @@ export const pendingRegistrationsQuerySchema = z.object({
 export const approveUserParamsSchema = z.object({
   id: z
     .string()
-    .trim()
-    .min(1, {
-      message: MESSAGES.USER_ID_REQUIRED,
-    }),
+    .min(1, MESSAGES.USER_ID_REQUIRED),
+});
+
+
+export const approveUserBodySchema = z.object({
+  role: z
+    .string()
+    .min(1, MESSAGES.ROLE_REQUIRED),
+
+  description: z
+    .string()
+    .optional(),
 });

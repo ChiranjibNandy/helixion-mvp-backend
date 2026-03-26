@@ -1,10 +1,8 @@
-import User from "../models/user.model.js";
 import { MESSAGES } from "../constants/messages.js";
-import { ApprovalStatus } from "../constants/approval-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
-import { getUserByIdRepository, updateApprovalStatusRepository } from "../repositories/user.repository.js";
+import { approveUserRepository, } from "../repositories/user.repository.js";
 
 // Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsService = async (
@@ -35,16 +33,21 @@ export const getPendingRegistrationsService = async (
   };
 };
 
-export const approveUserService = async (userId: string) => {
+// Approve a user by admin, assign the specified role, and set the user status to active
 
-  const user = await getUserByIdRepository(userId);
+export const approveUserAndAddRoleService = async (
+  id: string,
+  role: string,
+  description?: string
+) => {
+  const updatedUser =
+    await approveUserRepository(
+      id,
+      role,
+      description
+    );
 
-  if (!user) {
+  if (!updatedUser) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
-
-  await updateApprovalStatusRepository(userId, ApprovalStatus.APPROVED)
-
-
-  return user;
 };

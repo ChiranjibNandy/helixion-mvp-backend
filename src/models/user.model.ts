@@ -30,6 +30,9 @@ const userSchema = new Schema<IUser>({
     enum: ["active", "deactive"],
     default: "active"
   },
+  description:{
+    type:String,
+  }
 }, {
   timestamps: true,
 });
