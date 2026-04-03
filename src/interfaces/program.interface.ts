@@ -8,6 +8,7 @@ export interface IProgram {
   status: string;
   fee: number;
   mode: string;
+  location:string;
   createdAt: Date;
   updatedAt: Date;
 }

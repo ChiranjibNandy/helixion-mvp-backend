@@ -34,7 +34,11 @@ const programSchema = new Schema<IProgram>(
          type: String,
          enum: ["online", "offline"],
          required: true
-      }
+      },
+      location:{
+         type:String,
+         required:true
+      },
    },
    {
       timestamps: true
