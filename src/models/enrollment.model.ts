@@ -26,4 +26,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
    }
 );
 
+//add compound index with fields userId and status
+enrollmentSchema.index({ userId: 1, status: 1 });
+
 export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema)

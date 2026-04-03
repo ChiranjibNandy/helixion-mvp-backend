@@ -2,14 +2,13 @@ import mongoose from "mongoose";
 import { EnrollmentStatus } from "../constants/enrollment-status.js";
 import enrollment from "../models/enrollment.model.js";
 
-
-// Retrieve active enrollments with program details using lookup
+// Retrieve active enrollments with program details
 export const getActiveEnrollmentsRepository = async (userId: string) => {
    const enrollments = await enrollment.aggregate([
       {
          $match: {
-            status: EnrollmentStatus.ACTIVE,
-            userId: new mongoose.Types.ObjectId(userId)
+            userId: new mongoose.Types.ObjectId(userId),
+            status: EnrollmentStatus.ACTIVE
          }
       },
       {
@@ -21,13 +20,18 @@ export const getActiveEnrollmentsRepository = async (userId: string) => {
          }
       },
       {
-         $unwind: {
-            path: "$programDetails",
-            preserveNullAndEmptyArrays: true
+         $addFields: {
+            programDetails: {
+               $arrayElemAt: ["$programDetails", 0]
+            }
+         }
+      },
+      {
+         $sort: {
+            createdAt: -1 
          }
       }
    ]);
 
    return enrollments;
-
-}
+};
