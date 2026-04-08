@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { MESSAGES } from "../constants/messages.js";
 import { approveUserAndAddRoleService, getPendingRegistrationsService } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { TypeOf } from "zod/v3";
-import { approveUserBodySchema, approveUserParamsSchema } from "../validators/admin.validator.js";
 
 // Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrations = async (

@@ -3,7 +3,7 @@ import { loginService, signupService } from "../services/auth.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
-import { setRefreshTokenCookie } from "../utils/cookies.js";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
 
 //register the user
@@ -41,20 +41,21 @@ export const login = async (
     // Safe payload for creating token
     const payload: JwtPayloadType = {
       userId: user._id!.toString(),
+      name:user.username,
       email: user.email,
+      location:user.location,
       role: user.role,
     };
 
     const accessToken = generateAccessToken(payload);
 
     const refreshToken = generateRefreshToken(payload);
-
     setRefreshTokenCookie(res, refreshToken);
+    setAccessTokenCookie(res, accessToken)
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
-      accessToken,
     });
 
   } catch (error) {
