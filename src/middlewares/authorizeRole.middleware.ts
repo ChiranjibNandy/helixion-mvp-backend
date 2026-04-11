@@ -10,36 +10,35 @@ export const authorizeRole = (requiredRole: string) => {
     next: NextFunction
   ) => {
     try {
+      let token = req.cookies.accessToken
 
-      // Get token from cookie
-      // let token = req.cookies?.refreshToken;
-      // console.log(token)
 
-      // if (!token) {
-      //   return res.status(
-      //     HTTP_STATUS.UNAUTHORIZED
-      //   ).json({
-      //     message: MESSAGES.TOKEN_REQUIRED,
-      //   });
-      // }
+      if (!token) {
+        return res.status(
+          HTTP_STATUS.UNAUTHORIZED
+        ).json({
+          message: MESSAGES.TOKEN_REQUIRED,
+        });
+      }
 
       // Verify token
-      // const decoded: any =
-      //   verifyAccessToken(token);
+      const decoded: any =
+        verifyAccessToken(token);
 
-      // // Check role
-      // if (decoded.role !== requiredRole) {
+      // Check role
+  
+      if (decoded.role !== requiredRole) {
 
 
-      //   return res.status(
-      //     HTTP_STATUS.FORBIDDEN
-      //   ).json({
-      //     message: MESSAGES.ACCESS_DENIED,
-      //   });
-      // }
+        return res.status(
+          HTTP_STATUS.FORBIDDEN
+        ).json({
+          message: MESSAGES.ACCESS_DENIED,
+        });
+      }
 
       // Attach user info
-      req.userId = "69c36cdd639bdd8fc41b0934";
+      req.userId = decoded.userId;
 
       next();
 
