@@ -3,9 +3,7 @@ import { connectDB } from "./config/db.js";
 import app from "./app.js";
 import { ENV } from "./config/env.js";
 
-
 dotenv.config();
-
 
 connectDB();
 
