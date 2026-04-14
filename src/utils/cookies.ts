@@ -13,7 +13,7 @@ export const setRefreshTokenCookie = (res: Response, token: string) => {
 export const setAccessTokenCookie = (res: Response, token: string) => {
   res.cookie("accessToken", token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "none",
     secure: true,
     maxAge: 15 * 60 * 1000, // 15 minutes 
   });
@@ -23,7 +23,7 @@ export const setAccessTokenCookie = (res: Response, token: string) => {
 export const clearRefreshTokenCookie = (res: Response) => {
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "none",
     secure: true
   });
 };
