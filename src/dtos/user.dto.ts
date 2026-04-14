@@ -10,6 +10,13 @@ export interface UserResponseDto {
 export interface CreateUserDto {
    username: string,
    email: string,
-   password:string
+   password: string
 }
 
+export interface BatchCreateUserDto {
+   username: string;
+   email: string;
+   password: string;
+   role: string;
+   description?: string;
+}

@@ -46,3 +46,23 @@ export const approveUserRepository = async (
 
    return updatedUser;
 };
+
+export const deactivateUserRepository = async (id: string) => {
+   return await User.findByIdAndUpdate(
+      id,
+      { status: UserStatus.DEACTIVE },
+      { new: true }
+   );
+};
+
+export const getUsersByEmailsRepository = async (
+   emails: string[]
+): Promise<IUser[]> => {
+   return await User.find({ email: { $in: emails } });
+};
+
+export const batchCreateUsersRepository = async (
+   users: Partial<IUser>[]
+) => {
+   return await User.insertMany(users);
+};

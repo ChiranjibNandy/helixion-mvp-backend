@@ -31,5 +31,13 @@ export const MESSAGES = {
   USER_ID_REQUIRED: "User Id is required",
   ROLE_REQUIRED:"Role is required",
 
-  ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM : "Active enrollments and available programs fetched successfully"
+  ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
+
+  USER_DEACTIVATED_SUCCESSFULLY: "User deactivated successfully",
+  USER_ALREADY_DEACTIVATED: "User is already deactivated",
+  CANNOT_DEACTIVATE_SELF: "Cannot deactivate your own account",
+
+  BATCH_USERS_CREATED: "Bulk users created successfully",
+  DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
+  USERS_ALREADY_EXIST: "Some users already exist",
 } as const;

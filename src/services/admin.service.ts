@@ -1,10 +1,19 @@
+import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
+import { ApprovalStatus } from "../constants/approval-status.js";
+import { UserStatus } from "../constants/user-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
+import { BatchCreateUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
-import { approveUserRepository, } from "../repositories/user.repository.js";
+import {
+  approveUserRepository,
+  getUserByIdRepository,
+  deactivateUserRepository,
+  getUsersByEmailsRepository,
+  batchCreateUsersRepository,
+} from "../repositories/user.repository.js";
 
-// Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsService = async (
   page: number,
   limit: number
@@ -33,8 +42,6 @@ export const getPendingRegistrationsService = async (
   };
 };
 
-// Approve a user by admin, assign the specified role, and set the user status to active
-
 export const approveUserAndAddRoleService = async (
   id: string,
   role: string,
@@ -50,4 +57,55 @@ export const approveUserAndAddRoleService = async (
   if (!updatedUser) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
+};
+
+export const deactivateUserService = async (
+  id: string,
+  requesterId: string
+) => {
+  if (id === requesterId) {
+    throw new Error(MESSAGES.CANNOT_DEACTIVATE_SELF);
+  }
+
+  const user = await getUserByIdRepository(id);
+
+  if (!user) {
+    throw new Error(MESSAGES.USER_NOT_FOUND);
+  }
+
+  if (user.status === UserStatus.DEACTIVE) {
+    throw new Error(MESSAGES.USER_ALREADY_DEACTIVATED);
+  }
+
+  await deactivateUserRepository(id);
+};
+
+export const batchCreateUsersService = async (
+  usersData: BatchCreateUserDto[]
+) => {
+  const emails = usersData.map((u) => u.email);
+  const uniqueEmails = new Set(emails);
+
+  if (uniqueEmails.size !== emails.length) {
+    throw new Error(MESSAGES.DUPLICATE_EMAILS_IN_BATCH);
+  }
+
+  const existingUsers = await getUsersByEmailsRepository(emails);
+
+  if (existingUsers.length > 0) {
+    const existing = existingUsers.map((u) => u.email).join(", ");
+    throw new Error(`${MESSAGES.USERS_ALREADY_EXIST}: ${existing}`);
+  }
+
+  const usersWithHashedPasswords = await Promise.all(
+    usersData.map(async (user) => ({
+      username: user.username,
+      email: user.email,
+      password: await bcrypt.hash(user.password, 10),
+      role: user.role,
+      description: user.description,
+    }))
+  );
+
+  return await batchCreateUsersRepository(usersWithHashedPasswords);
 };

@@ -1,9 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { MESSAGES } from "../constants/messages.js";
-import { approveUserAndAddRoleService, getPendingRegistrationsService } from "../services/admin.service.js";
+import {
+  approveUserAndAddRoleService,
+  getPendingRegistrationsService,
+  deactivateUserService,
+  batchCreateUsersService,
+} from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 
-// Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrations = async (
    req: Request,
    res: Response,
@@ -31,7 +35,6 @@ export const getPendingRegistrations = async (
    }
 };
 
-
 export const approveUser = async (
   req: Request,
   res: Response,
@@ -46,6 +49,45 @@ export const approveUser = async (
     return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_APPROVED_SUCCESSFULLY
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deactivateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    await deactivateUserService(String(id), req.userId!);
+
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USER_DEACTIVATED_SUCCESSFULLY,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const batchCreateUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { users } = req.body;
+
+    const result = await batchCreateUsersService(users);
+
+    return res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      message: MESSAGES.BATCH_USERS_CREATED,
+      data: { count: result.length },
     });
   } catch (error) {
     next(error);
