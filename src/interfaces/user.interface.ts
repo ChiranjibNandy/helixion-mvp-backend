@@ -8,7 +8,8 @@ export interface IUser {
   role?: string;
   approval_status: "approved" | "dismissed" | "pending";
   status: "active" | "deactive";
-  description:string
+  description:string;
+  location:string;
   createdAt?: Date;
   updatedAt?: Date;
 }

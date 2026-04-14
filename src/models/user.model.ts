@@ -32,6 +32,9 @@ const userSchema = new Schema<IUser>({
   },
   description:{
     type:String,
+  },
+  location:{
+     type:String,
   }
 }, {
   timestamps: true,
