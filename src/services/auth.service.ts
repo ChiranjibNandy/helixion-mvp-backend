@@ -61,7 +61,7 @@ export const loginService = async (
     user.approval_status !== ApprovalStatus.APPROVED ||
     user.status !== UserStatus.ACTIVE
   ) {
-    throw new Error(MESSAGES.USER_NO_PERMISSION);
+    throw new Error(MESSAGES.NOT_APPROVED);
   }
 
   return user;
