@@ -3,7 +3,7 @@ export const MESSAGES = {
   USER_ALREADY_EXISTS: "User already exists",
   USER_CREATED_SUCCESSFULLY: "User created successfully",
   USER_NOT_FOUND: "User not found",
-  INVALID_CREDENTIALS: "Invalid username or password",
+  INVALID_CREDENTIALS: "Invalid Credential",
   USER_NO_PERMISSION: "You do not have permission to perform this action",
   USER_LOGGED_IN_SUCCESSFULLY: "User logged in successfully",
   INTERNAL_SERVER_ERROR: "Internal server error",
@@ -15,6 +15,7 @@ export const MESSAGES = {
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
   USER_APPROVED_SUCCESSFULLY: "User approved successfully",
+  NOT_APPROVED : "Your ID is awaiting role assignment and approval by Administrator",
 
   PAGE_MUST_BE_A_VALID_NUMBER: "Page must be a valid number",
   PAGE_MUST_BE_GREATER_THAN_ZERO: "Page must be greater than 0",
