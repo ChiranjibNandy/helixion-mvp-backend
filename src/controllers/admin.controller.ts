@@ -4,7 +4,7 @@ import {
   approveUserAndAddRoleService,
   getPendingRegistrationsService,
   deactivateUserService,
-  batchCreateUsersService,
+  bulkProcessUsersService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 
@@ -74,7 +74,7 @@ export const deactivateUser = async (
   }
 };
 
-export const batchCreateUsers = async (
+export const bulkProcessUsers = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -82,12 +82,12 @@ export const batchCreateUsers = async (
   try {
     const { users } = req.body;
 
-    const result = await batchCreateUsersService(users);
+    const result = await bulkProcessUsersService(users);
 
-    return res.status(HTTP_STATUS.CREATED).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: MESSAGES.BATCH_USERS_CREATED,
-      data: { count: result.length },
+      message: MESSAGES.BATCH_USERS_PROCESSED,
+      data: { count: result?.modifiedCount || 0 },
     });
   } catch (error) {
     next(error);

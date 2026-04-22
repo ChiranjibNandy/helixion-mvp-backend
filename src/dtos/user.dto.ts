@@ -13,10 +13,8 @@ export interface CreateUserDto {
    password: string
 }
 
-export interface BatchCreateUserDto {
-   username: string;
+export interface BulkProcessUserDto {
    email: string;
-   password: string;
    role: string;
-   description?: string;
+   action: string;
 }

@@ -3,7 +3,7 @@ import { MESSAGES } from "../constants/messages.js";
 import { ApprovalStatus } from "../constants/approval-status.js";
 import { UserStatus } from "../constants/user-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
-import { BatchCreateUserDto } from "../dtos/user.dto.js";
+import { BulkProcessUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
 import {
@@ -11,7 +11,7 @@ import {
   getUserByIdRepository,
   deactivateUserRepository,
   getUsersByEmailsRepository,
-  batchCreateUsersRepository,
+  bulkProcessUsersRepository,
 } from "../repositories/user.repository.js";
 
 export const getPendingRegistrationsService = async (
@@ -80,32 +80,8 @@ export const deactivateUserService = async (
   await deactivateUserRepository(id);
 };
 
-export const batchCreateUsersService = async (
-  usersData: BatchCreateUserDto[]
+export const bulkProcessUsersService = async (
+  usersData: BulkProcessUserDto[]
 ) => {
-  const emails = usersData.map((u) => u.email);
-  const uniqueEmails = new Set(emails);
-
-  if (uniqueEmails.size !== emails.length) {
-    throw new Error(MESSAGES.DUPLICATE_EMAILS_IN_BATCH);
-  }
-
-  const existingUsers = await getUsersByEmailsRepository(emails);
-
-  if (existingUsers.length > 0) {
-    const existing = existingUsers.map((u) => u.email).join(", ");
-    throw new Error(`${MESSAGES.USERS_ALREADY_EXIST}: ${existing}`);
-  }
-
-  const usersWithHashedPasswords = await Promise.all(
-    usersData.map(async (user) => ({
-      username: user.username,
-      email: user.email,
-      password: await bcrypt.hash(user.password, 10),
-      role: user.role,
-      description: user.description,
-    }))
-  );
-
-  return await batchCreateUsersRepository(usersWithHashedPasswords);
+  return await bulkProcessUsersRepository(usersData);
 };
