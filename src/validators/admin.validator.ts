@@ -47,32 +47,21 @@ export const approveUserBodySchema = z.object({
     .optional(),
 });
 
-export const batchCreateUsersBodySchema = z.object({
+export const bulkProcessUsersBodySchema = z.object({
   users: z.array(
     z.object({
-      username: z
-        .string()
-        .trim()
-        .min(1, { error: MESSAGES.USERNAME_REQUIRED }),
       email: z
         .string()
         .trim()
         .min(1, { error: MESSAGES.EMAIL_REQUIRED })
         .pipe(z.email({ error: MESSAGES.INVALID_EMAIL_FORMAT })),
-      password: z
-        .string()
-        .trim()
-        .min(8, { error: MESSAGES.PASSWORD_MIN_LENGTH })
-        .regex(
-          /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-          { error: MESSAGES.PASSWORD_COMPLEXITY }
-        ),
       role: z
         .string()
         .min(1, MESSAGES.ROLE_REQUIRED),
-      description: z
+      action: z
         .string()
-        .optional(),
+        .optional()
+        .default("approve"),
     })
   ).min(1).max(50),
 });
