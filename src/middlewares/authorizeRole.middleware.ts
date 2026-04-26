@@ -10,7 +10,7 @@ export const authorizeRole = (requiredRole: string) => {
     next: NextFunction
   ) => {
     try {
-      let token = req.cookies.accessToken
+      let token = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
 
 
       if (!token) {
