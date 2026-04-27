@@ -2,9 +2,12 @@ import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import { ApprovalStatus } from "../constants/approval-status.js";
 import { UserStatus } from "../constants/user-status.js";
-import { createUserRepository, getUserByEmailRepository } from "../repositories/user.repository.js";
+import { createUserRepository, getUserByEmailRepository, getUserByIdRepository, updatePasswordRepository } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 import { IUser } from "../interfaces/user.interface.js";
+import { sendResetMail } from "../utils/sendMail.js";
+import { AppError } from "../utils/appError.js";
+import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 // -----------------------------
 // Register User Service
@@ -66,3 +69,56 @@ export const loginService = async (
 
   return user;
 };
+
+//send password reset link for the user email address
+export const sendResetLinkService = async (
+  email: string
+) => {
+
+  const user =
+    await getUserByEmailRepository(email);
+
+  if (!user) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+
+  await sendResetMail(
+    email,
+    user._id.toString(),
+    user.username,
+  );
+};
+
+//Reset password 
+export const resetPasswordService = async (
+  userId: string,
+  newPassword: string,
+  confirmPassword: string
+) => {
+
+  if (newPassword !== confirmPassword) {
+    throw new Error(
+      MESSAGES.PASSWORDS_DO_NOT_MATCH
+    );
+  }
+
+  const user =
+    await getUserByIdRepository(userId);
+
+  if (!user) {
+    throw new Error(
+      MESSAGES.USER_NOT_FOUND
+    );
+  }
+
+  const hashedPassword =
+    await bcrypt.hash(newPassword, 10);
+
+  await updatePasswordRepository(
+    userId,
+    hashedPassword
+  );
+
+};
+

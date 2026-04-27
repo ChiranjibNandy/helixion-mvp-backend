@@ -8,5 +8,7 @@ export const ENV = {
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || "access-secret",
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || "refresh-secret",
   nodeEnv: process.env.NODE_ENV || "development",
-  FRONTEND_URL:process.env.FRONTEND_URL
+  FRONTEND_URL:process.env.FRONTEND_URL,
+  EMAIL_USER:process.env.EMAIL_USER,
+  EMAIL_PASS:process.env.EMAIL_PASS
 };

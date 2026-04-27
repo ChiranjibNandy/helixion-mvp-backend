@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
 
-export const pendingRegistrationsQuerySchema = z.object({
+export const getQuerySchema = z.object({
   page: z
     .string()
     .optional()
@@ -28,6 +28,18 @@ export const pendingRegistrationsQuerySchema = z.object({
     .refine((val) => val <= 100, {
       message: MESSAGES.LIMIT_CANNOT_EXCEED_100,
     }),
+  search: z
+    .string()
+    .optional()
+    .default("")
+    .transform(val => val.trim())
+    .refine(
+      val => val.length <= 50,
+      {
+        message:
+          MESSAGES.SEARCH_CANNOT_EXCEED_50_CHARACTERS
+      }
+    )
 });
 
 export const approveUserParamsSchema = z.object({

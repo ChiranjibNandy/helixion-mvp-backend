@@ -1,10 +1,9 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { ApprovalStatus } from "../constants/approval-status.js";
 import { UserStatus } from "../constants/user-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { BatchCreateUserDto } from "../dtos/user.dto.js";
-import { getPendingRegistrationsRepository } from "../repositories/admin.repository.js";
+import { getPendingRegistrationsRepository, getRegisteredUsersRepository } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
 import {
   approveUserRepository,
@@ -13,6 +12,7 @@ import {
   getUsersByEmailsRepository,
   batchCreateUsersRepository,
 } from "../repositories/user.repository.js";
+
 
 export const getPendingRegistrationsService = async (
   page: number,
@@ -94,7 +94,7 @@ export const batchCreateUsersService = async (
 
   if (existingUsers.length > 0) {
     const existing = existingUsers.map((u) => u.email).join(", ");
-    throw new Error(`${MESSAGES.USERS_ALREADY_EXIST}: ${existing}`);
+    throw new Error(`${ MESSAGES.USERS_ALREADY_EXIST }: ${ existing }`);
   }
 
   const usersWithHashedPasswords = await Promise.all(
@@ -109,3 +109,20 @@ export const batchCreateUsersService = async (
 
   return await batchCreateUsersRepository(usersWithHashedPasswords);
 };
+
+//get all user
+export const getUsersService = async (
+  page: number,
+  limit: number,
+  search: string
+) => {
+
+  return await getRegisteredUsersRepository(
+    page,
+    limit,
+    search
+  );
+
+};
+
+
