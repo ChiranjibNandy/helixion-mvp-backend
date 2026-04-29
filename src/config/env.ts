@@ -2,13 +2,23 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
 export const ENV = {
   PORT: process.env.PORT || "5000",
-  MONGO_URI: process.env.MONGO_URI || "",
-  accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || "access-secret",
-  refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || "refresh-secret",
+  MONGO_URI: requireEnv("MONGO_URI"),
+  accessTokenSecret: requireEnv("ACCESS_TOKEN_SECRET"),
+  refreshTokenSecret: requireEnv("REFRESH_TOKEN_SECRET"),
   nodeEnv: process.env.NODE_ENV || "development",
-  FRONTEND_URL:process.env.FRONTEND_URL,
-  EMAIL_USER:process.env.EMAIL_USER,
-  EMAIL_PASS:process.env.EMAIL_PASS
+  FRONTEND_URL: requireEnv("FRONTEND_URL"),
+  EMAIL_USER: requireEnv("EMAIL_USER"),
+  EMAIL_PASS: requireEnv("EMAIL_PASS"),
 };
