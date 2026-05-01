@@ -186,17 +186,22 @@ export const batchCreateUsers = async (
 export const getUsersController =
   async (
     req: Request,
-    res: Response
+    res: Response,
+    next: NextFunction
   ) => {
-    const { page, limit, search } = req.query
+    try {
+      const { page, limit, search } = req.query
 
-    const users =
-      await getUsersService(Number(page), Number(limit), String(search));
+      const users =
+        await getUsersService(Number(page), Number(limit), String(search));
 
-    res.status(HTTP_STATUS.OK).json({
-      message:
-        MESSAGES.USERS_FETCHED,
-      data: users
-    });
+      res.status(HTTP_STATUS.OK).json({
+        message:
+          MESSAGES.USERS_FETCHED,
+        data: users
+      });
 
+    } catch (error) {
+      next(error)
+    }
   };

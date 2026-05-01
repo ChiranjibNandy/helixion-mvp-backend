@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { getDashboardEnrollmentsService } from "../services/employee.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { AppError } from "../utils/appError.js";
 
 /**
  * Fetch employee dashboard enrollments and available active programs.
@@ -24,7 +25,7 @@ export const getDashboardEnrollments =
       try {
          const userId = req.userId
          if (!userId) {
-            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, message: MESSAGES.USER_ID_REQUIRED })
+            return new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
          }
          const {
             enrollments,

@@ -19,7 +19,7 @@ export const signupService = async (
   const existingUser = await getUserByEmailRepository(userData.email);
 
   if (existingUser) {
-    throw new Error(MESSAGES.USER_ALREADY_EXISTS);
+    throw new AppError(MESSAGES.USER_ALREADY_EXISTS,HTTP_STATUS.CONFLICT);
   }
 
   const hashedPassword = await bcrypt.hash(
@@ -46,7 +46,7 @@ export const loginService = async (
   const user = await getUserByEmailRepository(email);
 
   if (!user) {
-    throw new Error(MESSAGES.USER_NOT_FOUND);
+    throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
   }
 
   // Verify password
@@ -56,7 +56,7 @@ export const loginService = async (
   );
 
   if (!isPasswordValid) {
-    throw new Error(MESSAGES.INVALID_CREDENTIALS);
+    throw new AppError(MESSAGES.INVALID_CREDENTIALS,HTTP_STATUS.CONFLICT);
   }
 
   // Check approval and status
@@ -64,7 +64,7 @@ export const loginService = async (
     user.approval_status !== ApprovalStatus.APPROVED ||
     user.status !== UserStatus.ACTIVE
   ) {
-    throw new Error(MESSAGES.NOT_APPROVED);
+    throw new AppError(MESSAGES.NOT_APPROVED,HTTP_STATUS.CONFLICT);
   }
 
   return user;
@@ -98,8 +98,8 @@ export const resetPasswordService = async (
 ) => {
 
   if (newPassword !== confirmPassword) {
-    throw new Error(
-      MESSAGES.PASSWORDS_DO_NOT_MATCH
+    throw new AppError(
+      MESSAGES.PASSWORDS_DO_NOT_MATCH,HTTP_STATUS.CONFLICT
     );
   }
 
@@ -107,8 +107,8 @@ export const resetPasswordService = async (
     await getUserByIdRepository(userId);
 
   if (!user) {
-    throw new Error(
-      MESSAGES.USER_NOT_FOUND
+    throw new AppError(
+      MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND
     );
   }
 

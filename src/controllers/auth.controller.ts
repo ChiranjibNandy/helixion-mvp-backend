@@ -88,7 +88,6 @@ export const login = async (
     setRefreshTokenCookie(res, refreshToken);
     setAccessTokenCookie(res, accessToken)
 
-    console.log(accessToken)
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -118,18 +117,23 @@ export const login = async (
 export const sendResetLinkController =
   async (
     req: Request,
-    res: Response
+    res: Response,
+    next: NextFunction
   ) => {
 
-    await sendResetLinkService(
-      req.body.email
-    );
+    try {
+      await sendResetLinkService(
+        req.body.email
+      );
 
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message:
-        MESSAGES.RESET_LINK_SENT
-    });
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message:
+          MESSAGES.RESET_LINK_SENT
+      });
+    } catch (error) {
+      next(error)
+    }
 
   };
 
@@ -153,24 +157,29 @@ export const sendResetLinkController =
 export const resetPasswordController =
   async (
     req: Request,
-    res: Response
+    res: Response,
+    next: NextFunction
   ) => {
 
-    const {
-      userId,
-      newPassword,
-      confirmPassword
-    } = req.body;
+    try {
+      const {
+        userId,
+        newPassword,
+        confirmPassword
+      } = req.body;
 
-    await resetPasswordService(
-      userId,
-      newPassword,
-      confirmPassword
-    );
+      await resetPasswordService(
+        userId,
+        newPassword,
+        confirmPassword
+      );
 
-    res.status(HTTP_STATUS.OK).json({
-      message:
-        MESSAGES.PASSWORD_UPDATED
-    });
+      res.status(HTTP_STATUS.OK).json({
+        message:
+          MESSAGES.PASSWORD_UPDATED
+      });
 
+    } catch (error) {
+      next(error)
+    }
   };

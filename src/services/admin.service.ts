@@ -12,6 +12,8 @@ import {
   getUsersByEmailsRepository,
   batchCreateUsersRepository,
 } from "../repositories/user.repository.js";
+import { AppError } from "../utils/appError.js";
+import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 
 export const getPendingRegistrationsService = async (
@@ -55,7 +57,7 @@ export const approveUserAndAddRoleService = async (
     );
 
   if (!updatedUser) {
-    throw new Error(MESSAGES.USER_NOT_FOUND);
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 };
 
