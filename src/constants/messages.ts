@@ -45,5 +45,7 @@ export const MESSAGES = {
   USERS_FETCHED: "Registered users fetched successfully",
   RESET_LINK_SENT: "Password reset link sent successfully",
   PASSWORD_UPDATED: "Password updated successfully",
-  SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters"
+  SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters",
+
+  RATE_LIMIT : "Too many reset attempts, try later"
 } as const;
