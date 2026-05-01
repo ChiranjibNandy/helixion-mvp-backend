@@ -61,6 +61,35 @@ export const getUsersByEmailsRepository = async (
    return await User.find({ email: { $in: emails } });
 };
 
+export const searchUsersRepository = async (
+   query: string,
+   page: number,
+   limit: number
+) => {
+   const filter: Record<string, unknown> = {
+      approval_status: ApprovalStatus.APPROVED,
+   };
+
+   if (query) {
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+         { username: { $regex: escapedQuery, $options: "i" } },
+         { email: { $regex: escapedQuery, $options: "i" } },
+      ];
+   }
+
+   const [users, total] = await Promise.all([
+      User.find(filter)
+         .select("-password")
+         .sort({ createdAt: -1 })
+         .skip((page - 1) * limit)
+         .limit(limit),
+      User.countDocuments(filter),
+   ]);
+
+   return { users, total };
+};
+
 export const batchCreateUsersRepository = async (
    users: Partial<IUser>[]
 ) => {

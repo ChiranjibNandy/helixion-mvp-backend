@@ -11,6 +11,7 @@ import {
   deactivateUserRepository,
   getUsersByEmailsRepository,
   batchCreateUsersRepository,
+  searchUsersRepository,
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -127,4 +128,31 @@ export const getUsersService = async (
 
 };
 
+export const searchUsersService = async (
+  query: string,
+  page: number,
+  limit: number
+) => {
+  const { users, total } = await searchUsersRepository(query, page, limit);
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: users.map(user => ({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      approval_status: user.approval_status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    })),
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages,
+    },
+  };
+};
 

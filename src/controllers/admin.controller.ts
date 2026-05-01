@@ -6,6 +6,7 @@ import {
   deactivateUserService,
   batchCreateUsersService,
   getUsersService,
+  searchUsersService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 
@@ -25,6 +26,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
  *
  * Returns:
  * Paginated pending registration users
+ * 
  */
 
 export const getPendingRegistrations = async (
@@ -190,10 +192,10 @@ export const getUsersController =
     next: NextFunction
   ) => {
     try {
-      const { page, limit, search } = req.query
+      const { page, limit, q } = req.query
 
       const users =
-        await getUsersService(Number(page), Number(limit), String(search));
+        await getUsersService(Number(page), Number(limit), String(q));
 
       res.status(HTTP_STATUS.OK).json({
         message:
@@ -205,3 +207,29 @@ export const getUsersController =
       next(error)
     }
   };
+
+
+  //search approved User
+
+export const searchUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const query = (req.query.q as string) || "";
+
+    const result = await searchUsersService(query, page, limit);
+
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message:MESSAGES.USERS_FETCHED,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

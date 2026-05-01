@@ -42,7 +42,7 @@ export const MESSAGES = {
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
   USERS_ALREADY_EXIST: "Some users already exist",
 
-  USERS_FETCHED: "Registered users fetched successfully",
+  USERS_FETCHED: "users fetched successfully",
   RESET_LINK_SENT: "Password reset link sent successfully",
   PASSWORD_UPDATED: "Password updated successfully",
   SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters",
