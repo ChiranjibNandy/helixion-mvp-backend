@@ -61,24 +61,37 @@ export const getUsersByEmailsRepository = async (
    return await User.find({ email: { $in: emails } });
 };
 
-export const bulkProcessUsersRepository = async (
-   users: { email: string; role: string; action: string }[]
+export const searchUsersRepository = async (
+   query: string,
+   page: number,
+   limit: number
 ) => {
-   const bulkOps = users.map((user) => ({
-      updateOne: {
-         filter: { email: user.email },
-         update: {
-            $set: {
-               role: user.role,
-               status: UserStatus.ACTIVE,
-               approval_status: ApprovalStatus.APPROVED,
-            },
-         },
-      },
-   }));
+   const filter: Record<string, unknown> = {
+      approval_status: ApprovalStatus.APPROVED,
+   };
 
-   if (bulkOps.length > 0) {
-      return await User.bulkWrite(bulkOps);
+   if (query) {
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+         { username: { $regex: escapedQuery, $options: "i" } },
+         { email: { $regex: escapedQuery, $options: "i" } },
+      ];
    }
-   return null;
+
+   const [users, total] = await Promise.all([
+      User.find(filter)
+         .select("-password")
+         .sort({ createdAt: -1 })
+         .skip((page - 1) * limit)
+         .limit(limit),
+      User.countDocuments(filter),
+   ]);
+
+   return { users, total };
+};
+
+export const batchCreateUsersRepository = async (
+   users: Partial<IUser>[]
+) => {
+   return await User.insertMany(users);
 };

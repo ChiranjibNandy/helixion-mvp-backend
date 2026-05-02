@@ -11,7 +11,8 @@ import {
   getUserByIdRepository,
   deactivateUserRepository,
   getUsersByEmailsRepository,
-  bulkProcessUsersRepository,
+  batchCreateUsersRepository,
+  searchUsersRepository,
 } from "../repositories/user.repository.js";
 
 export const getPendingRegistrationsService = async (
@@ -80,8 +81,60 @@ export const deactivateUserService = async (
   await deactivateUserRepository(id);
 };
 
-export const bulkProcessUsersService = async (
-  usersData: BulkProcessUserDto[]
+export const batchCreateUsersService = async (
+  usersData: BatchCreateUserDto[]
 ) => {
-  return await bulkProcessUsersRepository(usersData);
+  const emails = usersData.map((u) => u.email);
+  const uniqueEmails = new Set(emails);
+
+  if (uniqueEmails.size !== emails.length) {
+    throw new Error(MESSAGES.DUPLICATE_EMAILS_IN_BATCH);
+  }
+
+  const existingUsers = await getUsersByEmailsRepository(emails);
+
+  if (existingUsers.length > 0) {
+    const existing = existingUsers.map((u) => u.email).join(", ");
+    throw new Error(`${MESSAGES.USERS_ALREADY_EXIST}: ${existing}`);
+  }
+
+  const usersWithHashedPasswords = await Promise.all(
+    usersData.map(async (user) => ({
+      username: user.username,
+      email: user.email,
+      password: await bcrypt.hash(user.password, 10),
+      role: user.role,
+      description: user.description,
+    }))
+  );
+
+  return await batchCreateUsersRepository(usersWithHashedPasswords);
+};
+
+export const searchUsersService = async (
+  query: string,
+  page: number,
+  limit: number
+) => {
+  const { users, total } = await searchUsersRepository(query, page, limit);
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: users.map(user => ({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      approval_status: user.approval_status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    })),
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages,
+    },
+  };
 };
