@@ -95,3 +95,22 @@ export const batchCreateUsersRepository = async (
 ) => {
    return await User.insertMany(users);
 };
+
+
+//update user's password 
+export const updatePasswordRepository = async (
+   userId: string,
+   hashedPassword: string
+) => {
+
+   return await User.findByIdAndUpdate(
+      userId,
+      {
+         password: hashedPassword
+      },
+      {
+         new: true
+      }
+   );
+
+};
