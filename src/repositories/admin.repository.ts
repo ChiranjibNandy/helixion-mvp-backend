@@ -27,3 +27,61 @@ export const getPendingRegistrationsRepository = async (
 
    return { users, total };
 };
+
+//return all the user who registerd 
+export const getRegisteredUsersRepository =
+   async (
+      page: number,
+      limit: number,
+      search: string
+   ) => {
+      const skip =
+         (page - 1) * limit;
+      let query = {};
+      if (search) {
+         query = {
+            $or: [
+               {
+                  username: {
+                     $regex: search,
+                     $options: "i"
+                  }
+               },
+               {
+                  email: {
+                     $regex: search,
+                     $options: "i"
+                  }
+               }
+            ]
+         };
+
+      }
+
+      const [users, total] =
+         await Promise.all([
+
+            User.find(
+               query,
+               {
+                  username: 1,
+                  email: 1
+               }
+            )
+               .skip(skip)
+               .limit(limit),
+
+            User.countDocuments(query)
+         ]);
+      return {
+         users,
+         pagination: {
+            total,
+            page,
+            limit,
+            totalPages:
+               Math.ceil(total / limit)
+         }
+      };
+
+   };

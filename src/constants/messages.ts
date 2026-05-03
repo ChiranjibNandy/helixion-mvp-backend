@@ -15,7 +15,7 @@ export const MESSAGES = {
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
   USER_APPROVED_SUCCESSFULLY: "User approved successfully",
-  NOT_APPROVED : "Your ID is awaiting role assignment and approval by Administrator",
+  NOT_APPROVED: "Your ID is awaiting role assignment and approval by Administrator",
 
   PAGE_MUST_BE_A_VALID_NUMBER: "Page must be a valid number",
   PAGE_MUST_BE_GREATER_THAN_ZERO: "Page must be greater than 0",
@@ -30,7 +30,7 @@ export const MESSAGES = {
   INVALID_OR_EXPIRED_TOKEN: "Invalid or expired token",
   ACCESS_DENIED: "Access denied",
   USER_ID_REQUIRED: "User Id is required",
-  ROLE_REQUIRED:"Role is required",
+  ROLE_REQUIRED: "Role is required",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
 
@@ -41,4 +41,11 @@ export const MESSAGES = {
   BATCH_USERS_PROCESSED: "Bulk users processed successfully",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
   USERS_ALREADY_EXIST: "Some users already exist",
+
+  USERS_FETCHED: "users fetched successfully",
+  RESET_LINK_SENT: "Password reset link sent successfully",
+  PASSWORD_UPDATED: "Password updated successfully",
+  SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters",
+
+  RATE_LIMIT : "Too many reset attempts, try later"
 } as const;
