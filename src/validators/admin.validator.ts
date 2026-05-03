@@ -89,7 +89,7 @@ export const approveUserBodySchema = z.object({
     .optional(),
 });
 
-export const bulkProcessUsersBodySchema = z.object({
+export const batchCreateUsersBodySchema = z.object({
   users: z.array(
     z.object({
       email: z

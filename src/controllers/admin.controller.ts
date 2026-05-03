@@ -132,21 +132,24 @@ export const deactivateUser = async (
 };
 
 /**
- * Bulk create multiple users.
+ * Bulk import users from CSV upload.
  *
  * Route:
- * POST /users/batch
+ * POST /api/admin/users/batch
  *
  * Body:
- * - users[]
+ * - users: [{ email, role, action? }]
+ *
+ * Actions:
+ * - "approve": Create user if email doesn't exist, skip if it does
+ * - "update": Update role if email exists, skip if it doesn't
  *
  * Access:
  * Admin only
  *
  * Returns:
- * Created users summary
+ * Created, updated, and skipped counts
  */
-
 export const batchCreateUsers = async (
   req: Request,
   res: Response,
@@ -155,12 +158,17 @@ export const batchCreateUsers = async (
   try {
     const { users } = req.body;
 
-    const result = await bulkProcessUsersService(users);
+    const result = await batchCreateUsersService(users);
 
     return res.status(HTTP_STATUS.CREATED).json({
       success: true,
-      message: MESSAGES.BATCH_USERS_CREATED,
-      data: { count: result.length },
+      message: MESSAGES.BATCH_USERS_PROCESSED,
+      data: {
+        createdCount: result.createdCount,
+        updatedCount: result.updatedCount,
+        skippedCount: result.skippedCount,
+        skippedEmails: result.skippedEmails,
+      },
     });
   } catch (error) {
     next(error);

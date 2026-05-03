@@ -114,3 +114,15 @@ export const updatePasswordRepository = async (
    );
 
 };
+
+//update user's role
+export const updateUserRoleRepository = async (
+   email: string,
+   role: string
+) => {
+   return await User.findOneAndUpdate(
+      { email },
+      { role },
+      { new: true }
+   );
+};

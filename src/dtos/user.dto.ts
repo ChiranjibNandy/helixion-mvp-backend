@@ -13,8 +13,8 @@ export interface CreateUserDto {
    password: string
 }
 
-export interface BulkProcessUserDto {
+export interface BulkUploadUserDto {
    email: string;
    role: string;
-   action: string;
+   action?: string;
 }
