@@ -58,5 +58,7 @@ export const MESSAGES = {
   END_DATE_REQUIRED:"End date is required",
   VENUE_REQUIRED:"Venue is required",
   MIN_PARTICIPANT_REQUIRED:"Min participants required",
-  MAX_PARTICIPANT_REQUIRED:"Max participants required"
+  MAX_PARTICIPANT_REQUIRED:"Max participants required",
+
+  UPLOAD_FAIL:"Upload failed"
 } as const;

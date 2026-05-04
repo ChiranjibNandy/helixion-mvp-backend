@@ -4,6 +4,7 @@ import { createProgramSchema } from "../validators/training_provider.validator.j
 import { createProgram } from "../controllers/training_provider.controller.js";
 import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.use(authorizeRole(ROLE.TRAINING_PROVIDER));
 router.post(
    "/program",
    validate({ body: createProgramSchema }),
+   upload.single("brochure"),
    createProgram
 );
 
