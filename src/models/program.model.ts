@@ -82,7 +82,7 @@ const programSchema = new Schema<IProgram>(
       },
       training_providerId: {
          type: Schema.Types.ObjectId,
-         ref: "User", // or "TrainingProvider" (depends on your model)
+         ref: "User", 
          required: true,
          index: true,
       },
