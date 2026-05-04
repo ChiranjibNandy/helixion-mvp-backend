@@ -12,12 +12,12 @@ const router = express.Router();
 
 router.use(authorizeRole(ROLE.ADMIN));
 
-//all user
-router.get("/users", validate({ query: searchUsersQuerySchema }),getUsersController);
+//all users (for reset-password flow)
+router.get("/users", validate({ query: searchUsersQuerySchema }), getUsersController);
 //pending user
 router.get("/registrations", validate({ query: searchUsersQuerySchema }), getPendingRegistrations);
-//approved user
-router.get("/users", validate({ query: searchUsersQuerySchema }), searchUsers);
+//search approved users (for deactivate flow)
+router.get("/users/search", validate({ query: searchUsersQuerySchema }), searchUsers);
 router.post("/users/batch", validate({ body: batchCreateUsersBodySchema }), batchCreateUsers);
 router.patch("/users/:id", validate({ params: approveUserParamsSchema, body: approveUserBodySchema }), approveUser);
 router.patch("/users/:id/deactivate", validate({ params: approveUserParamsSchema }), deactivateUser);

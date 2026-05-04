@@ -38,9 +38,11 @@ export const MESSAGES = {
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   CANNOT_DEACTIVATE_SELF: "Cannot deactivate your own account",
 
-  BATCH_USERS_CREATED: "Bulk users created successfully",
+  BATCH_USERS_PROCESSED: "Bulk users processed successfully",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
   USERS_ALREADY_EXIST: "Some users already exist",
+  WELCOME_EMAIL_SUBJECT: "Welcome to Helixon — Your Account Credentials",
+  WELCOME_EMAIL_SEND_FAILED: "Failed to send welcome email",
 
   USERS_FETCHED: "users fetched successfully",
   RESET_LINK_SENT: "Password reset link sent successfully",
