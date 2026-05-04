@@ -3,6 +3,7 @@ import { getDashboardEnrollmentsService } from "../services/employee.service.js"
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
+import { programResponseMapper } from "../mapper/program.mapper.js";
 
 /**
  * Fetch employee dashboard enrollments and available active programs.
@@ -37,7 +38,7 @@ export const getDashboardEnrollments =
             message: MESSAGES.ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM,
             data: {
                enrollments,
-               availablePrograms
+               availablePrograms:programResponseMapper(availablePrograms)
             }
          });
 

@@ -18,12 +18,6 @@ export enum PROGRAM_SAVED_STATUS{
   PUBLISHED = "published"
 }
 
-//program status
-
-export enum PROGRAM_STATUS {
-   ACTIVE = "active",
-   INACTIVE = "inactive"
-}
 
 export enum APPROVAL_STATUS {
   APPROVED = "approved",
