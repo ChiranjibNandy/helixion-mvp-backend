@@ -6,7 +6,7 @@ import { MESSAGES } from "../constants/messages.js";
 
 export const createProgram = async (req: Request, res: Response, next: NextFunction) => {
    try {
-      const program = await createProgramService(req.body);
+      const program = await createProgramService({ ...req.body, training_providerId: req.userId });
 
       return res.status(HTTP_STATUS.CREATED).json({
          success: true,

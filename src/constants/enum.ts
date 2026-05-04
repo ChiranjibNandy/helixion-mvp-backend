@@ -2,7 +2,8 @@
 
 export enum ROLE {
   ADMIN = "admin",
-  EMPLOYEE = "employee"
+  EMPLOYEE = "employee",
+  TRAINING_PROVIDER = "training-provider"
 }
 
 export enum STAY_TYPE {
