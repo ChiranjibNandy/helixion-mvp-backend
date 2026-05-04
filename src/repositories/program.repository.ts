@@ -9,10 +9,24 @@ export const getAvailableProgramsRepository = async () => {
   })
 };
 
+//create program
+
 export const createProgramRepo = async (data: IProgram) => {
   return await Program.create(data);
+};
+
+//update program
+
+export const updateProgramRepo = (_id: string, data: any) => {
+  console.log(data)
+  return Program.findByIdAndUpdate(
+    _id,
+    { $set: data },
+    { new: true, runValidators: true }
+  );
 };
 
 export const programBulkInsert = async (data: any[]) => {
   return await Program.insertMany(data);
 };
+

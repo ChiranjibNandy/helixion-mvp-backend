@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { bulkCreateProgramService, createProgramService } from "../services/training_provider.service.js";
+import { bulkCreateProgramService, createOrUpdateProgramService  } from "../services/training_provider.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -7,8 +7,10 @@ import { AppError } from "../utils/appError.js";
 
 export const createProgram = async (req: Request, res: Response, next: NextFunction) => {
    try {
+
       const file = req.file;
-      const program = await createProgramService({ ...req.body, training_providerId: req.userId, file });
+
+      const program = await createOrUpdateProgramService ({ ...req.body, training_providerId: req.userId, file });
 
       return res.status(HTTP_STATUS.CREATED).json({
          success: true,

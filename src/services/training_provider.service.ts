@@ -1,5 +1,5 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
-import { createProgramRepo, programBulkInsert } from "../repositories/program.repository.js";
+import { createProgramRepo, programBulkInsert, updateProgramRepo } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import fs from "fs";
 import csv from "csv-parser";
@@ -10,10 +10,21 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 
 
-export const createProgramService = async (data: createProgramReq) => {
+export const createOrUpdateProgramService = async (data: createProgramReq) => {
   let brochureUrl: string | undefined;
   if (data.file) {
     brochureUrl = await uploadToCloudinary(data.file);
+  }
+  const payload = {
+    ...data,
+    brochureUrl,
+  };
+
+  // remove file before DB operation
+  delete (payload as any).file;
+
+  if (data._id) {
+    return await updateProgramRepo(data._id.toString(), payload);
   }
   return await createProgramRepo({ ...data, brochureUrl });
 };
