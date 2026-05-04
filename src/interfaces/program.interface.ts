@@ -16,6 +16,7 @@ export interface IProgram {
   minParticipants?: number;
   maxParticipants?: number;
   status: PROGRAM_SAVED_STATUS.DRAFT | PROGRAM_SAVED_STATUS.PUBLISHED;
+  training_providerId: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }

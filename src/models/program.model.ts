@@ -80,6 +80,12 @@ const programSchema = new Schema<IProgram>(
          enum: [PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED],
          default: PROGRAM_SAVED_STATUS.DRAFT,
       },
+      training_providerId: {
+         type: Schema.Types.ObjectId,
+         ref: "User", // or "TrainingProvider" (depends on your model)
+         required: true,
+         index: true,
+      },
    },
    {
       timestamps: true,
