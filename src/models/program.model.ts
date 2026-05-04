@@ -1,48 +1,37 @@
 import mongoose, { Schema } from "mongoose";
 import { IProgram } from "../interfaces/program.interface.js";
+import { PROGRAM_STATUS, STAY_TYPE } from "../constants/enum.js";
 
 const programSchema = new Schema<IProgram>(
    {
-      name: {
+      title: { type: String, required: true },
+
+      startDate: Date,
+      endDate: Date,
+      venue: String,
+
+      isResidential: Boolean,
+      stayType: {
          type: String,
-         required: true,
-         trim: true
+         enum: [STAY_TYPE.SINGLE, STAY_TYPE.TWIN],
       },
 
-      description: {
-         type: String,
-         required: true
-      },
+      singleOccupancyFee: Number,
+      twinSharingFee: Number,
+      nonResidentialFee: Number,
 
-      duration: {
-         type: String,
-         required: true
-      },
+      brochureUrl: String,
+
+      minParticipants: Number,
+      maxParticipants: Number,
 
       status: {
          type: String,
-         enum: ["active", "inactive"],
-         default: "active"
-      },
-
-      fee: {
-         type: Number,
-         required: true
-      },
-
-      mode: {
-         type: String,
-         enum: ["online", "offline"],
-         required: true
-      },
-      location:{
-         type:String,
-         required:true
+         enum: [PROGRAM_STATUS.DRAFT, PROGRAM_STATUS.PUBLISHED],
+         default: PROGRAM_STATUS.DRAFT,
       },
    },
-   {
-      timestamps: true
-   }
+   { timestamps: true }
 );
 
 export default mongoose.model<IProgram>("Program", programSchema);
