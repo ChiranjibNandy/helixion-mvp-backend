@@ -51,4 +51,6 @@ export const MESSAGES = {
 
   END_DATE_AFTER_START: "End date must be after start date",
   MAX_PARTICIPANTS_INVALID: "Max participants must be >= min participants",
+
+  PROGRAM_CREATED: "Program created successfully"
 } as const;
