@@ -2,5 +2,10 @@ import { IProgram } from "../interfaces/program.interface.js";
 import { MulterFile } from "../types/multer.js";
 
 export interface createProgramReq extends IProgram {
-   file:MulterFile
+   file: MulterFile
 }
+
+export interface BulkInput {
+   file: Express.Multer.File;
+   training_providerId?: string;
+};

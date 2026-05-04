@@ -12,3 +12,7 @@ export const getAvailableProgramsRepository = async () => {
 export const createProgramRepo = async (data: IProgram) => {
   return await Program.create(data);
 };
+
+export const programBulkInsert = async (data: any[]) => {
+  return await Program.insertMany(data);
+};

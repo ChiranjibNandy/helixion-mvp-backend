@@ -49,3 +49,30 @@ export const createProgramSchema = baseProgramSchema.superRefine((data, ctx) => 
       }
    }
 });
+
+//validation for bulk program creation
+
+export const bulkProgramRowSchema = z.object({
+  title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
+
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  venue: z.string().optional(),
+
+  isResidential: z.coerce.boolean().optional(),
+  stayType: z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional(),
+
+  singleOccupancyFee: z.coerce.number().min(0).optional(),
+  twinSharingFee: z.coerce.number().min(0).optional(),
+  nonResidentialFee: z.coerce.number().min(0).optional(),
+
+  brochureUrl: z.string().url().optional(),
+
+  minParticipants: z.coerce.number().min(1).optional(),
+  maxParticipants: z.coerce.number().min(1).optional(),
+
+  status: z.enum([
+    PROGRAM_SAVED_STATUS.DRAFT,
+    PROGRAM_SAVED_STATUS.PUBLISHED,
+  ]),
+});
