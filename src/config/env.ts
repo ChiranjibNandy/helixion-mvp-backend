@@ -21,4 +21,5 @@ export const ENV = {
   FRONTEND_URL: requireEnv("FRONTEND_URL"),
   EMAIL_USER: requireEnv("EMAIL_USER"),
   EMAIL_PASS: requireEnv("EMAIL_PASS"),
+  DEFAULT_PASSWORD: process.env.DEFAULT_PASSWORD || "Helixon@123",
 };
