@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { PROGRAM_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
 
 export interface IProgram {
   _id?: Types.ObjectId
@@ -15,7 +15,7 @@ export interface IProgram {
   brochureUrl?: string;
   minParticipants?: number;
   maxParticipants?: number;
-  status: PROGRAM_STATUS.DRAFT | PROGRAM_STATUS.PUBLISHED;
+  status: PROGRAM_SAVED_STATUS.DRAFT | PROGRAM_SAVED_STATUS.PUBLISHED;
   createdAt: Date;
   updatedAt: Date;
 }

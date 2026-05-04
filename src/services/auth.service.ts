@@ -1,13 +1,12 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { ApprovalStatus } from "../constants/approval-status.js";
-import { UserStatus } from "../constants/user-status.js";
 import { createUserRepository, getUserByEmailRepository, getUserByIdRepository, updatePasswordRepository } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 
 // -----------------------------
 // Register User Service
@@ -61,8 +60,8 @@ export const loginService = async (
 
   // Check approval and status
   if (
-    user.approval_status !== ApprovalStatus.APPROVED ||
-    user.status !== UserStatus.ACTIVE
+    user.approval_status !== APPROVAL_STATUS.APPROVED ||
+    user.status !== USER_STATUS.ACTIVE
   ) {
     throw new AppError(MESSAGES.NOT_APPROVED,HTTP_STATUS.CONFLICT);
   }

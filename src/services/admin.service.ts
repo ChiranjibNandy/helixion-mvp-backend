@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { UserStatus } from "../constants/user-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { BatchCreateUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepository, getRegisteredUsersRepository } from "../repositories/admin.repository.js";
@@ -15,6 +14,7 @@ import {
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { USER_STATUS } from "../constants/enum.js";
 
 
 export const getPendingRegistrationsService = async (
@@ -76,7 +76,7 @@ export const deactivateUserService = async (
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
 
-  if (user.status === UserStatus.DEACTIVE) {
+  if (user.status === USER_STATUS.DEACTIVE) {
     throw new Error(MESSAGES.USER_ALREADY_DEACTIVATED);
   }
 

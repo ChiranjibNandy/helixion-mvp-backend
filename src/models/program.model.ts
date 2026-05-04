@@ -1,37 +1,90 @@
 import mongoose, { Schema } from "mongoose";
 import { IProgram } from "../interfaces/program.interface.js";
-import { PROGRAM_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { MESSAGES } from "../constants/messages.js";
 
 const programSchema = new Schema<IProgram>(
    {
-      title: { type: String, required: true },
+      title: {
+         type: String,
+         required: true,
+         trim: true,
+      },
 
-      startDate: Date,
-      endDate: Date,
-      venue: String,
+      startDate: {
+         type: Date,
+      },
 
-      isResidential: Boolean,
+      endDate: {
+         type: Date,
+         validate: {
+            validator: function (this: IProgram, value: Date) {
+               if (!this.startDate || !value) return true;
+               return value >= this.startDate;
+            },
+            message: MESSAGES.END_DATE_AFTER_START,
+         },
+      },
+
+      venue: {
+         type: String,
+         trim: true,
+      },
+
+      isResidential: {
+         type: Boolean,
+         default: false,
+      },
+
       stayType: {
          type: String,
          enum: [STAY_TYPE.SINGLE, STAY_TYPE.TWIN],
       },
 
-      singleOccupancyFee: Number,
-      twinSharingFee: Number,
-      nonResidentialFee: Number,
+      singleOccupancyFee: {
+         type: Number,
+         min: 0,
+      },
 
-      brochureUrl: String,
+      twinSharingFee: {
+         type: Number,
+         min: 0,
+      },
 
-      minParticipants: Number,
-      maxParticipants: Number,
+      nonResidentialFee: {
+         type: Number,
+         min: 0,
+      },
 
+      brochureUrl: {
+         type: String,
+      },
+
+      minParticipants: {
+         type: Number,
+         min: 1,
+      },
+
+      maxParticipants: {
+         type: Number,
+         validate: {
+            validator: function (this: IProgram, value: number) {
+               if (!this.minParticipants || !value) return true;
+               return value >= this.minParticipants;
+            },
+            message: MESSAGES.MAX_PARTICIPANTS_INVALID,
+         },
+      },
       status: {
          type: String,
-         enum: [PROGRAM_STATUS.DRAFT, PROGRAM_STATUS.PUBLISHED],
-         default: PROGRAM_STATUS.DRAFT,
+         enum: [PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED],
+         default: PROGRAM_SAVED_STATUS.DRAFT,
       },
    },
-   { timestamps: true }
+   {
+      timestamps: true,
+   }
 );
+
 
 export default mongoose.model<IProgram>("Program", programSchema);

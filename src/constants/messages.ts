@@ -47,5 +47,8 @@ export const MESSAGES = {
   PASSWORD_UPDATED: "Password updated successfully",
   SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters",
 
-  RATE_LIMIT : "Too many reset attempts, try later"
+  RATE_LIMIT: "Too many reset attempts, try later",
+
+  END_DATE_AFTER_START: "End date must be after start date",
+  MAX_PARTICIPANTS_INVALID: "Max participants must be >= min participants",
 } as const;
