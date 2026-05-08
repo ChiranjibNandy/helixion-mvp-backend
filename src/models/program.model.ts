@@ -30,17 +30,6 @@ const programSchema = new Schema<IProgram>(
          type: String,
          trim: true,
       },
-
-      isResidential: {
-         type: Boolean,
-         default: false,
-      },
-
-      stayType: {
-         type: String,
-         enum: [STAY_TYPE.SINGLE, STAY_TYPE.TWIN],
-      },
-
       singleOccupancyFee: {
          type: Number,
          min: 0,

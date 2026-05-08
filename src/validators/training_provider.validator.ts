@@ -10,9 +10,6 @@ export const baseProgramSchema = z.object({
    endDate: z.string().optional(),
    venue: z.string().optional(),
 
-   isResidential: z.boolean().optional(),
-   stayType: z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional(),
-
    singleOccupancyFee: z.coerce.number().min(0).optional(),
    twinSharingFee: z.coerce.number().min(0).optional(),
    nonResidentialFee: z.coerce.number().min(0).optional(),

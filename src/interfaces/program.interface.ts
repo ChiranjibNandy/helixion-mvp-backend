@@ -7,8 +7,6 @@ export interface IProgram {
   startDate: Date;
   endDate?: Date;
   venue?: string;
-  isResidential?: boolean;
-  stayType?: STAY_TYPE.SINGLE | STAY_TYPE.TWIN;
   singleOccupancyFee?: number;
   twinSharingFee?: number;
   nonResidentialFee?: number;
