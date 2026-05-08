@@ -82,10 +82,13 @@ const programSchema = new Schema<IProgram>(
       },
       training_providerId: {
          type: Schema.Types.ObjectId,
-         ref: "User", 
+         ref: "User",
          required: true,
          index: true,
       },
+      batchId: {
+         type: String
+      }
    },
    {
       timestamps: true,

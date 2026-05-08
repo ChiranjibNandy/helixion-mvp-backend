@@ -17,6 +17,7 @@ export interface IProgram {
   maxParticipants?: number;
   status: PROGRAM_SAVED_STATUS.DRAFT | PROGRAM_SAVED_STATUS.PUBLISHED;
   training_providerId: Types.ObjectId;
+  batchId?:string
   createdAt: Date;
   updatedAt: Date;
 }

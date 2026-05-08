@@ -15,17 +15,14 @@ export const createProgramRepo = async (data: IProgram) => {
   return await Program.create(data);
 };
 
-//update program
-
-export const updateProgramRepo = (_id: string, data: any) => {
-  return Program.findByIdAndUpdate(
-    _id,
-    { $set: data },
-    { new: true, runValidators: true }
-  );
-};
 
 export const programBulkInsert = async (data: any[]) => {
   return await Program.insertMany(data);
+};
+
+export const getLastBatchId = async () => {
+  return await Program.findOne({
+    batchId: { $ne: null },
+  }).sort({ createdAt: -1 });
 };
 

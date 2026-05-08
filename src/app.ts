@@ -2,7 +2,7 @@ import express from "express";
 import authRoutes from './routes/auth.routes.js'
 import adminRoutes from './routes/admin.routes.js'
 import employeeRoutes from './routes/employee.routes.js'
-import trainingProviderRoutes from './routes/training_provider.routed.js'
+import trainingProviderRoutes from './routes/training_provider.routes.js'
 import { corsMiddleware } from "./middlewares/cors.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";

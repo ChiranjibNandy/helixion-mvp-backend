@@ -15,7 +15,7 @@ router.use(authorizeRole(ROLE.TRAINING_PROVIDER));
 //create programme
 
 router.post(
-  "/program",
+  "/create/program",
   validate({ body: createProgramSchema }),
   upload.single("brochure"),
   createProgram
@@ -24,8 +24,7 @@ router.post(
 //Upload bulk program
 
 router.post(
-  "/program/bulk",
-  upload.single("file"),
+  "/create-bulk/program",
   bulkCreateProgram
 );
 

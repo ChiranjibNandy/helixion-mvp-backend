@@ -1,5 +1,5 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
-import { createProgramRepo, programBulkInsert, updateProgramRepo } from "../repositories/program.repository.js";
+import { createProgramRepo, getLastBatchId, programBulkInsert } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import fs from "fs";
 import csv from "csv-parser";
@@ -10,7 +10,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 
 
-export const createOrUpdateProgramService = async (data: createProgramReq) => {
+export const createProgramService = async (data: createProgramReq) => {
   let brochureUrl: string | undefined;
   if (data.file) {
     brochureUrl = await uploadToCloudinary(data.file);
@@ -23,9 +23,6 @@ export const createOrUpdateProgramService = async (data: createProgramReq) => {
   // remove file before DB operation
   delete (payload as any).file;
 
-  if (data._id) {
-    return await updateProgramRepo(data._id.toString(), payload);
-  }
   return await createProgramRepo({ ...data, brochureUrl });
 };
 
@@ -50,6 +47,17 @@ export const bulkCreateProgramService = async ({
   const validPrograms: any[] = [];
   const errors: any[] = [];
 
+  // get last batch
+  const lastBatch = await getLastBatchId();
+
+  // extract last batch number
+  const lastBatchNumber =
+    Number(lastBatch?.batchId?.split("_")[1]) || 0;
+
+  // generate ONE batchId for this upload
+  const newBatchId = `batch_${ lastBatchNumber + 1 }`;
+
+
   results.forEach((row, index) => {
     const parsed = bulkProgramRowSchema.safeParse(row);
 
@@ -65,6 +73,7 @@ export const bulkCreateProgramService = async ({
       validPrograms.push({
         ...parsed.data,
         training_providerId,
+        batchId: newBatchId
       });
     }
   });
