@@ -91,7 +91,8 @@ export const login = async (
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY
+      message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
+      accessToken
     });
 
   } catch (error) {
