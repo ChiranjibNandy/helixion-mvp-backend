@@ -86,13 +86,12 @@ export const login = async (
 
     const refreshToken = generateRefreshToken(payload);
     setRefreshTokenCookie(res, refreshToken);
-    // setAccessTokenCookie(res, accessToken)
+    setAccessTokenCookie(res, accessToken)
 
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
-      accessToken
     });
 
   } catch (error) {
