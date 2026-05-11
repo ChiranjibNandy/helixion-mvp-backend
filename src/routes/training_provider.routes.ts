@@ -5,6 +5,7 @@ import { bulkCreateProgram, createProgram } from "../controllers/training_provid
 import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
+import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.post(
 
 router.post(
   "/programs/bulk",
+  rateLimiter,
   uploadCsv.single("file"),
   bulkCreateProgram
 );
