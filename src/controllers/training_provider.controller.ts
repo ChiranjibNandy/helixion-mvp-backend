@@ -30,9 +30,8 @@ export const bulkCreateProgram = async (
    next: NextFunction
 ) => {
    try {
-      //.csv file upload
       if (!req.file) {
-         return new AppError(MESSAGES.CSV_REQUIRED, HTTP_STATUS.BAD_REQUEST)
+         throw new AppError(MESSAGES.CSV_REQUIRED, HTTP_STATUS.BAD_REQUEST)
       }
 
       const result = await bulkCreateProgramService({

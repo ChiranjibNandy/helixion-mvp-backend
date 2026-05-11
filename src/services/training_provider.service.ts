@@ -1,12 +1,12 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
 import { createProgramRepo, getLastBatchId, programBulkInsert } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
-import fs from "fs";
 import csv from "csv-parser";
 import { bulkProgramRowSchema } from "../validators/training_provider.validator.js";
 import { AppError } from "../utils/appError.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import streamifier from "streamifier";
 
 
 
@@ -41,7 +41,7 @@ export const bulkCreateProgramService = async ({
   const results: any[] = [];
 
   await new Promise((resolve, reject) => {
-    fs.createReadStream(file.path)
+    streamifier.createReadStream(file.buffer)
       .pipe(csv())
       .on("data", (row) => {
         results.push(row);

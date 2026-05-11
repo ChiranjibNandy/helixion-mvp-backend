@@ -26,7 +26,7 @@ export const getDashboardEnrollments =
       try {
          const userId = req.userId
          if (!userId) {
-            return new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
+            throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
          }
          const {
             enrollments,

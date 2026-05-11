@@ -24,7 +24,8 @@ router.post(
 //Upload bulk program
 
 router.post(
-  "/create-bulk/program",
+  "/programs/bulk",
+  upload.single("file"),
   bulkCreateProgram
 );
 
