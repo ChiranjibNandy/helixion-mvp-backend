@@ -4,7 +4,7 @@ import { createProgramSchema } from "../validators/training_provider.validator.j
 import { bulkCreateProgram, createProgram } from "../controllers/training_provider.controller.js";
 import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
-import { upload } from "../middlewares/multer.middleware.js";
+import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 
 
 const router = express.Router();
@@ -25,7 +25,7 @@ router.post(
 
 router.post(
   "/programs/bulk",
-  upload.single("file"),
+  uploadCsv.single("file"),
   bulkCreateProgram
 );
 
