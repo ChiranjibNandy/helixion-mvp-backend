@@ -11,11 +11,12 @@ export interface IProgram {
   twinSharingFee?: number;
   nonResidentialFee?: number;
   brochureUrl?: string;
+  brochurePublicId?: string;
   minParticipants?: number;
   maxParticipants?: number;
   status: PROGRAM_SAVED_STATUS.DRAFT | PROGRAM_SAVED_STATUS.PUBLISHED;
   training_providerId: Types.ObjectId;
-  batchId?:string
+  batchId?: string
   createdAt: Date;
   updatedAt: Date;
 }

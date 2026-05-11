@@ -12,18 +12,24 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 export const createProgramService = async (data: createProgramReq) => {
   let brochureUrl: string | undefined;
+  let brochurePublicId: string | undefined;
+
   if (data.file) {
-    brochureUrl = await uploadToCloudinary(data.file);
+    const uploadResult = await uploadToCloudinary(data.file);
+
+    brochureUrl = uploadResult.secure_url;
+    brochurePublicId = uploadResult.public_id;
   }
+
   const payload = {
     ...data,
     brochureUrl,
+    brochurePublicId,
   };
 
-  // remove file before DB operation
   delete (payload as any).file;
 
-  return await createProgramRepo({ ...data, brochureUrl });
+  return await createProgramRepo(payload);
 };
 
 //bulk program upload service

@@ -48,6 +48,9 @@ const programSchema = new Schema<IProgram>(
       brochureUrl: {
          type: String,
       },
+      brochurePublicId: {
+         type: String,
+      },
 
       minParticipants: {
          type: Number,
