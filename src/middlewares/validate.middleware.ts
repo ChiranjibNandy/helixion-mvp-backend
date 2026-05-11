@@ -18,10 +18,10 @@ export const validate = (schema: ValidationSchema) => {
 
         if (!result.success) {
           return res.status(HTTP_STATUS.BAD_REQUEST).json({
-            message: MESSAGES.VALIDATION_FAILED,
-            errors: result.error.issues.map(
+            message: result.error.issues.map(
               (err) => err.message
             ),
+            errors: MESSAGES.VALIDATION_FAILED,
           });
         }
 

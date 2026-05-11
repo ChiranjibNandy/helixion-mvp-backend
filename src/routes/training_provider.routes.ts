@@ -17,8 +17,8 @@ router.use(authorizeRole(ROLE.TRAINING_PROVIDER));
 
 router.post(
   "/create/program",
-  validate({ body: createProgramSchema }),
   upload.single("brochure"),
+  validate({ body: createProgramSchema }),
   createProgram
 );
 
