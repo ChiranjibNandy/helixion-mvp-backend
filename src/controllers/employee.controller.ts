@@ -3,6 +3,7 @@ import { getDashboardEnrollmentsService } from "../services/employee.service.js"
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
+import { programResponseMapper } from "../mapper/program.mapper.js";
 
 /**
  * Fetch employee dashboard enrollments and available active programs.
@@ -25,7 +26,7 @@ export const getDashboardEnrollments =
       try {
          const userId = req.userId
          if (!userId) {
-            return new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
+            throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
          }
          const {
             enrollments,
@@ -37,7 +38,7 @@ export const getDashboardEnrollments =
             message: MESSAGES.ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM,
             data: {
                enrollments,
-               availablePrograms
+               availablePrograms:programResponseMapper(availablePrograms)
             }
          });
 

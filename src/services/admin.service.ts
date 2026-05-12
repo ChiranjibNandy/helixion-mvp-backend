@@ -1,7 +1,5 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { UserStatus } from "../constants/user-status.js";
-import { ApprovalStatus } from "../constants/approval-status.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { BulkUploadUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepository, getRegisteredUsersRepository } from "../repositories/admin.repository.js";
@@ -17,6 +15,7 @@ import {
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { ENV } from "../config/env.js";
 import { sendWelcomeMail } from "../utils/sendMail.js";
 
@@ -80,7 +79,7 @@ export const deactivateUserService = async (
     throw new Error(MESSAGES.USER_NOT_FOUND);
   }
 
-  if (user.status === UserStatus.DEACTIVE) {
+  if (user.status === USER_STATUS.DEACTIVE) {
     throw new Error(MESSAGES.USER_ALREADY_DEACTIVATED);
   }
 
@@ -145,8 +144,8 @@ export const batchCreateUsersService = async (
       email: row.email.toLowerCase(),
       password: hashedPassword,
       role: row.role,
-      status: UserStatus.ACTIVE,
-      approval_status: ApprovalStatus.APPROVED,
+      status: USER_STATUS.ACTIVE,
+      approval_status: APPROVAL_STATUS.APPROVED,
     }));
 
     const created = await batchCreateUsersRepository(newUsers);

@@ -1,5 +1,4 @@
-import { ApprovalStatus } from "../constants/approval-status.js";
-import { UserStatus } from "../constants/user-status.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
@@ -35,8 +34,8 @@ export const approveUserRepository = async (
       id,
       {
          role: role,
-         status: UserStatus.ACTIVE,
-         approval_status: ApprovalStatus.APPROVED,
+         status: USER_STATUS.ACTIVE,
+         approval_status: APPROVAL_STATUS.APPROVED,
          description: description,
       },
       {
@@ -50,7 +49,7 @@ export const approveUserRepository = async (
 export const deactivateUserRepository = async (id: string) => {
    return await User.findByIdAndUpdate(
       id,
-      { status: UserStatus.DEACTIVE },
+      { status: USER_STATUS.DEACTIVE },
       { new: true }
    );
 };
@@ -67,7 +66,7 @@ export const searchUsersRepository = async (
    limit: number
 ) => {
    const filter: Record<string, unknown> = {
-      approval_status: ApprovalStatus.APPROVED,
+      approval_status: APPROVAL_STATUS.APPROVED,
    };
 
    if (query) {

@@ -49,5 +49,21 @@ export const MESSAGES = {
   PASSWORD_UPDATED: "Password updated successfully",
   SEARCH_CANNOT_EXCEED_50_CHARACTERS: "Search cannot exceed 50 characters",
 
-  RATE_LIMIT : "Too many reset attempts, try later"
+  RATE_LIMIT: "Too many reset attempts, try later",
+
+  END_DATE_AFTER_START: "End date must be after start date",
+  MAX_PARTICIPANTS_INVALID: "Max participants must be >= min participants",
+
+  PROGRAM_CREATED: "Program created successfully",
+  PROGRAM_TITLE_REQUIRED: "Program title is required",
+  START_DATE_REQUIRED : "Start date is required",
+  END_DATE_REQUIRED:"End date is required",
+  VENUE_REQUIRED:"Venue is required",
+  MIN_PARTICIPANT_REQUIRED:"Min participants required",
+  MAX_PARTICIPANT_REQUIRED:"Max participants required",
+
+  UPLOAD_FAIL:"Upload failed",
+  CSV_REQUIRED:"CSV file is required",
+  NO_PROGRAM_FOUND:"No valid programs found in CSV",
+  CSV_ALLOWED:"Only CSV files are allowed"
 } as const;

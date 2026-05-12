@@ -6,7 +6,7 @@ import { approveUserBodySchema, approveUserParamsSchema, searchUsersQuerySchema,
 
 import { validate } from "../middlewares/validate.middleware.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
-import { ROLE } from "../constants/role.js";
+import { ROLE } from "../constants/enum.js";
 
 const router = express.Router();
 

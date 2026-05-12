@@ -1,48 +1,91 @@
 import mongoose, { Schema } from "mongoose";
 import { IProgram } from "../interfaces/program.interface.js";
+import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { MESSAGES } from "../constants/messages.js";
 
 const programSchema = new Schema<IProgram>(
    {
-      name: {
+      title: {
          type: String,
          required: true,
-         trim: true
+         trim: true,
       },
 
-      description: {
+      startDate: {
+         type: Date,
+      },
+
+      endDate: {
+         type: Date,
+         validate: {
+            validator: function (this: IProgram, value: Date) {
+               if (!this.startDate || !value) return true;
+               return value >= this.startDate;
+            },
+            message: MESSAGES.END_DATE_AFTER_START,
+         },
+      },
+
+      venue: {
          type: String,
-         required: true
+         trim: true,
+      },
+      singleOccupancyFee: {
+         type: Number,
+         min: 0,
       },
 
-      duration: {
+      twinSharingFee: {
+         type: Number,
+         min: 0,
+      },
+
+      nonResidentialFee: {
+         type: Number,
+         min: 0,
+      },
+
+      brochureUrl: {
          type: String,
-         required: true
+      },
+      brochurePublicId: {
+         type: String,
       },
 
+      minParticipants: {
+         type: Number,
+         min: 1,
+      },
+
+      maxParticipants: {
+         type: Number,
+         validate: {
+            validator: function (this: IProgram, value: number) {
+               if (!this.minParticipants || !value) return true;
+               return value >= this.minParticipants;
+            },
+            message: MESSAGES.MAX_PARTICIPANTS_INVALID,
+         },
+      },
       status: {
          type: String,
-         enum: ["active", "inactive"],
-         default: "active"
+         enum: [PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED],
+         default: PROGRAM_SAVED_STATUS.DRAFT,
       },
-
-      fee: {
-         type: Number,
-         required: true
+      training_providerId: {
+         type: Schema.Types.ObjectId,
+         ref: "User",
+         required: true,
+         index: true,
       },
-
-      mode: {
-         type: String,
-         enum: ["online", "offline"],
-         required: true
-      },
-      location:{
-         type:String,
-         required:true
-      },
+      batchId: {
+         type: String
+      }
    },
    {
-      timestamps: true
+      timestamps: true,
    }
 );
+
 
 export default mongoose.model<IProgram>("Program", programSchema);

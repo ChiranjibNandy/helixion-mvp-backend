@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import { EnrollmentStatus } from "../constants/enrollment-status.js";
 import enrollment from "../models/enrollment.model.js";
+import { ENROLLMENT_STATUS } from "../constants/enum.js";
 
 // Retrieve active enrollments with program details
 export const getActiveEnrollmentsRepository = async (userId: string) => {
@@ -8,7 +8,7 @@ export const getActiveEnrollmentsRepository = async (userId: string) => {
       {
          $match: {
             userId: new mongoose.Types.ObjectId(userId),
-            status: EnrollmentStatus.ACTIVE
+            status: ENROLLMENT_STATUS.ACTIVE
          }
       },
       {
