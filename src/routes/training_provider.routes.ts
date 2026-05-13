@@ -6,6 +6,7 @@ import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
+import { getPublishedProgramsController } from "../controllers/program.controller.js";
 
 
 const router = express.Router();
@@ -29,6 +30,13 @@ router.post(
   rateLimiter,
   uploadCsv.single("file"),
   bulkCreateProgram
+);
+
+//Get all published and paginated program created by taining provider
+
+router.get(
+  "/programs",
+  getPublishedProgramsController
 );
 
 export default router;
