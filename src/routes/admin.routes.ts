@@ -1,12 +1,12 @@
 import express from "express";
 
 import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers ,searchUsers, getUsersController} from "../controllers/admin.controller.js";
-import { approveUserBodySchema, approveUserParamsSchema, searchUsersQuerySchema, batchCreateUsersBodySchema } from "../validators/admin.validator.js";
-
+import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema } from "../validators/admin.validator.js";
 
 import { validate } from "../middlewares/validate.middleware.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { ROLE } from "../constants/enum.js";
+import { searchUsersQuerySchema } from "../validators/common.validator.js";
 
 const router = express.Router();
 

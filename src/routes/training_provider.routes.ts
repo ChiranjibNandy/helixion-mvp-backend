@@ -7,6 +7,7 @@ import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getPublishedProgramsController } from "../controllers/program.controller.js";
+import { searchUsersQuerySchema } from "../validators/common.validator.js";
 
 
 const router = express.Router();
@@ -36,6 +37,7 @@ router.post(
 
 router.get(
   "/programs",
+  validate({ query: searchUsersQuerySchema }),
   getPublishedProgramsController
 );
 
