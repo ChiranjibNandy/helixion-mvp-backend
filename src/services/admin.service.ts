@@ -3,7 +3,7 @@ import { MESSAGES } from "../constants/messages.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { BulkUploadUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepository, getRegisteredUsersRepository } from "../repositories/admin.repository.js";
-import { mapUserToPendingRegistrationDto } from "../mapper/admin.mapper.js";
+import { mapUserToPendingRegistrationDto } from "../mapper/user.mapper.js";
 import {
   approveUserRepository,
   getUserByIdRepository,

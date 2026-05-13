@@ -6,7 +6,7 @@ import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
-import { getPublishedProgramsController } from "../controllers/program.controller.js";
+import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 
 
@@ -38,7 +38,12 @@ router.post(
 router.get(
   "/programs",
   validate({ query: searchUsersQuerySchema }),
-  getPublishedProgramsController
+  searchPublishedProgramsController
+);
+
+router.get(
+  "/programs/:id/participants",
+  getProgramParticipantsController
 );
 
 export default router;

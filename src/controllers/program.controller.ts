@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import { getPublishedProgramsService } from "../services/program.service.js";
+import { getProgramParticipantsService, getPublishedProgramsService } from "../services/program.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 
-export const getPublishedProgramsController = async (
+export const searchPublishedProgramsController = async (
    req: Request,
    res: Response,
    next: NextFunction
@@ -24,6 +24,28 @@ export const getPublishedProgramsController = async (
          success: true,
          message: MESSAGES.PUBLISHED_PROGRAM_FETCH,
          data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+
+export const getProgramParticipantsController = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const { id } = req.params;
+
+      const participants =
+         await getProgramParticipantsService(String(id));
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PARTICIPANT_FETCH,
+         data: participants
       });
    } catch (error) {
       next(error);

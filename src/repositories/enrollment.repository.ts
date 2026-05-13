@@ -28,10 +28,21 @@ export const getActiveEnrollmentsRepository = async (userId: string) => {
       },
       {
          $sort: {
-            createdAt: -1 
+            createdAt: -1
          }
       }
    ]);
 
    return enrollments;
+};
+
+//get enrollmented participant data
+export const getProgramParticipantsRepository = async (
+   programId: string
+) => {
+   return await enrollment.find({ programId })
+      .populate({
+         path: "userId",
+         select: "_id username email"
+      });
 };

@@ -3,7 +3,7 @@ import { getAvailableProgramsRepository } from "../repositories/program.reposito
 
 // Service to retrieve dashboard data including active enrollments and available programs
 export const getDashboardEnrollmentsService =
-   async (userId:string) => {
+   async (userId: string) => {
 
       const enrollments =
          await getActiveEnrollmentsRepository(userId);
@@ -16,3 +16,4 @@ export const getDashboardEnrollmentsService =
          availablePrograms
       };
    };
+

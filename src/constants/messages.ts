@@ -62,6 +62,7 @@ export const MESSAGES = {
   MIN_PARTICIPANT_REQUIRED:"Min participants required",
   MAX_PARTICIPANT_REQUIRED:"Max participants required",
   PUBLISHED_PROGRAM_FETCH:"Published programs fetched successfully",
+  PARTICIPANT_FETCH:"Participants fetched successfully",
 
   UPLOAD_FAIL:"Upload failed",
   CSV_REQUIRED:"CSV file is required",
