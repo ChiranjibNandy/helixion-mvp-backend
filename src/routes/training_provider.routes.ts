@@ -31,4 +31,23 @@ router.post(
   bulkCreateProgram
 );
 
+// Drafts endpoints
+import { getDraftPrograms, getDraftById, updateDraft, publishDraft, deleteDraft } from "../controllers/training_provider.controller.js";
+import { updateProgramSchema } from "../validators/training_provider.validator.js";
+
+router.get("/programs/drafts", getDraftPrograms);
+
+router.get("/programs/:id", getDraftById);
+
+router.put(
+  "/programs/:id",
+  upload.single("brochure"),
+  validate({ body: updateProgramSchema }),
+  updateDraft
+);
+
+router.patch("/programs/:id/publish", publishDraft);
+
+router.delete("/programs/:id", deleteDraft);
+
 export default router;

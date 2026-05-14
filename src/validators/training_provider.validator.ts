@@ -6,8 +6,8 @@ import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
 export const baseProgramSchema = z.object({
    title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
 
-   startDate: z.string().optional(),
-   endDate: z.string().optional(),
+   startDate: z.union([z.string(), z.date()]).optional(),
+   endDate: z.union([z.string(), z.date()]).optional(),
    venue: z.string().optional(),
 
    singleOccupancyFee: z.coerce.number().min(0).optional(),
@@ -47,26 +47,41 @@ export const createProgramSchema = baseProgramSchema.superRefine((data, ctx) => 
    }
 });
 
+// Update Program validation (for drafts)
+export const updateProgramSchema = z.object({
+   title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
+   startDate: z.string().optional(),
+   endDate: z.string().optional(),
+   venue: z.string().optional(),
+
+   singleOccupancyFee: z.coerce.number().min(0).optional(),
+   twinSharingFee: z.coerce.number().min(0).optional(),
+   nonResidentialFee: z.coerce.number().min(0).optional(),
+
+   minParticipants: z.coerce.number().min(1).optional(),
+   maxParticipants: z.coerce.number().min(1).optional(),
+});
+
 //validation for bulk program creation
 
 export const bulkProgramRowSchema = z.object({
   title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
 
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  venue: z.string().optional(),
+  startDate: z.string().optional().transform(v => v === "" ? undefined : v),
+  endDate: z.string().optional().transform(v => v === "" ? undefined : v),
+  venue: z.string().optional().transform(v => v === "" ? undefined : v),
 
   isResidential: z.coerce.boolean().optional(),
-  stayType: z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional(),
+  stayType: z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional().transform(v => v === "" ? undefined : v as typeof v),
 
-  singleOccupancyFee: z.coerce.number().min(0).optional(),
-  twinSharingFee: z.coerce.number().min(0).optional(),
-  nonResidentialFee: z.coerce.number().min(0).optional(),
+  singleOccupancyFee: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(0).optional()),
+  twinSharingFee: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(0).optional()),
+  nonResidentialFee: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(0).optional()),
 
-  brochureUrl: z.string().url().optional(),
+  brochureUrl: z.string().url().optional().or(z.literal("")).transform(v => v === "" ? undefined : v),
 
-  minParticipants: z.coerce.number().min(1).optional(),
-  maxParticipants: z.coerce.number().min(1).optional(),
+  minParticipants: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(1).optional()),
+  maxParticipants: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(1).optional()),
 
   status: z.enum([
     PROGRAM_SAVED_STATUS.DRAFT,
