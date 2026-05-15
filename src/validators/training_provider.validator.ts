@@ -72,7 +72,7 @@ export const bulkProgramRowSchema = z.object({
   venue: z.string().optional().transform(v => v === "" ? undefined : v),
 
   isResidential: z.coerce.boolean().optional(),
-  stayType: z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional().transform(v => v === "" ? undefined : v as typeof v),
+  stayType: z.preprocess(v => v === "" ? undefined : v, z.enum([STAY_TYPE.SINGLE, STAY_TYPE.TWIN]).optional()),
 
   singleOccupancyFee: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(0).optional()),
   twinSharingFee: z.preprocess(v => v === "" ? undefined : v, z.coerce.number().min(0).optional()),
