@@ -65,5 +65,12 @@ export const MESSAGES = {
   UPLOAD_FAIL:"Upload failed",
   CSV_REQUIRED:"CSV file is required",
   NO_PROGRAM_FOUND:"No valid programs found in CSV",
-  CSV_ALLOWED:"Only CSV files are allowed"
+  CSV_ALLOWED:"Only CSV files are allowed",
+
+  DRAFT_PROGRAMS_FETCHED: "Draft programs fetched successfully",
+  DRAFT_PROGRAM_FETCHED: "Draft program fetched successfully",
+  DRAFT_UPDATED: "Draft updated successfully",
+  DRAFT_PUBLISHED: "Program published successfully",
+  DRAFT_DELETED: "Draft deleted successfully",
+  PROGRAM_NOT_FOUND: "Program not found"
 } as const;
