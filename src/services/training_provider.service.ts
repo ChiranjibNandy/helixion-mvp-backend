@@ -1,12 +1,11 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
 import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
-import csv from "csv-parser";
-import { bulkProgramRowSchema } from "../validators/training_provider.validator.js";
+import { parseCsvBuffer } from "../utils/csvParser.js";
+import { validateBulkRows } from "../utils/bulkValidator.js";
 import { AppError } from "../utils/appError.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import streamifier from "streamifier";
 
 
 
@@ -38,51 +37,16 @@ export const bulkCreateProgramService = async ({
   file,
   training_providerId,
 }: BulkInput) => {
-  const results: any[] = [];
+  // Parse CSV buffer into row objects
+  const rows = await parseCsvBuffer(file.buffer);
 
-  await new Promise((resolve, reject) => {
-    streamifier.createReadStream(file.buffer)
-      .pipe(csv())
-      .on("data", (row) => {
-        results.push(row);
-      })
-      .on("end", resolve)
-      .on("error", reject);
-  });
-
-  const validPrograms: any[] = [];
-  const errors: any[] = [];
-
-  // get last batch
+  // Generate batch ID
   const lastBatch = await getLastBatchId();
+  const lastBatchNumber = Number(lastBatch?.batchId?.split("_")[1]) || 0;
+  const newBatchId = `batch_${lastBatchNumber + 1}`;
 
-  // extract last batch number
-  const lastBatchNumber =
-    Number(lastBatch?.batchId?.split("_")[1]) || 0;
-
-  // generate ONE batchId for this upload
-  const newBatchId = `batch_${ lastBatchNumber + 1 }`;
-
-
-  results.forEach((row, index) => {
-    const parsed = bulkProgramRowSchema.safeParse(row);
-
-    if (!parsed.success) {
-      errors.push({
-        row: index + 1,
-        errors: parsed.error.issues.map((issue) => ({
-          path: issue.path.join("."),
-          message: issue.message,
-        })),
-      });
-    } else {
-      validPrograms.push({
-        ...parsed.data,
-        training_providerId,
-        batchId: newBatchId
-      });
-    }
-  });
+  // Validate each row against the schema
+  const { validPrograms, errors } = validateBulkRows(rows, training_providerId ?? '', newBatchId);
 
   if (validPrograms.length === 0) {
     throw new AppError(MESSAGES.NO_PROGRAM_FOUND, HTTP_STATUS.NOT_FOUND);

@@ -2,6 +2,12 @@ import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 
+/** Reusable filter for owner-scoped program queries */
+const buildOwnerFilter = (id: string, providerId: string) => ({
+  _id: id,
+  training_providerId: providerId,
+});
+
 // Retrieve all active programs
 export const getAvailableProgramsRepository = async () => {
   return await Program.find({
@@ -50,18 +56,18 @@ export const getDraftProgramsRepo = async (
 };
 
 export const getProgramByIdRepo = async (id: string, providerId: string) => {
-  return await Program.findOne({ _id: id, training_providerId: providerId });
+  return await Program.findOne(buildOwnerFilter(id, providerId));
 };
 
 export const updateProgramRepo = async (id: string, providerId: string, data: Partial<IProgram>) => {
   return await Program.findOneAndUpdate(
-    { _id: id, training_providerId: providerId },
+    buildOwnerFilter(id, providerId),
     { $set: data },
     { returnDocument: 'after', runValidators: true }
   );
 };
 
 export const deleteProgramRepo = async (id: string, providerId: string) => {
-  return await Program.findOneAndDelete({ _id: id, training_providerId: providerId });
+  return await Program.findOneAndDelete(buildOwnerFilter(id, providerId));
 };
 
