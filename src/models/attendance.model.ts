@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IAttendance } from "../interfaces/attendance.interface.js";
+import { ATTENDANCE_STATUS } from "../constants/enum.js";
 
 const participantAttendanceSchema = new Schema(
    {
@@ -9,9 +10,9 @@ const participantAttendanceSchema = new Schema(
          required: true
       },
 
-      status: {
+       present_status: {
          type: String,
-         enum: ["present", "absent"],
+         enum:Object.values(ATTENDANCE_STATUS),
          required: true
       }
    },

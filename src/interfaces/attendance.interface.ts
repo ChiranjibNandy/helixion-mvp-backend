@@ -1,8 +1,9 @@
 import { Document, Types } from "mongoose";
+import { ATTENDANCE_STATUS } from "../constants/enum.js";
 
 export interface IParticipantAttendance {
    participantId: Types.ObjectId;
-   status: "present" | "absent";
+    present_status: ATTENDANCE_STATUS;
 }
 
 export interface IAttendance extends Document {

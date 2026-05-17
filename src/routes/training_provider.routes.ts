@@ -8,6 +8,8 @@ import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
+import { takeAttendanceController } from "../controllers/attendance.controller.js";
+import { takeAttendanceBodySchema } from "../validators/attendance.validator.js";
 
 
 const router = express.Router();
@@ -44,6 +46,14 @@ router.get(
 router.get(
   "/programs/:id/participants",
   getProgramParticipantsController
+);
+
+router.put(
+  "/programs/:id/attendance",
+  validate({
+    body: takeAttendanceBodySchema,
+  }),
+  takeAttendanceController
 );
 
 export default router;

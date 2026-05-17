@@ -1,5 +1,6 @@
 import z from "zod";
 import { MESSAGES } from "../constants/messages.js";
+import mongoose from "mongoose";
 
 export const searchUsersQuerySchema = z.object({
   page: z
@@ -41,4 +42,11 @@ export const searchUsersQuerySchema = z.object({
       }
     )
 });
+
+export const objectIdSchema = z.string().refine(
+   (val) => mongoose.Types.ObjectId.isValid(val),
+   {
+      message: MESSAGES.INVALID_OBJECT,
+   }
+);
 

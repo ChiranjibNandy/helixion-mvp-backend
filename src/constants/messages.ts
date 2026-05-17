@@ -31,6 +31,7 @@ export const MESSAGES = {
   ACCESS_DENIED: "Access denied",
   USER_ID_REQUIRED: "User Id is required",
   ROLE_REQUIRED: "Role is required",
+  INVALID_OBJECT:"Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
 
@@ -67,5 +68,10 @@ export const MESSAGES = {
   UPLOAD_FAIL:"Upload failed",
   CSV_REQUIRED:"CSV file is required",
   NO_PROGRAM_FOUND:"No valid programs found in CSV",
-  CSV_ALLOWED:"Only CSV files are allowed"
+  CSV_ALLOWED:"Only CSV files are allowed",
+
+  ATTENDANCE_SAVE_SUCCESS:"Attendance saved successfully",
+  VALID_DATE_REQUIRED:"Valid date is required",
+  PRESENT_STATUS_VALUE_VALIDATION:"present_status must be present or absent",
+  MIN_PARTICIPANT:"At least one participant is required"
 } as const;
