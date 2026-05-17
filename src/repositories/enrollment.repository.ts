@@ -40,7 +40,7 @@ export const getActiveEnrollmentsRepository = async (userId: string) => {
 export const getProgramParticipantsRepository = async (
    programId: string
 ) => {
-   return await enrollment.find({ programId })
+   return await enrollment.find({ programId,status:ENROLLMENT_STATUS.ACTIVE })
       .populate({
          path: "userId",
          select: "_id username email"
