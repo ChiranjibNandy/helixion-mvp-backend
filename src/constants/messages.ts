@@ -73,5 +73,6 @@ export const MESSAGES = {
   ATTENDANCE_SAVE_SUCCESS:"Attendance saved successfully",
   VALID_DATE_REQUIRED:"Valid date is required",
   PRESENT_STATUS_VALUE_VALIDATION:"present_status must be present or absent",
-  MIN_PARTICIPANT:"At least one participant is required"
+  MIN_PARTICIPANT:"At least one participant is required",
+  ATTENDANCE_FETCH_SUCCESS:"Attendance fetched successfully"
 } as const;
