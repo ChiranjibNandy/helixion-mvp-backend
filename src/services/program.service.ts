@@ -1,6 +1,6 @@
 import { mapUserBasicDetail } from "../mapper/user.mapper.js";
-import { getProgramParticipantsRepository } from "../repositories/enrollment.repository.js";
-import { getPublishedProgramsRepository } from "../repositories/program.repository.js";
+import { getProgramParticipantsRepo } from "../repositories/enrollment.repository.js";
+import { getPublishedProgramsRepo } from "../repositories/program.repository.js";
 import { GetPublishedProgramsServiceParams } from "../types/program.js";
 
 export const getPublishedProgramsService = async ({
@@ -8,7 +8,7 @@ export const getPublishedProgramsService = async ({
    page = 1,
    limit = 10,
 }: GetPublishedProgramsServiceParams) => {
-   return await getPublishedProgramsRepository({
+   return await getPublishedProgramsRepo({
       trainingProviderId: userId,
       page,
       limit,
@@ -21,7 +21,7 @@ export const getPublishedProgramsService = async ({
 export const getProgramParticipantsService = async (
    programId: string
 ) => {
-   const enrollments = await getProgramParticipantsRepository(programId);
+   const enrollments = await getProgramParticipantsRepo(programId);
 
    return enrollments.map((enrollment) =>
       mapUserBasicDetail(enrollment.userId as any)

@@ -4,7 +4,7 @@ import { TakeAttendancePayload } from "../types/attendance.js";
 
 
 //take attendance on corresponding project for multiple participant at a time
-export const upsertAttendanceRepository = async (
+export const upsertAttendanceRepo = async (
    payload: TakeAttendancePayload
 ) => {
    const { programId, date, participants } = payload;
@@ -29,7 +29,7 @@ export const upsertAttendanceRepository = async (
 
 //return attendance data based on Id and  lookup with participantId
 
-export const getAttendanceByIdRepository = async (
+export const getAttendanceByIdRepo = async (
   attendanceId: string
 ) => {
   return await attendanceModel.aggregate([

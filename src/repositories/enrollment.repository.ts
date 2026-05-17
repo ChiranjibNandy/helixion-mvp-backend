@@ -4,7 +4,7 @@ import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import enrollmentModel from "../models/enrollment.model.js";
 
 // Retrieve active enrollments with program details
-export const getActiveEnrollmentsRepository = async (userId: string) => {
+export const getActiveEnrollmentsRepo = async (userId: string) => {
    const enrollments = await enrollment.aggregate([
       {
          $match: {
@@ -38,7 +38,7 @@ export const getActiveEnrollmentsRepository = async (userId: string) => {
 };
 
 //get enrollmented participant data
-export const getProgramParticipantsRepository = async (
+export const getProgramParticipantsRepo = async (
    programId: string
 ) => {
    return await enrollment.find({ programId,status:ENROLLMENT_STATUS.ACTIVE })
@@ -50,8 +50,7 @@ export const getProgramParticipantsRepository = async (
 
 //enrollment data based on programId and participant Id for checking
 
-export const validateParticipantsEnrollmentRepository =
-   async (
+export const validateParticipantsEnrollmentRepo = async (
       programId: string,
       participantIds: string[]
    ) => {

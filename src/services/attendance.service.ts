@@ -1,4 +1,4 @@
-import { getAttendanceByIdRepository, upsertAttendanceRepository } from "../repositories/attendance.repository.js";
+import { getAttendanceByIdRepo, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
 import { TakeAttendancePayload } from "../types/attendance.js";
 import { validateParticipantsEnrollmentService } from "../validators/attendance.validator.js";
 
@@ -15,14 +15,14 @@ export const takeAttendanceService = async (
       payload.programId,
       participantIds
    );
-   return await upsertAttendanceRepository(payload);
+   return await upsertAttendanceRepo(payload);
 };
 
 export const getProgramAttendanceService = async (
    attendanceId: string
 ) => {
    const attendance =
-      await getAttendanceByIdRepository(attendanceId);
+      await getAttendanceByIdRepo(attendanceId);
 
    return attendance;
 };

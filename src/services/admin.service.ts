@@ -2,16 +2,16 @@ import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
 import { BulkUploadUserDto } from "../dtos/user.dto.js";
-import { getPendingRegistrationsRepository, getRegisteredUsersRepository } from "../repositories/admin.repository.js";
+import { getPendingRegistrationsRepo, getRegisteredUsersRepo } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/user.mapper.js";
 import {
-  approveUserRepository,
-  getUserByIdRepository,
-  deactivateUserRepository,
-  getUsersByEmailsRepository,
-  batchCreateUsersRepository,
-  searchUsersRepository,
-  updateUserRoleRepository,
+  approveUserRepo,
+  getUserByIdRepo,
+  deactivateUserRepo,
+  getUsersByEmailsRepo,
+  batchCreateUsersRepo,
+  searchUsersRepo,
+  updateUserRoleRepo,
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -26,7 +26,7 @@ export const getPendingRegistrationsService = async (
 ): Promise<PendingRegistrationsDto> => {
 
   const { users, total } =
-    await getPendingRegistrationsRepository(
+    await getPendingRegistrationsRepo(
       page,
       limit
     );
@@ -54,7 +54,7 @@ export const approveUserAndAddRoleService = async (
   description?: string
 ) => {
   const updatedUser =
-    await approveUserRepository(
+    await approveUserRepo(
       id,
       role,
       description
@@ -73,7 +73,7 @@ export const deactivateUserService = async (
     throw new Error(MESSAGES.CANNOT_DEACTIVATE_SELF);
   }
 
-  const user = await getUserByIdRepository(id);
+  const user = await getUserByIdRepo(id);
 
   if (!user) {
     throw new Error(MESSAGES.USER_NOT_FOUND);
@@ -83,7 +83,7 @@ export const deactivateUserService = async (
     throw new Error(MESSAGES.USER_ALREADY_DEACTIVATED);
   }
 
-  await deactivateUserRepository(id);
+  await deactivateUserRepo(id);
 };
 
 export const batchCreateUsersService = async (
@@ -98,7 +98,7 @@ export const batchCreateUsersService = async (
   }
 
   // 2. Look up which emails already exist in the DB
-  const existingUsers = await getUsersByEmailsRepository(emails);
+  const existingUsers = await getUsersByEmailsRepo(emails);
   const existingEmailSet = new Set(
     existingUsers.map((u) => u.email.toLowerCase())
   );
@@ -148,7 +148,7 @@ export const batchCreateUsersService = async (
       approval_status: APPROVAL_STATUS.APPROVED,
     }));
 
-    const created = await batchCreateUsersRepository(newUsers);
+    const created = await batchCreateUsersRepo(newUsers);
     createdCount = created.length;
 
     // 5. Send welcome emails (fire-and-forget — don't block response)
@@ -156,7 +156,7 @@ export const batchCreateUsersService = async (
       const username = row.email.split("@")[0];
       sendWelcomeMail(row.email, username, defaultPassword).catch((err) => {
         console.error(
-          `${MESSAGES.WELCOME_EMAIL_SEND_FAILED}: ${row.email}`,
+          `${ MESSAGES.WELCOME_EMAIL_SEND_FAILED }: ${ row.email }`,
           err
         );
       });
@@ -169,7 +169,7 @@ export const batchCreateUsersService = async (
   if (toUpdate.length > 0) {
     await Promise.all(
       toUpdate.map((row) =>
-        updateUserRoleRepository(row.email.toLowerCase(), row.role)
+        updateUserRoleRepo(row.email.toLowerCase(), row.role)
       )
     );
     updatedCount = toUpdate.length;
@@ -190,7 +190,7 @@ export const getUsersService = async (
   search: string
 ) => {
 
-  return await getRegisteredUsersRepository(
+  return await getRegisteredUsersRepo(
     page,
     limit,
     search
@@ -203,7 +203,7 @@ export const searchUsersService = async (
   page: number,
   limit: number
 ) => {
-  const { users, total } = await searchUsersRepository(query, page, limit);
+  const { users, total } = await searchUsersRepo(query, page, limit);
   const totalPages = Math.ceil(total / limit);
 
   return {

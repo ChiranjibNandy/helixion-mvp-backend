@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ATTENDANCE_STATUS } from "../constants/enum.js";
 import { objectIdSchema } from "./common.validator.js";
 import { MESSAGES } from "../constants/messages.js";
-import { validateParticipantsEnrollmentRepository } from "../repositories/enrollment.repository.js";
+import { validateParticipantsEnrollmentRepo } from "../repositories/enrollment.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 
@@ -42,7 +42,7 @@ export const validateParticipantsEnrollmentService =
    ) => {
 
       const enrolledParticipants =
-         await validateParticipantsEnrollmentRepository(
+         await validateParticipantsEnrollmentRepo(
             programId,
             participantIds
          );

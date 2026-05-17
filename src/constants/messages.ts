@@ -75,5 +75,12 @@ export const MESSAGES = {
   PRESENT_STATUS_VALUE_VALIDATION: "present_status must be present or absent",
   MIN_PARTICIPANT: "At least one participant is required",
   ATTENDANCE_FETCH_SUCCESS: "Attendance fetched successfully",
-  PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program"
+  PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program",
+
+  DRAFT_PROGRAMS_FETCHED: "Draft programs fetched successfully",
+  DRAFT_PROGRAM_FETCHED: "Draft program fetched successfully",
+  DRAFT_UPDATED: "Draft updated successfully",
+  DRAFT_PUBLISHED: "Program published successfully",
+  DRAFT_DELETED: "Draft deleted successfully",
+  PROGRAM_NOT_FOUND: "Program not found"
 } as const;

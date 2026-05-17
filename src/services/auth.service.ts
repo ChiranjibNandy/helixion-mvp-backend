@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { createUserRepository, getUserByEmailRepository, getUserByIdRepository, updatePasswordRepository } from "../repositories/user.repository.js";
+import { createUserRepo, getUserByEmailRepo, getUserByIdRepo, updatePasswordRepo } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { sendResetMail } from "../utils/sendMail.js";
@@ -15,7 +15,7 @@ export const signupService = async (
   userData: CreateUserDto
 ): Promise<UserResponseDto> => {
 
-  const existingUser = await getUserByEmailRepository(userData.email);
+  const existingUser = await getUserByEmailRepo(userData.email);
 
   if (existingUser) {
     throw new AppError(MESSAGES.USER_ALREADY_EXISTS,HTTP_STATUS.CONFLICT);
@@ -26,7 +26,7 @@ export const signupService = async (
     10
   );
 
-  return await createUserRepository({
+  return await createUserRepo({
     ...userData,
     password: hashedPassword,
   });
@@ -42,7 +42,7 @@ export const loginService = async (
 ): Promise<IUser> => {
 
   // Find user by email
-  const user = await getUserByEmailRepository(email);
+  const user = await getUserByEmailRepo(email);
 
   if (!user) {
     throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
@@ -75,7 +75,7 @@ export const sendResetLinkService = async (
 ) => {
 
   const user =
-    await getUserByEmailRepository(email);
+    await getUserByEmailRepo(email);
 
   if (!user) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -103,7 +103,7 @@ export const resetPasswordService = async (
   }
 
   const user =
-    await getUserByIdRepository(userId);
+    await getUserByIdRepo(userId);
 
   if (!user) {
     throw new AppError(
@@ -114,7 +114,7 @@ export const resetPasswordService = async (
   const hashedPassword =
     await bcrypt.hash(newPassword, 10);
 
-  await updatePasswordRepository(
+  await updatePasswordRepo(
     userId,
     hashedPassword
   );

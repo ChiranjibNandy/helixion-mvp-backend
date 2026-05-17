@@ -3,8 +3,14 @@ import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
 
+/** Reusable filter for owner-scoped program queries */
+const buildOwnerFilter = (id: string, providerId: string) => ({
+  _id: id,
+  training_providerId: providerId,
+});
+
 // Retrieve all active programs
-export const getAvailableProgramsRepository = async () => {
+export const getAvailableProgramsRepo = async () => {
   return await Program.find({
     status: PROGRAM_SAVED_STATUS.PUBLISHED
   })
@@ -29,7 +35,7 @@ export const getLastBatchId = async () => {
 
 //get all published program Repo
 
-export const getPublishedProgramsRepository = async ({
+export const getPublishedProgramsRepo = async ({
   trainingProviderId,
   page,
   limit,
@@ -58,5 +64,45 @@ export const getPublishedProgramsRepository = async ({
     limit,
     totalPages: Math.ceil(total / limit),
   };
+}
+
+
+export const getDraftProgramsRepo = async (
+  providerId: string,
+  skip: number,
+  limit: number,
+  search?: string
+) => {
+  const query: any = {
+    training_providerId: providerId,
+    status: PROGRAM_SAVED_STATUS.DRAFT,
+  };
+
+  if (search) {
+    query.title = { $regex: search, $options: "i" };
+  }
+
+  const [programs, total] = await Promise.all([
+    Program.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit),
+    Program.countDocuments(query),
+  ]);
+
+  return { programs, total };
+};
+
+export const getProgramByIdRepo = async (id: string, providerId: string) => {
+  return await Program.findOne(buildOwnerFilter(id, providerId));
+};
+
+export const updateProgramRepo = async (id: string, providerId: string, data: Partial<IProgram>) => {
+  return await Program.findOneAndUpdate(
+    buildOwnerFilter(id, providerId),
+    { $set: data },
+    { returnDocument: 'after', runValidators: true }
+  );
+};
+
+export const deleteProgramRepo = async (id: string, providerId: string) => {
+  return await Program.findOneAndDelete(buildOwnerFilter(id, providerId));
 };
 

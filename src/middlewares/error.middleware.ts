@@ -9,7 +9,9 @@ export const errorMiddleware = (
    res: Response,
    next: NextFunction
 ) => {
-   let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+   console.error("ERROR CAUGHT IN MIDDLEWARE:", err);
+
+   let statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
    if (
       err.message === MESSAGES.USER_NOT_FOUND ||
