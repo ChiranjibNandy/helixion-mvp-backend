@@ -31,7 +31,7 @@ export const MESSAGES = {
   ACCESS_DENIED: "Access denied",
   USER_ID_REQUIRED: "User Id is required",
   ROLE_REQUIRED: "Role is required",
-  INVALID_OBJECT:"Invalid ObjectId",
+  INVALID_OBJECT: "Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
 
@@ -57,22 +57,23 @@ export const MESSAGES = {
 
   PROGRAM_CREATED: "Program created successfully",
   PROGRAM_TITLE_REQUIRED: "Program title is required",
-  START_DATE_REQUIRED : "Start date is required",
-  END_DATE_REQUIRED:"End date is required",
-  VENUE_REQUIRED:"Venue is required",
-  MIN_PARTICIPANT_REQUIRED:"Min participants required",
-  MAX_PARTICIPANT_REQUIRED:"Max participants required",
-  PUBLISHED_PROGRAM_FETCH:"Published programs fetched successfully",
-  PARTICIPANT_FETCH:"Participants fetched successfully",
+  START_DATE_REQUIRED: "Start date is required",
+  END_DATE_REQUIRED: "End date is required",
+  VENUE_REQUIRED: "Venue is required",
+  MIN_PARTICIPANT_REQUIRED: "Min participants required",
+  MAX_PARTICIPANT_REQUIRED: "Max participants required",
+  PUBLISHED_PROGRAM_FETCH: "Published programs fetched successfully",
+  PARTICIPANT_FETCH: "Participants fetched successfully",
 
-  UPLOAD_FAIL:"Upload failed",
-  CSV_REQUIRED:"CSV file is required",
-  NO_PROGRAM_FOUND:"No valid programs found in CSV",
-  CSV_ALLOWED:"Only CSV files are allowed",
+  UPLOAD_FAIL: "Upload failed",
+  CSV_REQUIRED: "CSV file is required",
+  NO_PROGRAM_FOUND: "No valid programs found in CSV",
+  CSV_ALLOWED: "Only CSV files are allowed",
 
-  ATTENDANCE_SAVE_SUCCESS:"Attendance saved successfully",
-  VALID_DATE_REQUIRED:"Valid date is required",
-  PRESENT_STATUS_VALUE_VALIDATION:"present_status must be present or absent",
-  MIN_PARTICIPANT:"At least one participant is required",
-  ATTENDANCE_FETCH_SUCCESS:"Attendance fetched successfully"
+  ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
+  VALID_DATE_REQUIRED: "Valid date is required",
+  PRESENT_STATUS_VALUE_VALIDATION: "present_status must be present or absent",
+  MIN_PARTICIPANT: "At least one participant is required",
+  ATTENDANCE_FETCH_SUCCESS: "Attendance fetched successfully",
+  PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program"
 } as const;

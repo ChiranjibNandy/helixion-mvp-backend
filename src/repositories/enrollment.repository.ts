@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import enrollment from "../models/enrollment.model.js";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
+import enrollmentModel from "../models/enrollment.model.js";
 
 // Retrieve active enrollments with program details
 export const getActiveEnrollmentsRepository = async (userId: string) => {
@@ -46,3 +47,26 @@ export const getProgramParticipantsRepository = async (
          select: "_id username email"
       });
 };
+
+//enrollment data based on programId and participant Id for checking
+
+export const validateParticipantsEnrollmentRepository =
+   async (
+      programId: string,
+      participantIds: string[]
+   ) => {
+
+      const enrollments = await enrollmentModel.find({
+         programId: new mongoose.Types.ObjectId(programId),
+
+         userId: {
+            $in: participantIds.map(
+               (id) => new mongoose.Types.ObjectId(id)
+            )
+         },
+
+         status: "active"
+      }).select("userId");
+
+      return enrollments;
+   };

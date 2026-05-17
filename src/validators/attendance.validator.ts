@@ -2,6 +2,9 @@ import { z } from "zod";
 import { ATTENDANCE_STATUS } from "../constants/enum.js";
 import { objectIdSchema } from "./common.validator.js";
 import { MESSAGES } from "../constants/messages.js";
+import { validateParticipantsEnrollmentRepository } from "../repositories/enrollment.repository.js";
+import { AppError } from "../utils/appError.js";
+import { HTTP_STATUS } from "../constants/httpStatus.js";
 
 
 export const takeAttendanceBodySchema = z.object({
@@ -30,3 +33,34 @@ export const takeAttendanceBodySchema = z.object({
             MESSAGES.MIN_PARTICIPANT,
       }),
 });
+
+//validate take attendance
+export const validateParticipantsEnrollmentService =
+   async (
+      programId: string,
+      participantIds: string[]
+   ) => {
+
+      const enrolledParticipants =
+         await validateParticipantsEnrollmentRepository(
+            programId,
+            participantIds
+         );
+
+      const enrolledIds = enrolledParticipants.map(
+         (item) => item.userId.toString()
+      );
+
+      const invalidParticipants = participantIds.filter(
+         (id) => !enrolledIds.includes(id)
+      );
+
+      if (invalidParticipants.length > 0) {
+         throw new AppError(
+            `${ MESSAGES.PARTICIPANTS_NOT_ENROLLED }: ${ invalidParticipants.join(", ") }`,
+            HTTP_STATUS.NOT_FOUND
+         );
+      }
+
+      return true;
+   };
