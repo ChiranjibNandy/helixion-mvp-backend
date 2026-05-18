@@ -8,3 +8,10 @@ export type TakeAttendancePayload = {
       present_status: ATTENDANCE_STATUS;
    }[];
 }
+
+export type UpdateParticipantAttendancePayload = {
+   programId: string;
+   participantId: string;
+   date: Date;
+   present_status: string;
+}

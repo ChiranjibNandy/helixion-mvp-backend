@@ -8,7 +8,7 @@ import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { getProgramAttendanceController, takeAttendanceController } from "../controllers/attendance.controller.js";
+import { getProgramAttendanceController, takeAttendanceController, updateParticipantAttendanceController } from "../controllers/attendance.controller.js";
 import { takeAttendanceBodySchema } from "../validators/attendance.validator.js";
 
 
@@ -59,6 +59,12 @@ router.put(
 router.get(
   "/programs/:id/attendance",
   getProgramAttendanceController
+);
+
+//take single attendance router
+router.patch(
+  "/programs/:id/attendance/:pid",
+  updateParticipantAttendanceController
 );
 
 // Drafts endpoints

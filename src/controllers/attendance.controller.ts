@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getProgramAttendanceService, takeAttendanceService } from "../services/attendance.service.js";
+import { getProgramAttendanceService, takeAttendanceService, updateParticipantAttendanceService } from "../services/attendance.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 
@@ -51,3 +51,32 @@ export const getProgramAttendanceController = async (
       next(error);
    }
 };
+
+//take single attendance controller
+
+export const updateParticipantAttendanceController =
+   async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+   ) => {
+      try {
+         const { id, pid } = req.params;
+
+         const { date, present_status } = req.body;
+
+         await updateParticipantAttendanceService({
+            programId: String(id),
+            participantId: String(pid),
+            date,
+            present_status
+         });
+
+         return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: MESSAGES.ATTENDANCE_SAVE_SUCCESS,
+         });
+      } catch (error) {
+         next(error);
+      }
+   };

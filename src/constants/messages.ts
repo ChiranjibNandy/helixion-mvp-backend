@@ -1,3 +1,5 @@
+import { ATTENDANCE_STATUS } from "./enum.js";
+
 export const MESSAGES = {
   PASSWORDS_DO_NOT_MATCH: "Passwords do not match",
   USER_ALREADY_EXISTS: "User already exists",
@@ -76,6 +78,7 @@ export const MESSAGES = {
   MIN_PARTICIPANT: "At least one participant is required",
   ATTENDANCE_FETCH_SUCCESS: "Attendance fetched successfully",
   PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program",
+  ATTENDANCE_NOTFOUND: "Attendance record not found",
 
   DRAFT_PROGRAMS_FETCHED: "Draft programs fetched successfully",
   DRAFT_PROGRAM_FETCHED: "Draft program fetched successfully",
