@@ -1,11 +1,15 @@
 import express from "express";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createProgramSchema } from "../validators/training_provider.validator.js";
-import { bulkCreateProgram, createProgram } from "../controllers/training_provider.controller.js";
+import { createProgramSchema, updateProgramSchema } from "../validators/training_provider.validator.js";
+import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
 import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
+import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
+import { searchUsersQuerySchema } from "../validators/common.validator.js";
+import { getProgramAttendanceController, takeAttendanceController, updateParticipantAttendanceController } from "../controllers/attendance.controller.js";
+import { takeAttendanceBodySchema } from "../validators/attendance.validator.js";
 
 
 const router = express.Router();
@@ -31,13 +35,48 @@ router.post(
   bulkCreateProgram
 );
 
+//Get all published and paginated program created by taining provider
+
+router.get(
+  "/programs",
+  validate({ query: searchUsersQuerySchema }),
+  searchPublishedProgramsController
+);
+
+router.get(
+  "/programs/:id/participants",
+  getProgramParticipantsController
+);
+//router for take attendance
+router.put(
+  "/programs/:id/attendance",
+  validate({
+    body: takeAttendanceBodySchema,
+  }),
+  takeAttendanceController
+);
+//fetch attendance data for edit
+router.get(
+  "/programs/:id/attendance",
+  getProgramAttendanceController
+);
+
+//take single attendance router
+router.patch(
+  "/programs/:id/attendance/:pid",
+  updateParticipantAttendanceController
+);
+
 // Drafts endpoints
-import { getDraftPrograms, getDraftById, updateDraft, publishDraft, deleteDraft } from "../controllers/training_provider.controller.js";
-import { updateProgramSchema } from "../validators/training_provider.validator.js";
+router.get(
+  "/programs/drafts",
+  getDraftPrograms
+);
 
-router.get("/programs/drafts", getDraftPrograms);
-
-router.get("/programs/:id", getDraftById);
+router.get(
+  "/programs/:id",
+  getDraftById
+);
 
 router.put(
   "/programs/:id",
@@ -46,8 +85,14 @@ router.put(
   updateDraft
 );
 
-router.patch("/programs/:id/publish", publishDraft);
+router.patch(
+  "/programs/:id/publish",
+  publishDraft
+);
 
-router.delete("/programs/:id", deleteDraft);
+router.delete(
+  "/programs/:id",
+  deleteDraft
+);
 
 export default router;

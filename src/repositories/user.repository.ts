@@ -3,14 +3,14 @@ import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
 //get user model by email
-export const getUserByEmailRepository = async (
+export const getUserByEmailRepo = async (
    email: string
 ): Promise<IUser | null> => {
    return await User.findOne({ email });
 };
 
 //save user model
-export const createUserRepository = async (
+export const createUserRepo = async (
    userData: Partial<IUser>
 ): Promise<IUser> => {
    const user = await User.create(userData);
@@ -18,14 +18,14 @@ export const createUserRepository = async (
 };
 
 //get user model by Id
-export const getUserByIdRepository = async (
+export const getUserByIdRepo = async (
    userId: string
 ): Promise<IUser | null> => {
    return await User.findById(userId);
 };
 
 //approve user repository
-export const approveUserRepository = async (
+export const approveUserRepo = async (
    id: string,
    role: string,
    description?: string
@@ -46,7 +46,7 @@ export const approveUserRepository = async (
    return updatedUser;
 };
 
-export const deactivateUserRepository = async (id: string) => {
+export const deactivateUserRepo = async (id: string) => {
    return await User.findByIdAndUpdate(
       id,
       { status: USER_STATUS.DEACTIVE },
@@ -54,13 +54,13 @@ export const deactivateUserRepository = async (id: string) => {
    );
 };
 
-export const getUsersByEmailsRepository = async (
+export const getUsersByEmailsRepo = async (
    emails: string[]
 ): Promise<IUser[]> => {
    return await User.find({ email: { $in: emails } });
 };
 
-export const searchUsersRepository = async (
+export const searchUsersRepo = async (
    query: string,
    page: number,
    limit: number
@@ -89,7 +89,7 @@ export const searchUsersRepository = async (
    return { users, total };
 };
 
-export const batchCreateUsersRepository = async (
+export const batchCreateUsersRepo = async (
    users: Partial<IUser>[]
 ) => {
    return await User.insertMany(users);
@@ -97,7 +97,7 @@ export const batchCreateUsersRepository = async (
 
 
 //update user's password 
-export const updatePasswordRepository = async (
+export const updatePasswordRepo = async (
    userId: string,
    hashedPassword: string
 ) => {
@@ -115,7 +115,7 @@ export const updatePasswordRepository = async (
 };
 
 //update user's role
-export const updateUserRoleRepository = async (
+export const updateUserRoleRepo = async (
    email: string,
    role: string
 ) => {

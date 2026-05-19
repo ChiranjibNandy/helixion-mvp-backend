@@ -36,3 +36,8 @@ export enum USER_STATUS {
   ACTIVE = "active",
   DEACTIVE = "deactive"
 }
+
+export enum ATTENDANCE_STATUS {
+   PRESENT = "present",
+   ABSENT = "absent",
+}
