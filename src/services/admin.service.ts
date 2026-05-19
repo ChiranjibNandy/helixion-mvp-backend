@@ -70,17 +70,17 @@ export const deactivateUserService = async (
   requesterId: string
 ) => {
   if (id === requesterId) {
-    throw new Error(MESSAGES.CANNOT_DEACTIVATE_SELF);
+    throw new AppError(MESSAGES.CANNOT_DEACTIVATE_SELF,HTTP_STATUS.CONFLICT);
   }
 
   const user = await getUserByIdRepo(id);
 
   if (!user) {
-    throw new Error(MESSAGES.USER_NOT_FOUND);
+    throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
   }
 
   if (user.status === USER_STATUS.DEACTIVE) {
-    throw new Error(MESSAGES.USER_ALREADY_DEACTIVATED);
+    throw new AppError(MESSAGES.USER_ALREADY_DEACTIVATED,HTTP_STATUS.CONFLICT);
   }
 
   await deactivateUserRepo(id);

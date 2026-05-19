@@ -62,7 +62,7 @@ export const MESSAGES = {
   START_DATE_REQUIRED: "Start date is required",
   END_DATE_REQUIRED: "End date is required",
   VENUE_REQUIRED: "Venue is required",
-  MIN_PARTICIPANT_REQUIRED: "Min participants required",
+  MIN_PARTICIPANT_REQUIRED: "At least one participant is required",
   MAX_PARTICIPANT_REQUIRED: "Max participants required",
   PUBLISHED_PROGRAM_FETCH: "Published programs fetched successfully",
   PARTICIPANT_FETCH: "Participants fetched successfully",

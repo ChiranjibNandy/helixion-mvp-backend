@@ -42,38 +42,72 @@ export const getAttendanceByIdRepo = async (
     },
 
     {
-      $unwind: "$participants"
-    },
-
-    {
       $lookup: {
         from: "users",
-        localField: "participants.participantId",
-        foreignField: "_id",
-        as: "participant"
+        let: {
+          participantIds:
+            "$participants.participantId"
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $in: [
+                  "$_id",
+                  "$$participantIds"
+                ]
+              }
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              username: 1,
+              email: 1
+            }
+          }
+        ],
+        as: "participantUsers"
       }
-    },
-
-    {
-      $unwind: "$participant"
     },
 
     {
       $project: {
         _id: 0,
+        date: 1,
+        programId: 1,
 
-        participantId: "$participant._id",
+        participants: {
+          $map: {
+            input: "$participants",
+            as: "participant",
+            in: {
+              participantId:
+                "$$participant.participantId",
 
-        username: "$participant.username",
+              present_status:
+                "$$participant.present_status",
 
-        email: "$participant.email",
-
-        present_status:
-          "$participants.present_status",
-
-        date: "$date",
-
-        programId: "$programId"
+              user: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$participantUsers",
+                      as: "user",
+                      cond: {
+                        $eq: [
+                          "$$user._id",
+                          "$$participant.participantId"
+                        ]
+                      }
+                    }
+                  },
+                  0
+                ]
+              }
+            }
+          }
+        }
       }
     }
   ]);
