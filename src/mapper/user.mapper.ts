@@ -15,7 +15,7 @@ export const mapUserToPendingRegistrationDto = (
 
 export const mapUserBasicDetail = (user: IUser) => {
   return {
-    id: user._id,
+    id: user._id!.toString(),
     username: user.username,
     email: user.email
   };

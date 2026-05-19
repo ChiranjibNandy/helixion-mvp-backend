@@ -27,19 +27,15 @@ export const upsertAttendanceRepo = async (
   );
 };
 
-//return attendance data based on Id and  lookup with participantId
-
-export const getAttendanceByIdRepo = async (
-  attendanceId: string
-) => {
+// return attendance records for a program (newest first)
+export const getAttendanceByProgramIdRepo = async (programId: string) => {
   return await attendanceModel.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(
-          attendanceId
-        )
-      }
+        programId: new mongoose.Types.ObjectId(programId),
+      },
     },
+    { $sort: { date: -1 } },
 
     {
       $lookup: {

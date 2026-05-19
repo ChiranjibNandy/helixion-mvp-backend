@@ -1,6 +1,6 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getAttendanceByIdRepo, updateParticipantAttendanceRepository, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
+import { getAttendanceByProgramIdRepo, updateParticipantAttendanceRepository, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
 import { AppError } from "../utils/appError.js";
 import { validateParticipantsEnrollmentService } from "../validators/attendance.validator.js";
@@ -21,13 +21,8 @@ export const takeAttendanceService = async (
    return await upsertAttendanceRepo(payload);
 };
 
-export const getProgramAttendanceService = async (
-   attendanceId: string
-) => {
-   const attendance =
-      await getAttendanceByIdRepo(attendanceId);
-
-   return attendance;
+export const getProgramAttendanceService = async (programId: string) => {
+   return await getAttendanceByProgramIdRepo(programId);
 };
 
 //take single participant attendance
