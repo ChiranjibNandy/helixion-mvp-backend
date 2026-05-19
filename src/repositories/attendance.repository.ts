@@ -11,11 +11,13 @@ export const upsertAttendanceRepo = async (
 
   return await attendanceModel.findOneAndUpdate(
     {
-      programId,
+      programId: new mongoose.Types.ObjectId(programId),
       date,
     },
     {
       $set: {
+        programId: new mongoose.Types.ObjectId(programId),
+        date,
         participants,
       },
     },
