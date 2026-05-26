@@ -145,3 +145,135 @@ export const updateParticipantAttendanceRepository =
       }
     );
   };
+
+//Today attendance
+export const getTodayAttendanceTaken = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const result = await attendanceModel.aggregate([
+
+    {
+      $match: {
+        createdAt: {
+          $gte: todayStart
+        }
+      }
+    },
+
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program"
+      }
+    },
+
+    {
+      $unwind: "$program"
+    },
+
+    {
+      $match: {
+        "program.training_providerId":
+          new mongoose.Types.ObjectId(
+            trainingProviderId
+          )
+      }
+    },
+
+    {
+      $sort: {
+        createdAt: -1
+      }
+    },
+
+    {
+      $limit: 1
+    },
+
+    {
+      $project: {
+        programTitle: "$program.title",
+
+        attendanceCount: {
+          $size: "$participants"
+        },
+
+        uploadedAt: "$createdAt"
+      }
+    }
+  ]);
+
+  return result[0] || null;
+};
+
+//Attendance activity
+
+export const getAttendanceActivities = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const result = await attendanceModel.aggregate([
+
+    {
+      $match: {
+        createdAt: {
+          $gte: todayStart
+        }
+      }
+    },
+
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program"
+      }
+    },
+
+    {
+      $unwind: "$program"
+    },
+
+    {
+      $match: {
+        "program.training_providerId":
+          new mongoose.Types.ObjectId(
+            trainingProviderId
+          )
+      }
+    },
+
+    {
+      $sort: {
+        createdAt: -1
+      }
+    },
+
+    {
+      $limit: 1
+    }
+  ]);
+
+  if (!result.length) return [];
+
+  return [
+    {
+      type: "attendance",
+      message:
+        `Attendance uploaded for ${ result[0].program.title }`,
+      time: result[0].createdAt
+    }
+  ];
+};

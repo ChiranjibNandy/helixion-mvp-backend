@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
@@ -105,4 +106,283 @@ export const updateProgramRepo = async (id: string, providerId: string, data: Pa
 export const deleteProgramRepo = async (id: string, providerId: string) => {
   return await Program.findOneAndDelete(buildOwnerFilter(id, providerId));
 };
+
+//Live program count
+
+export const getLiveProgramsCount = async (
+  trainingProviderId: string
+) => {
+
+  return await Program.countDocuments({
+    training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+    status: PROGRAM_SAVED_STATUS.PUBLISHED
+  });
+};
+
+// Draft Program count
+export const getDraftProgramsCount = async (
+  trainingProviderId: string
+) => {
+
+  return await Program.countDocuments({
+    training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+    status: PROGRAM_SAVED_STATUS.DRAFT
+  });
+};
+
+// AVERAGE FILL RATE
+
+export const getAverageFillRate = async (
+  trainingProviderId: string
+) => {
+
+  const result = await Program.aggregate([
+
+    {
+      $match: {
+        training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+        status: PROGRAM_SAVED_STATUS.PUBLISHED
+      }
+    },
+
+    {
+      $lookup: {
+        from: "enrollments",
+        localField: "_id",
+        foreignField: "programId",
+        as: "enrollments"
+      }
+    },
+
+    {
+      $addFields: {
+
+        enrolledCount: {
+          $size: "$enrollments"
+        },
+
+        fillRate: {
+          $cond: [
+            { $gt: ["$maxParticipants", 0] },
+
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $size: "$enrollments" },
+                    "$maxParticipants"
+                  ]
+                },
+                100
+              ]
+            },
+
+            0
+          ]
+        }
+      }
+    },
+
+    {
+      $group: {
+        _id: null,
+
+        averageFillRate: {
+          $avg: "$fillRate"
+        }
+      }
+    }
+  ]);
+
+  return Math.round(
+    result[0]?.averageFillRate || 0
+  );
+};
+
+// TOP PROGRAMS that display in training provider dashboard
+export const getTopPrograms = async (
+  trainingProviderId: string
+) => {
+
+  return await Program.aggregate([
+
+    {
+      $match: {
+        training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+        status: PROGRAM_SAVED_STATUS.PUBLISHED
+      }
+    },
+
+    {
+      $lookup: {
+        from: "enrollments",
+        localField: "_id",
+        foreignField: "programId",
+        as: "enrollments"
+      }
+    },
+
+    {
+      $addFields: {
+
+        enrolledCount: {
+          $size: "$enrollments"
+        },
+
+        fillRate: {
+          $cond: [
+            { $gt: ["$maxParticipants", 0] },
+
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $size: "$enrollments" },
+                    "$maxParticipants"
+                  ]
+                },
+                100
+              ]
+            },
+
+            0
+          ]
+        }
+      }
+    },
+
+    {
+      $project: {
+        title: 1,
+        startDate: 1,
+        enrolledCount: 1,
+        maxParticipants: 1,
+
+        fillRate: {
+          $round: ["$fillRate", 0]
+        }
+      }
+    },
+
+    {
+      $sort: {
+        enrolledCount: -1
+      }
+    },
+
+    {
+      $limit: 5
+    }
+  ]);
+};
+
+
+//published program activity
+export const getPublishedActivities = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const programs = await Program.find({
+
+    training_providerId: trainingProviderId,
+    status: PROGRAM_SAVED_STATUS.PUBLISHED,
+
+    updatedAt: {
+      $gte: todayStart
+    }
+  })
+    .sort({ updatedAt: -1 })
+    .limit(5);
+
+  return programs.map((program) => ({
+    type: "published",
+    message: `Published: ${ program.title }`,
+    time: program.updatedAt
+  }));
+};
+
+//Draft activity
+export const getDraftActivities = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const programs = await Program.find({
+
+    training_providerId: trainingProviderId,
+    status: PROGRAM_SAVED_STATUS.DRAFT,
+    updatedAt: {
+      $gte: todayStart
+    }
+  })
+    .sort({ updatedAt: -1 })
+    .limit(5);
+
+  return programs.map((program) => ({
+    type: "draft",
+    message: `Draft saved: ${ program.title }`,
+    time: program.updatedAt
+  }));
+};
+
+//Bulk upload activity
+
+export const getBulkUploadActivities = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const result = await Program.aggregate([
+
+    {
+      $match: {
+
+        training_providerId: trainingProviderId,
+        batchId: {
+          $exists: true,
+          $ne: null
+        },
+
+        createdAt: {
+          $gte: todayStart
+        }
+      }
+    },
+
+    {
+      $group: {
+        _id: "$batchId",
+
+        count: {
+          $sum: 1
+        },
+
+        createdAt: {
+          $max: "$createdAt"
+        }
+      }
+    }
+  ]);
+
+  return result.map((item) => ({
+    type: "bulk_upload",
+    message:
+      `Bulk upload: ${ item.count } programs uploaded`,
+    time: item.createdAt
+  }));
+};
+
+
+
+
 
