@@ -64,7 +64,7 @@ export const validateParticipantsEnrollmentRepo = async (
          )
       },
 
-      status: "active"
+      status: ENROLLMENT_STATUS.ACTIVE
    }).select("userId");
 
    return enrollments;
