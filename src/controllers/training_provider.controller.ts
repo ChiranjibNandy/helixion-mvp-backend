@@ -144,6 +144,10 @@ export const getTrainingProviderDashboard = async (
    try {
 
       const trainingProviderId = req.userId as string;
+       if (!trainingProviderId) {
+        throw new AppError(MESSAGES.UNAUTHORIZED,HTTP_STATUS.UNAUTHORIZED)
+      }
+
 
       const dashboardData =
          await getTrainingProviderDashboardServices(
