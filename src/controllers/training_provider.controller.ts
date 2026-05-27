@@ -147,8 +147,6 @@ export const getTrainingProviderDashboard = async (
        if (!trainingProviderId) {
         throw new AppError(MESSAGES.UNAUTHORIZED,HTTP_STATUS.UNAUTHORIZED)
       }
-
-
       const dashboardData =
          await getTrainingProviderDashboardServices(
             trainingProviderId
@@ -156,7 +154,7 @@ export const getTrainingProviderDashboard = async (
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
-         message: MESSAGES.DASHBOARD_DATE_FETCH,
+         message: MESSAGES.DASHBOARD_DATA_FETCH,
          data: dashboardData
       });
 

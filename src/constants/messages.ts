@@ -85,5 +85,5 @@ export const MESSAGES = {
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
   PROGRAM_NOT_FOUND: "Program not found",
-  DASHBOARD_DATE_FETCH :"Dashboard data fetched successfully"
+  DASHBOARD_DATA_FETCH :"Dashboard data fetched successfully"
 } as const;
