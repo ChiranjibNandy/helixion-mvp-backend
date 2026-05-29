@@ -10,9 +10,9 @@ const participantAttendanceSchema = new Schema(
          required: true
       },
 
-       present_status: {
+      present_status: {
          type: String,
-         enum:Object.values(ATTENDANCE_STATUS),
+         enum: Object.values(ATTENDANCE_STATUS),
          required: true
       }
    },
@@ -33,6 +33,14 @@ const attendanceSchema = new Schema<IAttendance>(
          type: Date,
          required: true
       },
+      training_providerId: {
+         type: Schema.Types.ObjectId,
+         ref: "User",
+         required: true
+      },
+      program_title: {
+         type: String,
+      },
 
       participants: {
          type: [participantAttendanceSchema],
@@ -49,6 +57,21 @@ attendanceSchema.index(
    { programId: 1, date: 1 },
    { unique: true }
 );
+
+attendanceSchema.index({
+   training_providerId: 1,
+   createdAt: -1
+});
+
+attendanceSchema.index({
+   training_providerId: 1,
+   date: -1
+});
+
+attendanceSchema.index({
+   programId: 1,
+   createdAt: -1
+});
 
 export default mongoose.model<IAttendance>(
    "Attendance",

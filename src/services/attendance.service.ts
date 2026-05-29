@@ -1,6 +1,7 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { getAttendanceByProgramIdRepo, updateParticipantAttendanceRepository, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
+import { findProgramById } from "../repositories/program.repository.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
 import { AppError } from "../utils/appError.js";
 import { validateParticipantsEnrollmentService } from "../validators/attendance.validator.js";
@@ -18,7 +19,11 @@ export const takeAttendanceService = async (
       payload.programId,
       participantIds
    );
-   return await upsertAttendanceRepo(payload);
+   const programData = await findProgramById(payload.programId)
+   if (!programData) {
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
+   }
+   return await upsertAttendanceRepo(payload, programData.title);
 };
 
 export const getProgramAttendanceService = async (programId: string) => {

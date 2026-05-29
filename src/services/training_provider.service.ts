@@ -1,5 +1,5 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
-import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo } from "../repositories/program.repository.js";
+import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo, getLiveProgramsCount, getDraftProgramsCount, getTopPrograms, getAverageFillRate, getPublishedActivities, getDraftActivities, getBulkUploadActivities } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { validateBulkRows } from "../utils/bulkValidator.js";
@@ -43,7 +43,7 @@ export const bulkCreateProgramService = async ({
   // Generate batch ID
   const lastBatch = await getLastBatchId();
   const lastBatchNumber = Number(lastBatch?.batchId?.split("_")[1]) || 0;
-  const newBatchId = `batch_${lastBatchNumber + 1}`;
+  const newBatchId = `batch_${ lastBatchNumber + 1 }`;
 
   // Validate each row against the schema
   const { validPrograms, errors } = validateBulkRows(rows, training_providerId ?? '', newBatchId);
@@ -70,7 +70,7 @@ export const getDraftProgramsService = async (
 ) => {
   const skip = (page - 1) * limit;
   const { programs, total } = await getDraftProgramsRepo(providerId, skip, limit, search);
-  
+
   return {
     programs,
     total,
@@ -121,6 +121,8 @@ export const updateDraftService = async (
 // publish draft service
 import { createProgramSchema } from "../validators/training_provider.validator.js";
 import { PROGRAM_SAVED_STATUS } from "../constants/enum.js";
+import { getEnrollmentActivities, getTodayEnrollmentCount, getTotalEnrollments } from "../repositories/enrollment.repository.js";
+import { getAttendanceActivities, getTodayAttendanceTaken } from "../repositories/attendance.repository.js";
 
 export const publishDraftService = async (id: string, providerId: string) => {
   const program = await getProgramByIdRepo(id, providerId);
@@ -150,4 +152,124 @@ export const deleteDraftService = async (id: string, providerId: string) => {
     throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
   return program;
+};
+
+//
+
+export const getTrainingProviderDashboardServices = async (
+  trainingProviderId: string
+) => {
+
+  const [
+    livePrograms,
+    drafts,
+    totalEnrollments,
+    averageFillRate,
+    topPrograms,
+    recentActivities,
+    todayEnrollmentCount,
+    todayAttendance
+  ] = await Promise.all([
+
+    getLiveProgramsCount(
+      trainingProviderId
+    ),
+
+    getDraftProgramsCount(
+      trainingProviderId
+    ),
+
+    getTotalEnrollments(
+      trainingProviderId
+    ),
+
+    getAverageFillRate(
+      trainingProviderId
+    ),
+
+    getTopPrograms(
+      trainingProviderId
+    ),
+
+    getRecentActivities(trainingProviderId),
+
+    getTodayEnrollmentCount(
+      trainingProviderId
+    ),
+
+    getTodayAttendanceTaken(
+      trainingProviderId
+    )
+  ]);
+
+  return {
+    overview: {
+      livePrograms,
+      drafts,
+      totalEnrollments,
+      averageFillRate,
+      todayEnrollmentCount,
+      todayAttendance
+    },
+
+    topPrograms,
+
+    recentActivities
+  };
+};
+
+
+
+// ====================================
+// RECENT ACTIVITIES
+// ====================================
+
+const getRecentActivities = async (
+  trainingProviderId: string
+) => {
+
+  const [
+    publishedActivities,
+    draftActivities,
+    bulkUploadActivities,
+    enrollmentActivities,
+    attendanceActivities
+  ] = await Promise.all([
+
+    getPublishedActivities(
+      trainingProviderId
+    ),
+
+    getDraftActivities(
+      trainingProviderId
+    ),
+
+    getBulkUploadActivities(
+      trainingProviderId
+    ),
+
+    getEnrollmentActivities(
+      trainingProviderId
+    ),
+
+    getAttendanceActivities(
+      trainingProviderId
+    )
+  ]);
+
+  const activities = [
+    ...publishedActivities,
+    ...draftActivities,
+    ...bulkUploadActivities,
+    ...enrollmentActivities,
+    ...attendanceActivities
+  ];
+
+  activities.sort(
+    (a: any, b: any) =>
+      new Date(b.time).getTime() -
+      new Date(a.time).getTime()
+  );
+
+  return activities.slice(0, 10);
 };

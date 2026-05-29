@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProgramSchema, updateProgramSchema } from "../validators/training_provider.validator.js";
-import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
+import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, getTrainingProviderDashboard, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
 import { ROLE } from "../constants/enum.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
@@ -93,6 +93,11 @@ router.patch(
 router.delete(
   "/programs/:id",
   deleteDraft
+);
+//get training provider dashboard data
+router.get(
+  "/dashboard",
+  getTrainingProviderDashboard
 );
 
 export default router;

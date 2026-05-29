@@ -1,6 +1,5 @@
-import { ATTENDANCE_STATUS } from "./enum.js";
-
 export const MESSAGES = {
+  UNAUTHORIZED:"UnAuthorized",
   PASSWORDS_DO_NOT_MATCH: "Passwords do not match",
   USER_ALREADY_EXISTS: "User already exists",
   USER_CREATED_SUCCESSFULLY: "User created successfully",
@@ -85,5 +84,6 @@ export const MESSAGES = {
   DRAFT_UPDATED: "Draft updated successfully",
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
-  PROGRAM_NOT_FOUND: "Program not found"
+  PROGRAM_NOT_FOUND: "Program not found",
+  DASHBOARD_DATA_FETCH :"Dashboard data fetched successfully"
 } as const;

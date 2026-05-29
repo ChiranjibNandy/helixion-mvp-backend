@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { getProgramParticipantsService, getPublishedProgramsService } from "../services/program.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { AppError } from "../utils/appError.js";
 
 export const searchPublishedProgramsController = async (
    req: Request,
@@ -10,6 +11,9 @@ export const searchPublishedProgramsController = async (
 ) => {
    try {
       const userId = req.userId;
+      if (!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
+      }
 
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;

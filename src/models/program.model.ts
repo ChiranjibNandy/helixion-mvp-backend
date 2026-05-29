@@ -87,5 +87,16 @@ const programSchema = new Schema<IProgram>(
    }
 );
 
+programSchema.index({ training_providerId: 1, status: 1 });
+
+programSchema.index({ training_providerId: 1, createdAt: -1 });
+
+programSchema.index({ status: 1 });
+
+programSchema.index({ startDate: 1 });
+
+programSchema.index({ batchId: 1 });
+
+
 
 export default mongoose.model<IProgram>("Program", programSchema);

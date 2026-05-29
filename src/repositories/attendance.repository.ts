@@ -1,13 +1,15 @@
 import mongoose from "mongoose";
 import attendanceModel from "../models/attendance.model.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
+import { getUTCStartOfDay } from "../utils/date.js";
 
 
 //take attendance on corresponding project for multiple participant at a time
 export const upsertAttendanceRepo = async (
-  payload: TakeAttendancePayload
+  payload: TakeAttendancePayload,
+  program_title: string
 ) => {
-  const { programId, date, participants } = payload;
+  const { programId, date, participants, training_providerId } = payload;
 
   return await attendanceModel.findOneAndUpdate(
     {
@@ -18,6 +20,8 @@ export const upsertAttendanceRepo = async (
       $set: {
         programId: new mongoose.Types.ObjectId(programId),
         date,
+        program_title,
+        training_providerId,
         participants,
       },
     },
@@ -145,3 +149,115 @@ export const updateParticipantAttendanceRepository =
       }
     );
   };
+
+//Today attendance
+export const getTodayAttendanceTaken = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = getUTCStartOfDay();
+
+
+  const result = await attendanceModel.aggregate([
+
+    {
+      $match: {
+        training_providerId:
+          new mongoose.Types.ObjectId(
+            trainingProviderId
+          ),
+        createdAt: {
+          $gte: todayStart
+        }
+      }
+    },
+    {
+      $sort: {
+        createdAt: -1
+      }
+    },
+
+    {
+      $limit: 1
+    },
+
+    {
+      $project: {
+        programTitle: "$program_title",
+
+        attendanceCount: {
+          $size: "$participants"
+        },
+
+        uploadedAt: "$createdAt"
+      }
+    }
+  ]);
+
+  return result[0] || null;
+};
+
+//Attendance activity
+
+export const getAttendanceActivities = async (
+  trainingProviderId: string
+) => {
+
+  const todayStart = new Date();
+
+  todayStart.setHours(0, 0, 0, 0);
+
+  const result = await attendanceModel.aggregate([
+
+    {
+      $match: {
+        createdAt: {
+          $gte: todayStart
+        }
+      }
+    },
+
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program"
+      }
+    },
+
+    {
+      $unwind: "$program"
+    },
+
+    {
+      $match: {
+        "program.training_providerId":
+          new mongoose.Types.ObjectId(
+            trainingProviderId
+          )
+      }
+    },
+
+    {
+      $sort: {
+        createdAt: -1
+      }
+    },
+
+    {
+      $limit: 1
+    }
+  ]);
+
+  if (!result.length) return [];
+
+  return [
+    {
+      type: "attendance",
+      message:
+        `Attendance uploaded for ${ result[0].program.title }`,
+      time: result[0].createdAt
+    }
+  ];
+};

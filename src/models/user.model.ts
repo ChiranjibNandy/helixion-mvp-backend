@@ -40,4 +40,14 @@ const userSchema = new Schema<IUser>({
   timestamps: true,
 });
 
+userSchema.index({ email: 1 });
+
+userSchema.index({ role: 1 });
+
+userSchema.index({ approval_status: 1 });
+
+userSchema.index({ status: 1 });
+
+userSchema.index({ role: 1, approval_status: 1 });
+
 export default mongoose.model<IUser>("User", userSchema);

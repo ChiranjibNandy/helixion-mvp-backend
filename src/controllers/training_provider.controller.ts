@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import { 
-   bulkCreateProgramService, 
+import {
+   bulkCreateProgramService,
    createProgramService,
    getDraftProgramsService,
    getDraftByIdService,
    updateDraftService,
    publishDraftService,
-   deleteDraftService
+   deleteDraftService,
+   getTrainingProviderDashboardServices
 } from "../services/training_provider.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
@@ -130,6 +131,33 @@ export const deleteDraft = async (req: Request, res: Response, next: NextFunctio
          success: true,
          message: MESSAGES.DRAFT_DELETED
       });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getTrainingProviderDashboard = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+
+      const trainingProviderId = req.userId as string;
+       if (!trainingProviderId) {
+        throw new AppError(MESSAGES.UNAUTHORIZED,HTTP_STATUS.UNAUTHORIZED)
+      }
+      const dashboardData =
+         await getTrainingProviderDashboardServices(
+            trainingProviderId
+         );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.DASHBOARD_DATA_FETCH,
+         data: dashboardData
+      });
+
    } catch (error) {
       next(error);
    }
