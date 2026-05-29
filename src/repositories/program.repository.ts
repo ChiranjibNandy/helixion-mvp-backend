@@ -3,6 +3,8 @@ import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
+import programModel from '../models/program.model.js';
+import { getUTCStartOfDay } from '../utils/date.js';
 
 /** Reusable filter for owner-scoped program queries */
 const buildOwnerFilter = (id: string, providerId: string) => ({
@@ -282,9 +284,7 @@ export const getPublishedActivities = async (
   trainingProviderId: string
 ) => {
 
-  const todayStart = new Date();
-
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = getUTCStartOfDay()
 
   const programs = await Program.find({
 
@@ -310,9 +310,7 @@ export const getDraftActivities = async (
   trainingProviderId: string
 ) => {
 
-  const todayStart = new Date();
-
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart =  getUTCStartOfDay()
 
   const programs = await Program.find({
 
@@ -338,9 +336,7 @@ export const getBulkUploadActivities = async (
   trainingProviderId: string
 ) => {
 
-  const todayStart = new Date();
-
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart =  getUTCStartOfDay()
 
   const result = await Program.aggregate([
 
@@ -381,6 +377,13 @@ export const getBulkUploadActivities = async (
     time: item.createdAt
   }));
 };
+
+//return program byId
+export const findProgramById = async (
+  id: string
+) => {
+  return await programModel.findById(id)
+}
 
 
 

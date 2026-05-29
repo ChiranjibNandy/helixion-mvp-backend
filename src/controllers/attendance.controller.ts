@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { getProgramAttendanceService, takeAttendanceService, updateParticipantAttendanceService } from "../services/attendance.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { AppError } from "../utils/appError.js";
 
 
 export const takeAttendanceController = async (
@@ -10,6 +11,10 @@ export const takeAttendanceController = async (
    next: NextFunction
 ) => {
    try {
+      const training_providerId = req.userId
+      if (!training_providerId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
+      }
       const programId = String(req.params.id);
 
       const { date, participants } = req.body;
@@ -18,12 +23,12 @@ export const takeAttendanceController = async (
          programId,
          date,
          participants,
+         training_providerId
       });
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.ATTENDANCE_SAVE_SUCCESS,
-         data: attendance,
       });
    } catch (error) {
       next(error);

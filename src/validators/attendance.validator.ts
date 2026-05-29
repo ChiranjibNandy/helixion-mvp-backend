@@ -41,6 +41,7 @@ export const validateParticipantsEnrollmentService =
       participantIds: string[]
    ) => {
 
+      //return all active enrollments
       const enrolledParticipants =
          await validateParticipantsEnrollmentRepo(
             programId,
@@ -50,7 +51,7 @@ export const validateParticipantsEnrollmentService =
       const enrolledIds = enrolledParticipants.map(
          (item) => item.userId.toString()
       );
-
+      
       const invalidParticipants = participantIds.filter(
          (id) => !enrolledIds.includes(id)
       );
