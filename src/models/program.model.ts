@@ -69,7 +69,7 @@ const programSchema = new Schema<IProgram>(
       },
       status: {
          type: String,
-         enum: [PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED],
+         enum: Object.values(PROGRAM_SAVED_STATUS),
          default: PROGRAM_SAVED_STATUS.DRAFT,
       },
       training_providerId: {
