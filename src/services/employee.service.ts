@@ -1,19 +1,21 @@
-import { getActiveEnrollmentsRepo } from "../repositories/enrollment.repository.js";
-import { getAvailableProgramsRepo } from "../repositories/program.repository.js";
+import { getApprovalStatsRepo, getDashboardSummaryRepo, getListedProgramsRepo } from "../repositories/employee.repository.js";
 
 // Service to retrieve dashboard data including active enrollments and available programs
-export const getDashboardEnrollmentsService =
-   async (userId: string) => {
+export const getEmployeeDashboardService = async (userId: string) => {
+   const [
+      summary,
+      approvalStats,
+      listedPrograms
+   ] = await Promise.all([
+      getDashboardSummaryRepo(userId),
+      getApprovalStatsRepo(userId),
+      getListedProgramsRepo(userId)
+   ]);
 
-      const enrollments =
-         await getActiveEnrollmentsRepo(userId);
-
-      const availablePrograms =
-         await getAvailableProgramsRepo();
-
-      return {
-         enrollments,
-         availablePrograms
-      };
+   return {
+      summary,
+      approvalStats,
+      listedPrograms
    };
+};
 
