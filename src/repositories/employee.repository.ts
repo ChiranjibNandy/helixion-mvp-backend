@@ -3,81 +3,82 @@ import enrollment from "../models/enrollment.model.js";
 import { APPROVAL_STATUS, ENROLLMENT_STATUS, PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 import { ApprovalStatus } from "../types/enrollment.js";
 import Program from '../models/program.model.js'
+import { toObjectId } from "../utils/mongo.js";
+
 
 //employee dasboard summary data
 export const getDashboardSummaryRepo = async (
-   userId: string
+  userId: string
 ) => {
 
-   const objectId =
-      new mongoose.Types.ObjectId(userId);
+  const objectId = toObjectId(userId)
 
-   const [
-      completed,
-      enrolled,
-      pendingApprovals
-   ] = await Promise.all([
+  const [
+    completed,
+    enrolled,
+    pendingApprovals
+  ] = await Promise.all([
 
-      enrollment.countDocuments({
-         userId: objectId,
-         status: ENROLLMENT_STATUS.COMPLETED
-      }),
+    enrollment.countDocuments({
+      userId: objectId,
+      status: ENROLLMENT_STATUS.COMPLETED
+    }),
 
-      enrollment.countDocuments({
-         userId: objectId,
-         status: ENROLLMENT_STATUS.ACTIVE
-      }),
+    enrollment.countDocuments({
+      userId: objectId,
+      status: ENROLLMENT_STATUS.ACTIVE
+    }),
 
-      enrollment.countDocuments({
-         userId: objectId,
-         approvalStatus:
-            APPROVAL_STATUS.PENDING
-      })
-   ]);
+    enrollment.countDocuments({
+      userId: objectId,
+      approvalStatus:
+        APPROVAL_STATUS.PENDING,
+      status: ENROLLMENT_STATUS.ACTIVE
+    })
+  ]);
 
-   return {
-      programsCompleted: completed,
-      programsEnrolled: enrolled,
-      pendingApprovals
-   };
+  return {
+    programsCompleted: completed,
+    programsEnrolled: enrolled,
+    pendingApprovals
+  };
 };
 
 //Approval Chart in employee dashboard
 
 export const getApprovalStatsRepo = async (
-   userId: string
+  userId: string
 ) => {
 
-   const stats =
-      await enrollment.aggregate([
-         {
-            $match: {
-               userId:
-                  new mongoose.Types.ObjectId(userId)
-            }
-         },
-         {
-            $group: {
-               _id: "$approvalStatus",
-               count: {
-                  $sum: 1
-               }
-            }
-         }
-      ]);
+  const stats =
+    await enrollment.aggregate([
+      {
+        $match: {
+          userId: toObjectId(userId)
+        }
+      },
+      {
+        $group: {
+          _id: "$approvalStatus",
+          count: {
+            $sum: 1
+          }
+        }
+      }
+    ]);
 
-   const result: Record<ApprovalStatus, number> = {
-      approved: 0,
-      pending: 0,
-      dismissed:0
-   };
+  const result: Record<ApprovalStatus, number> = {
+    approved: 0,
+    pending: 0,
+    dismissed: 0
+  };
 
-   stats.forEach((item) => {
-      const key = item._id as ApprovalStatus;
-      result[key] = item.count;
-   });
+  stats.forEach((item) => {
+    const key = item._id as ApprovalStatus;
+    result[key] = item.count;
+  });
 
-   return result;
+  return result;
 };
 
 //listed program need to employee Dashboard
@@ -113,9 +114,7 @@ export const getListedProgramsRepo = async (
                   {
                     $eq: [
                       "$userId",
-                      new mongoose.Types.ObjectId(
-                        userId
-                      )
+                      toObjectId(userId)
                     ]
                   }
                 ]
@@ -137,7 +136,11 @@ export const getListedProgramsRepo = async (
         }
       }
     },
-
+    {
+      $sort: {
+        startDate: 1
+      }
+    },
     {
       $project: {
         title: 1,
@@ -152,16 +155,16 @@ export const getListedProgramsRepo = async (
                 case: {
                   $eq: [
                     "$enrollment.status",
-                    "completed" 
+                    ENROLLMENT_STATUS.COMPLETED
                   ]
                 },
-                then: "Completed"  
+                then: "Completed"
               },
               {
                 case: {
                   $eq: [
                     "$enrollment.status",
-                    "active"
+                    ENROLLMENT_STATUS.ACTIVE
                   ]
                 },
                 then: "Enrolled"
@@ -170,7 +173,7 @@ export const getListedProgramsRepo = async (
                 case: {
                   $eq: [
                     "$enrollment.status",
-                    "cancelled"
+                    ENROLLMENT_STATUS.CANCELLED
                   ]
                 },
                 then: "Rejected"
