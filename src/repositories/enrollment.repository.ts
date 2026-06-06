@@ -3,6 +3,73 @@ import enrollment from "../models/enrollment.model.js";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import enrollmentModel from "../models/enrollment.model.js";
 
+// employee enrollment helper
+
+export interface CreateEnrollmentPayload {
+  userId:          string;
+  programId:       string;
+  stayType:        string;
+  feeAmount:       number;
+  currency:        string;
+  programSnapshot: {
+    title:               string;
+    startDate?:          Date;
+    endDate?:            Date;
+    venue?:              string;
+    training_providerId: mongoose.Types.ObjectId;
+  };
+  locationMatched: boolean;
+  approvalStatus:  string;
+  source:          string;
+  notes?:          string;
+}
+
+export const createEnrollmentRepo = async (payload: CreateEnrollmentPayload) => {
+  return await enrollmentModel.create({
+    userId:    new mongoose.Types.ObjectId(payload.userId),
+    programId: new mongoose.Types.ObjectId(payload.programId),
+    status:    ENROLLMENT_STATUS.ACTIVE,
+    stayType:        payload.stayType,
+    feeAmount:       payload.feeAmount,
+    currency:        payload.currency,
+    programSnapshot: payload.programSnapshot,
+    locationMatched: payload.locationMatched,
+    approvalStatus:  payload.approvalStatus,
+    source:          payload.source,
+    notes:           payload.notes,
+  });
+};
+
+export const checkExistingEnrollmentRepo = async (
+  userId: string,
+  programId: string
+) => {
+  return await enrollmentModel.findOne({
+    userId:    new mongoose.Types.ObjectId(userId),
+    programId: new mongoose.Types.ObjectId(programId),
+    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] },
+  });
+};
+
+export const getEnrollmentCountForProgramRepo = async (
+  programId: string
+) => {
+  return await enrollmentModel.countDocuments({
+    programId: new mongoose.Types.ObjectId(programId),
+    status: ENROLLMENT_STATUS.ACTIVE,
+  });
+};
+
+export const getEnrollmentByIdAndUserRepo = async (
+  enrollmentId: string,
+  userId: string
+) => {
+  return await enrollmentModel.findOne({
+    _id:    new mongoose.Types.ObjectId(enrollmentId),
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+};
+
 // Retrieve active enrollments with program details
 export const getActiveEnrollmentsRepo = async (userId: string) => {
    const enrollments = await enrollment.aggregate([
