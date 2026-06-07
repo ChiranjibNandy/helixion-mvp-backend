@@ -1,6 +1,5 @@
 import { Types } from "mongoose";
 
-
 export interface IEnrollmentProgramSnapshot {
   title: string;
   startDate?: Date;
@@ -9,33 +8,27 @@ export interface IEnrollmentProgramSnapshot {
   training_providerId: Types.ObjectId;
 }
 
+// mongoose schema 
 export interface IEnrollment {
   _id?: Types.ObjectId;
 
-  
   userId:    Types.ObjectId;
   programId: Types.ObjectId;
-  status:    string;               // active | pending | completed | cancelled
+  status:    string; // ENROLLMENT_STATUS
 
-  // accomodation
-  stayType: string;                // single_occupancy | twin_sharing | non_residential
+  stayType: string; // STAY_TYPE_KEY
 
-  // fee
-  feeAmount: number;               // fee locked at enrollment time (prevents price change disputes)
-  currency:  string;               // default INR
+  feeAmount: number;
+  currency:  string; // CURRENCY
 
-  // program snapshot
   programSnapshot: IEnrollmentProgramSnapshot;
 
-  // workflow
-  approvalStatus: string;          // pending_approval | approved | rejected | not_required
+  approvalStatus: string; // ENROLLMENT_APPROVAL_STATUS
 
-  // location
-  locationMatched: boolean;        // true when user's location matches the program venue
+  locationMatched: boolean;
 
-  // traceability
-  source: string;                  // web | mobile | api | admin
-  notes?: string;                  // optional employee notes at enrollment time
+  source: string; // ENROLLMENT_SOURCE
+  notes?: string;
 
   createdAt: Date;
   updatedAt: Date;

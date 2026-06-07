@@ -5,6 +5,7 @@ import {
   ENROLLMENT_APPROVAL_STATUS,
   ENROLLMENT_SOURCE,
   STAY_TYPE_KEY,
+  CURRENCY,
 } from "../constants/enum.js";
 
 const programSnapshotSchema = new Schema(
@@ -52,7 +53,8 @@ const enrollmentSchema = new Schema<IEnrollment>(
     },
     currency: {
       type: String,
-      default: "INR",
+      enum: Object.values(CURRENCY),
+      default: CURRENCY.INR,
       uppercase: true,
       trim: true,
     },

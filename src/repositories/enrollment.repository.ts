@@ -1,16 +1,19 @@
 import mongoose from "mongoose";
-import enrollment from "../models/enrollment.model.js";
-import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import enrollmentModel from "../models/enrollment.model.js";
-
-// employee enrollment helper
+import {
+  ENROLLMENT_STATUS,
+  STAY_TYPE_KEY,
+  CURRENCY,
+  ENROLLMENT_APPROVAL_STATUS,
+  ENROLLMENT_SOURCE,
+} from "../constants/enum.js";
 
 export interface CreateEnrollmentPayload {
-  userId:          string;
-  programId:       string;
-  stayType:        string;
+  userId:          mongoose.Types.ObjectId;
+  programId:       mongoose.Types.ObjectId;
+  stayType:        STAY_TYPE_KEY;
   feeAmount:       number;
-  currency:        string;
+  currency:        CURRENCY;
   programSnapshot: {
     title:               string;
     startDate?:          Date;
@@ -19,16 +22,16 @@ export interface CreateEnrollmentPayload {
     training_providerId: mongoose.Types.ObjectId;
   };
   locationMatched: boolean;
-  approvalStatus:  string;
-  source:          string;
+  approvalStatus:  ENROLLMENT_APPROVAL_STATUS;
+  source:          ENROLLMENT_SOURCE;
   notes?:          string;
 }
 
 export const createEnrollmentRepo = async (payload: CreateEnrollmentPayload) => {
   return await enrollmentModel.create({
-    userId:    new mongoose.Types.ObjectId(payload.userId),
-    programId: new mongoose.Types.ObjectId(payload.programId),
-    status:    ENROLLMENT_STATUS.ACTIVE,
+    userId:          payload.userId,
+    programId:       payload.programId,
+    status:          ENROLLMENT_STATUS.ACTIVE,
     stayType:        payload.stayType,
     feeAmount:       payload.feeAmount,
     currency:        payload.currency,
@@ -41,21 +44,21 @@ export const createEnrollmentRepo = async (payload: CreateEnrollmentPayload) => 
 };
 
 export const checkExistingEnrollmentRepo = async (
-  userId: string,
-  programId: string
+  userId: mongoose.Types.ObjectId,
+  programId: mongoose.Types.ObjectId
 ) => {
   return await enrollmentModel.findOne({
-    userId:    new mongoose.Types.ObjectId(userId),
-    programId: new mongoose.Types.ObjectId(programId),
+    userId,
+    programId,
     status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] },
   });
 };
 
 export const getEnrollmentCountForProgramRepo = async (
-  programId: string
+  programId: mongoose.Types.ObjectId
 ) => {
   return await enrollmentModel.countDocuments({
-    programId: new mongoose.Types.ObjectId(programId),
+    programId,
     status: ENROLLMENT_STATUS.ACTIVE,
   });
 };
@@ -70,177 +73,122 @@ export const getEnrollmentByIdAndUserRepo = async (
   });
 };
 
-// Retrieve active enrollments with program details
 export const getActiveEnrollmentsRepo = async (userId: string) => {
-   const enrollments = await enrollment.aggregate([
-      {
-         $match: {
-            userId: new mongoose.Types.ObjectId(userId),
-            status: ENROLLMENT_STATUS.ACTIVE
-         }
+  return await enrollmentModel.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        status: ENROLLMENT_STATUS.ACTIVE,
       },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
+    },
+    {
+      $lookup: {
+        from:         "programs",
+        localField:   "programId",
+        foreignField: "_id",
+        as:           "programDetails",
       },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
+    },
+    {
+      $addFields: {
+        programDetails: { $arrayElemAt: ["$programDetails", 0] },
       },
-      {
-         $sort: {
-            createdAt: -1
-         }
-      }
-   ]);
-
-   return enrollments;
+    },
+    { $sort: { createdAt: -1 } },
+  ]);
 };
 
-//get enrollmented participant data
-export const getProgramParticipantsRepo = async (
-   programId: string
-) => {
-   return await enrollment.find({ programId, status: ENROLLMENT_STATUS.ACTIVE })
-      .populate({
-         path: "userId",
-         select: "_id username email"
-      });
+export const getProgramParticipantsRepo = async (programId: string) => {
+  return await enrollmentModel
+    .find({
+      programId: new mongoose.Types.ObjectId(programId),
+      status:    ENROLLMENT_STATUS.ACTIVE,
+    })
+    .populate({ path: "userId", select: "_id username email" });
 };
-
-//enrollment data based on programId and participant Id for checking
 
 export const validateParticipantsEnrollmentRepo = async (
-   programId: string,
-   participantIds: string[]
+  programId: string,
+  participantIds: string[]
 ) => {
-
-   const enrollments = await enrollmentModel.find({
+  return await enrollmentModel
+    .find({
       programId: new mongoose.Types.ObjectId(programId),
-
-      userId: {
-         $in: participantIds.map(
-            (id) => new mongoose.Types.ObjectId(id)
-         )
-      },
-
-      status: ENROLLMENT_STATUS.ACTIVE
-   }).select("userId");
-
-   return enrollments;
+      userId:    { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      status:    ENROLLMENT_STATUS.ACTIVE,
+    })
+    .select("userId");
 };
 
-// TOTAL ENROLLMENTS
-export const getTotalEnrollments = async (
-   trainingProviderId: string
-) => {
-
-   const result = await enrollmentModel.aggregate([
-
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "program"
-         }
+export const getTotalEnrollments = async (trainingProviderId: string) => {
+  const result = await enrollmentModel.aggregate([
+    {
+      $lookup: {
+        from: "programs",
+        let:  { programId: "$programId" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$_id", "$$programId"] },
+                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                ],
+              },
+            },
+          },
+        ],
+        as: "program",
       },
+    },
+    { $match: { "program.0": { $exists: true } } },
+    { $count: "total" },
+  ]);
 
-      {
-         $unwind: "$program"
-      },
-
-      {
-         $match: {
-            "program.training_providerId":
-               new mongoose.Types.ObjectId(
-                  trainingProviderId
-               )
-         }
-      },
-
-      {
-         $count: "total"
-      }
-   ]);
-
-   return result[0]?.total || 0;
+  return result[0]?.total || 0;
 };
 
-//Today Enrollments
-export const getTodayEnrollmentCount = async (
-   trainingProviderId: string
-) => {
+export const getTodayEnrollmentCount = async (trainingProviderId: string) => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-   const todayStart = new Date();
-
-   todayStart.setHours(0, 0, 0, 0);
-
-   const result = await enrollmentModel.aggregate([
-
-      {
-         $match: {
-            createdAt: {
-               $gte: todayStart
-            }
-         }
+  const result = await enrollmentModel.aggregate([
+    { $match: { createdAt: { $gte: todayStart } } },
+    {
+      $lookup: {
+        from: "programs",
+        let:  { programId: "$programId" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$_id", "$$programId"] },
+                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                ],
+              },
+            },
+          },
+        ],
+        as: "program",
       },
+    },
+    { $match: { "program.0": { $exists: true } } },
+    { $count: "count" },
+  ]);
 
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "program"
-         }
-      },
-
-      {
-         $unwind: "$program"
-      },
-
-      {
-         $match: {
-            "program.training_providerId":
-               new mongoose.Types.ObjectId(
-                  trainingProviderId
-               )
-         }
-      },
-
-      {
-         $count: "count"
-      }
-   ]);
-
-   return result[0]?.count || 0;
+  return result[0]?.count || 0;
 };
 
-//Enrollment activity
-export const getEnrollmentActivities = async (
-   trainingProviderId: string
-) => {
+export const getEnrollmentActivities = async (trainingProviderId: string) => {
+  const count = await getTodayEnrollmentCount(trainingProviderId);
+  if (!count) return [];
 
-   const count =
-      await getTodayEnrollmentCount(
-         trainingProviderId
-      );
-
-   if (!count) return [];
-
-   return [
-      {
-         type: "enrollment",
-         message:
-            `${count} new enrollments received today`,
-         time: new Date()
-      }
-   ];
+  return [
+    {
+      type:    "enrollment",
+      message: `${count} new enrollments received today`,
+      time:    new Date(),
+    },
+  ];
 };
