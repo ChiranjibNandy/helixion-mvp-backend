@@ -15,9 +15,50 @@ const buildOwnerFilter = (id: string, providerId: string) => ({
 
 // Retrieve all active programs
 export const getAvailableProgramsRepo = async () => {
-  return await Program.find({
-    status: PROGRAM_SAVED_STATUS.PUBLISHED
-  })
+  return await Program.find({ status: PROGRAM_SAVED_STATUS.PUBLISHED });
+};
+
+export interface ProgramFilterParams {
+  page:      number;
+  limit:     number;
+  search?:   string;   
+  venue?:    string;   
+  fromDate?: string;   
+  toDate?:   string;  
+}
+
+// paginated + filter program list for the employee browse view
+export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterParams) => {
+  const { page, limit, search, venue, fromDate, toDate } = params;
+  const skip   = (page - 1) * limit;
+  const filter: any = { status: PROGRAM_SAVED_STATUS.PUBLISHED };
+
+  if (search)   filter.title = { $regex: search, $options: "i" };
+  if (venue)    filter.venue = { $regex: venue,  $options: "i" };
+
+  if (fromDate || toDate) {
+    filter.startDate = {};
+    if (fromDate) filter.startDate.$gte = new Date(fromDate);
+    if (toDate)   filter.startDate.$lte = new Date(toDate);
+  }
+
+  const [programs, total] = await Promise.all([
+    Program.find(filter)
+      .populate("training_providerId", "username description")
+      .sort({ startDate: 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+
+    Program.countDocuments(filter),
+  ]);
+
+  return {
+    programs,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 //create program
@@ -380,11 +421,9 @@ export const getBulkUploadActivities = async (
 };
 
 //return program byId
-export const findProgramById = async (
-  id: string
-) => {
-  return await programModel.findById(id)
-}
+export const findProgramById = async (id: string) => {
+  return await programModel.findById(id);
+};
 
 
 
