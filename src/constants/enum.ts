@@ -26,10 +26,10 @@ export enum APPROVAL_STATUS {
 }
 
 export enum ENROLLMENT_STATUS {
-   ACTIVE = "active",
+   ACTIVE = "active", //enrolled
    COMPLETED = "completed",
    CANCELLED = "cancelled",
-   PENDING = "pending"
+   PENDING = "pending" //pending to approval
 }
 
 export enum USER_STATUS {

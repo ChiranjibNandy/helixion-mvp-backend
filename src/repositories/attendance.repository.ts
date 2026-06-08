@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import attendanceModel from "../models/attendance.model.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
 import { getUTCStartOfDay } from "../utils/date.js";
+import { toObjectId } from "../utils/mongo.js";
 
 
 //take attendance on corresponding project for multiple participant at a time
@@ -13,12 +14,12 @@ export const upsertAttendanceRepo = async (
 
   return await attendanceModel.findOneAndUpdate(
     {
-      programId: new mongoose.Types.ObjectId(programId),
+      programId: toObjectId(programId),
       date,
     },
     {
       $set: {
-        programId: new mongoose.Types.ObjectId(programId),
+        programId: toObjectId(programId),
         date,
         program_title,
         training_providerId,
@@ -38,7 +39,7 @@ export const getAttendanceByProgramIdRepo = async (programId: string) => {
   return await attendanceModel.aggregate([
     {
       $match: {
-        programId: new mongoose.Types.ObjectId(programId),
+        programId: toObjectId(programId),
       },
     },
     { $sort: { date: -1 } },

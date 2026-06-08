@@ -5,6 +5,7 @@ import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
 import programModel from '../models/program.model.js';
 import { getUTCStartOfDay } from '../utils/date.js';
+import { toObjectId } from '../utils/mongo.js';
 
 /** Reusable filter for owner-scoped program queries */
 const buildOwnerFilter = (id: string, providerId: string) => ({
@@ -116,7 +117,7 @@ export const getLiveProgramsCount = async (
 ) => {
 
   return await Program.countDocuments({
-    training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+    training_providerId: toObjectId(trainingProviderId),
     status: PROGRAM_SAVED_STATUS.PUBLISHED
   });
 };
@@ -127,7 +128,7 @@ export const getDraftProgramsCount = async (
 ) => {
 
   return await Program.countDocuments({
-    training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+    training_providerId: toObjectId(trainingProviderId),
     status: PROGRAM_SAVED_STATUS.DRAFT
   });
 };
@@ -142,7 +143,7 @@ export const getAverageFillRate = async (
 
     {
       $match: {
-        training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+        training_providerId: toObjectId(trainingProviderId),
         status: PROGRAM_SAVED_STATUS.PUBLISHED
       }
     },
@@ -210,7 +211,7 @@ export const getTopPrograms = async (
 
     {
       $match: {
-        training_providerId: new mongoose.Types.ObjectId(trainingProviderId),
+        training_providerId: toObjectId(trainingProviderId),
         status: PROGRAM_SAVED_STATUS.PUBLISHED
       }
     },

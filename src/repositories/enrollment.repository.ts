@@ -2,40 +2,7 @@ import mongoose from "mongoose";
 import enrollment from "../models/enrollment.model.js";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import enrollmentModel from "../models/enrollment.model.js";
-
-// Retrieve active enrollments with program details
-export const getActiveEnrollmentsRepo = async (userId: string) => {
-   const enrollments = await enrollment.aggregate([
-      {
-         $match: {
-            userId: new mongoose.Types.ObjectId(userId),
-            status: ENROLLMENT_STATUS.ACTIVE
-         }
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
-      },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
-      },
-      {
-         $sort: {
-            createdAt: -1
-         }
-      }
-   ]);
-
-   return enrollments;
-};
+import { toObjectId } from "../utils/mongo.js";
 
 //get enrollmented participant data
 export const getProgramParticipantsRepo = async (
@@ -56,11 +23,11 @@ export const validateParticipantsEnrollmentRepo = async (
 ) => {
 
    const enrollments = await enrollmentModel.find({
-      programId: new mongoose.Types.ObjectId(programId),
+      programId: toObjectId(programId),
 
       userId: {
          $in: participantIds.map(
-            (id) => new mongoose.Types.ObjectId(id)
+            (id) => toObjectId(id)
          )
       },
 
@@ -93,9 +60,7 @@ export const getTotalEnrollments = async (
       {
          $match: {
             "program.training_providerId":
-               new mongoose.Types.ObjectId(
-                  trainingProviderId
-               )
+               toObjectId(trainingProviderId)
          }
       },
 
@@ -142,9 +107,7 @@ export const getTodayEnrollmentCount = async (
       {
          $match: {
             "program.training_providerId":
-               new mongoose.Types.ObjectId(
-                  trainingProviderId
-               )
+               toObjectId(trainingProviderId)
          }
       },
 
@@ -172,7 +135,7 @@ export const getEnrollmentActivities = async (
       {
          type: "enrollment",
          message:
-            `${count} new enrollments received today`,
+            `${ count } new enrollments received today`,
          time: new Date()
       }
    ];
