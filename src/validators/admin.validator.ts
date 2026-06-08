@@ -2,13 +2,6 @@ import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
 
 
-export const approveUserParamsSchema = z.object({
-  id: z
-    .string()
-    .min(1, MESSAGES.USER_ID_REQUIRED),
-});
-
-
 export const approveUserBodySchema = z.object({
   role: z
     .string()

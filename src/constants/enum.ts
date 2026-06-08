@@ -13,7 +13,7 @@ export enum STAY_TYPE {
 
 // program saved status
 
-export enum PROGRAM_SAVED_STATUS{
+export enum PROGRAM_SAVED_STATUS {
   DRAFT = "draft",
   PUBLISHED = "published"
 }
@@ -26,10 +26,10 @@ export enum APPROVAL_STATUS {
 }
 
 export enum ENROLLMENT_STATUS {
-   ACTIVE = "active",
-   COMPLETED = "completed",
-   CANCELLED = "cancelled",
-   PENDING = "pending"
+  ACTIVE = "active",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  PENDING = "pending"
 }
 
 export enum USER_STATUS {
@@ -38,6 +38,29 @@ export enum USER_STATUS {
 }
 
 export enum ATTENDANCE_STATUS {
-   PRESENT = "present",
-   ABSENT = "absent",
+  PRESENT = "present",
+  ABSENT = "absent",
 }
+
+//Organization
+
+export enum ORGANIZATION_TYPE {
+  CORPORATE = "corporate",
+  TRAINING_PROVIDER = "training_provider",
+  OSD_INTERNAL = "osd_internal"
+}
+
+export enum ORGANIZATION_STATUS {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+}
+
+export enum REVIEW_MODE {
+  SINGLE = "single",
+  JUNIOR_SENIOR = "junior_senior",
+}
+
+export enum ASSIGNMENT_MODE {
+  POOL = "pool",
+  LOCATION_BASED = "location_based",
+};

@@ -1,5 +1,5 @@
 export const MESSAGES = {
-  UNAUTHORIZED:"UnAuthorized",
+  UNAUTHORIZED: "UnAuthorized",
   PASSWORDS_DO_NOT_MATCH: "Passwords do not match",
   USER_ALREADY_EXISTS: "User already exists",
   USER_CREATED_SUCCESSFULLY: "User created successfully",
@@ -85,5 +85,20 @@ export const MESSAGES = {
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
   PROGRAM_NOT_FOUND: "Program not found",
-  DASHBOARD_DATA_FETCH :"Dashboard data fetched successfully"
+  DASHBOARD_DATA_FETCH: "Dashboard data fetched successfully",
+
+  //Organization
+
+  ORG_NAME_REQUIRED: "Organization name is required",
+  ORG_NAME_MIN_LENGTH: "Organization name must be at least 2 characters",
+  ORG_CREATE: "Organization created successfully",
+  ORG_SLUG_REQUIRED: "Organization slug is required",
+  ORG_SLUG_MIN_LENGTH: "Organization slug must be at least 2 characters",
+  ORG_SLUG_ALREADY_EXIST: "Organization slug already exists",
+  ORG_INVALID_SLUG: "Slug can contain only lowercase letters, numbers and hyphens",
+  APPROVER_REQUIRED: "Approver is required",
+  LEVEL_MIN: "Approval level must be greater than 0",
+  MIN_LEVEL_TO_APPROVE: "Minimum approval level must be greater than 0",
+  POLICY_UPDATE: "Policy updated successfully",
+  ORG_NOT_FOUND: "Organization not found"
 } as const;
