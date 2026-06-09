@@ -3,6 +3,7 @@ import enrollment from "../models/enrollment.model.js";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
+import { IEnrollment } from "../interfaces/enrollment.interface.js";
 
 //get enrollmented participant data
 export const getProgramParticipantsRepo = async (
@@ -140,3 +141,88 @@ export const getEnrollmentActivities = async (
       }
    ];
 };
+
+export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
+   return await enrollmentModel.create(data);
+};
+
+export const getEmployeeEnrollmentsRepo = async (userId: string) => {
+   return await enrollmentModel.aggregate([
+      {
+         $match: {
+            $or: [
+               { employeeId: toObjectId(userId) },
+               { userId: toObjectId(userId) }
+            ]
+         }
+      },
+      {
+         $lookup: {
+            from: "programs",
+            localField: "programId",
+            foreignField: "_id",
+            as: "programDetails"
+         }
+      },
+      {
+         $addFields: {
+            programDetails: {
+               $arrayElemAt: ["$programDetails", 0]
+            },
+            programId: {
+               $arrayElemAt: ["$programDetails", 0]
+            }
+         }
+      },
+      {
+         $sort: {
+            createdAt: -1
+         }
+      }
+   ]);
+};
+
+export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
+   const results = await enrollmentModel.aggregate([
+      {
+         $match: {
+            _id: toObjectId(id),
+            $or: [
+               { employeeId: toObjectId(userId) },
+               { userId: toObjectId(userId) }
+            ]
+         }
+      },
+      {
+         $lookup: {
+            from: "programs",
+            localField: "programId",
+            foreignField: "_id",
+            as: "programDetails"
+         }
+      },
+      {
+         $addFields: {
+            programDetails: {
+               $arrayElemAt: ["$programDetails", 0]
+            },
+            programId: {
+               $arrayElemAt: ["$programDetails", 0]
+            }
+         }
+      }
+   ]);
+   return results[0] || null;
+};
+
+export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
+   return await enrollmentModel.findOne({
+      $or: [
+         { employeeId: toObjectId(userId) },
+         { userId: toObjectId(userId) }
+      ],
+      programId: toObjectId(programId),
+      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+   });
+};
+

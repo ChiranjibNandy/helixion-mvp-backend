@@ -85,5 +85,13 @@ export const MESSAGES = {
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
   PROGRAM_NOT_FOUND: "Program not found",
-  DASHBOARD_DATA_FETCH :"Dashboard data fetched successfully"
+  DASHBOARD_DATA_FETCH: "Dashboard data fetched successfully",
+  ENROLLMENT_CREATED: "Enrollment request submitted successfully",
+  ENROLLMENT_NOT_FOUND: "Enrollment not found",
+  ENROLLMENT_ALREADY_EXISTS: "You are already enrolled in this program",
+  PROGRAMS_FETCHED: "Programs fetched successfully",
+  PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
+  ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
+  PROGRAM_FULL: "This program has reached its capacity",
+  STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential"
 } as const;

@@ -8,7 +8,10 @@ export enum ROLE {
 
 export enum STAY_TYPE {
   SINGLE = "single",
-  TWIN = "twin"
+  TWIN = "twin",
+  SINGLE_OCCUPANCY = "single_occupancy",
+  TWIN_SHARING = "twin_sharing",
+  NON_RESIDENTIAL = "non_residential"
 }
 
 // program saved status
@@ -40,4 +43,42 @@ export enum USER_STATUS {
 export enum ATTENDANCE_STATUS {
    PRESENT = "present",
    ABSENT = "absent",
+}
+
+export enum ENROLLMENT_STAGE {
+  SUBMITTED = "submitted",
+  MANAGER_REVIEW = "manager_review",
+  TRAINING_DEPT_REVIEW = "training_dept_review",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  ATTENDED = "attended",
+  REIMBURSEMENT_SUBMITTED = "reimbursement_submitted",
+  OSD_JUNIOR_REVIEW = "osd_junior_review",
+  OSD_SENIOR_REVIEW = "osd_senior_review",
+  REIMBURSEMENT_APPROVED = "reimbursement_approved",
+  COMPLETED = "completed"
+}
+
+export enum STAY_TYPE_KEY {
+  SINGLE_OCCUPANCY = "single_occupancy",
+  TWIN_SHARING     = "twin_sharing",
+  NON_RESIDENTIAL  = "non_residential"
+}
+
+export enum ENROLLMENT_APPROVAL_STATUS {
+  PENDING_APPROVAL = "pending_approval",
+  APPROVED         = "approved",
+  REJECTED         = "rejected",
+  NOT_REQUIRED     = "not_required",
+}
+
+export enum ENROLLMENT_SOURCE {
+  WEB    = "web",
+  MOBILE = "mobile",
+  API    = "api",
+  ADMIN  = "admin",
+}
+
+export enum CURRENCY {
+  INR = "INR",
 }
