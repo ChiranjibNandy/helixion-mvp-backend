@@ -1,6 +1,13 @@
 import mongoose, { Schema } from "mongoose";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { APPROVAL_STATUS, ENROLLMENT_STATUS } from "../constants/enum.js";
+import {
+   APPROVAL_STATUS,
+   ENROLLMENT_STATUS,
+   ENROLLMENT_STAGE,
+   TOUR_STATUS,
+   REIMBURSEMENT_STATUS,
+   REVIEW_MODE
+} from "../constants/enum.js";
 
 const bookingDetailSchema = new Schema({
    from: { type: String, trim: true },
@@ -60,13 +67,14 @@ const enrollmentSchema = new Schema<IEnrollment>(
       },
       currentStage: {
          type: String,
-         default: "submitted"
+         enum: Object.values(ENROLLMENT_STAGE),
+         default: ENROLLMENT_STAGE.SUBMITTED
       },
       statusSummary: {
-         enrollmentStatus: { type: String, default: "submitted" },
-         tourStatus: { type: String, default: "submitted" },
-         attendanceStatus: { type: String, default: "pending" },
-         reimbursementStatus: { type: String, default: "not_started" }
+         enrollmentStatus: { type: String, enum: Object.values(ENROLLMENT_STAGE), default: ENROLLMENT_STAGE.SUBMITTED },
+         tourStatus: { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
+         attendanceStatus: { type: String, enum: Object.values(APPROVAL_STATUS), default: APPROVAL_STATUS.PENDING },
+         reimbursementStatus: { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED }
       },
       policySnapshot: {
          managerApproval: {
@@ -75,16 +83,16 @@ const enrollmentSchema = new Schema<IEnrollment>(
          },
          trainingDeptApproval: {
             enabled: { type: Boolean, default: true },
-            reviewMode: { type: String, default: "junior_senior" }
+            reviewMode: { type: String, enum: Object.values(REVIEW_MODE), default: REVIEW_MODE.JUNIOR_SENIOR }
          },
          osdReview: {
             enabled: { type: Boolean, default: true },
-            reviewMode: { type: String, default: "junior_senior" }
+            reviewMode: { type: String, enum: Object.values(REVIEW_MODE), default: REVIEW_MODE.JUNIOR_SENIOR }
          }
       },
       managerApproval: {
          assignedApproverId: { type: Schema.Types.ObjectId, ref: "User" },
-         action: { type: String, default: "pending" },
+         action: { type: String, enum: Object.values(APPROVAL_STATUS), default: APPROVAL_STATUS.PENDING },
          note: { type: String, default: "" },
          actedAt: { type: Date }
       },
@@ -105,8 +113,8 @@ const enrollmentSchema = new Schema<IEnrollment>(
          purpose: { type: String, default: "To Attend Training Program" },
          bookingDetails: { type: [bookingDetailSchema], default: [] },
          advancePaymentRequired: { type: Number, default: 0 },
-         status: { type: String, default: "submitted" },
-         managerAction: { type: String, default: "pending" },
+         status: { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
+         managerAction: { type: String, enum: Object.values(APPROVAL_STATUS), default: APPROVAL_STATUS.PENDING },
          managerReason: { type: String, default: "" }
       },
       attendance: {

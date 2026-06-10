@@ -93,5 +93,6 @@ export const MESSAGES = {
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
   PROGRAM_FULL: "This program has reached its capacity",
-  STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential"
+  STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
+  NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters"
 } as const;

@@ -11,7 +11,16 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { APPROVAL_STATUS, ENROLLMENT_STATUS, ENROLLMENT_STAGE } from "../constants/enum.js";
+import {
+   APPROVAL_STATUS,
+   ENROLLMENT_STATUS,
+   ENROLLMENT_STAGE,
+   STAY_TYPE,
+   TOUR_STATUS,
+   REIMBURSEMENT_STATUS,
+   REVIEW_MODE,
+   ROLE
+} from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
 // Service to retrieve dashboard data including active enrollments and available programs
@@ -79,11 +88,11 @@ export const enrollInProgramService = async (
 
    // 4. Map stayType to extract feeAmount from the program
    let feeAmount = 0;
-   if (stayType === "single_occupancy" || stayType === "single") {
+   if (stayType === STAY_TYPE.SINGLE_OCCUPANCY || stayType === STAY_TYPE.SINGLE) {
       feeAmount = program.singleOccupancyFee || 0;
-   } else if (stayType === "twin_sharing" || stayType === "twin") {
+   } else if (stayType === STAY_TYPE.TWIN_SHARING || stayType === STAY_TYPE.TWIN) {
       feeAmount = program.twinSharingFee || 0;
-   } else if (stayType === "non_residential" || stayType === "non-res") {
+   } else if (stayType === STAY_TYPE.NON_RESIDENTIAL || stayType === STAY_TYPE.NON_RES) {
       feeAmount = program.nonResidentialFee || 0;
    }
 
@@ -96,8 +105,8 @@ export const enrollInProgramService = async (
       purpose: travelAndStayInput?.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayInput?.bookingDetails || [],
       advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
-      status: "submitted",
-      managerAction: "pending",
+      status: TOUR_STATUS.SUBMITTED,
+      managerAction: APPROVAL_STATUS.PENDING,
       managerReason: ""
    };
 
@@ -112,28 +121,28 @@ export const enrollInProgramService = async (
       approvalStatus: APPROVAL_STATUS.PENDING,
       currentStage: ENROLLMENT_STAGE.SUBMITTED,
       statusSummary: {
-         enrollmentStatus: "submitted",
-         tourStatus: "submitted",
-         attendanceStatus: "pending",
-         reimbursementStatus: "not_started"
+         enrollmentStatus: ENROLLMENT_STAGE.SUBMITTED,
+         tourStatus: TOUR_STATUS.SUBMITTED,
+         attendanceStatus: APPROVAL_STATUS.PENDING,
+         reimbursementStatus: REIMBURSEMENT_STATUS.NOT_STARTED
       },
       policySnapshot: {
          managerApproval: { levels: 3, minLevelToApprove: 1 },
-         trainingDeptApproval: { enabled: true, reviewMode: "junior_senior" },
-         osdReview: { enabled: true, reviewMode: "junior_senior" }
+         trainingDeptApproval: { enabled: true, reviewMode: REVIEW_MODE.JUNIOR_SENIOR },
+         osdReview: { enabled: true, reviewMode: REVIEW_MODE.JUNIOR_SENIOR }
       },
       managerApproval: {
          assignedApproverId: (user as any).hierarchy?.managerId || null,
-         action: "pending",
+         action: APPROVAL_STATUS.PENDING,
          note: ""
       },
       travelAndStay,
       notes,
       timeline: [
          {
-            stage: "submitted",
+            stage: ENROLLMENT_STAGE.SUBMITTED,
             actorId: toObjectId(userId),
-            actorType: "employee",
+            actorType: ROLE.EMPLOYEE,
             action: "created",
             note: "Enrollment request submitted",
             at: new Date()
@@ -189,15 +198,15 @@ export const updateTravelDetailsService = async (
    }
 
    enrollmentObj.travelAndStay = {
-      stayType: enrollmentObj.travelAndStay?.stayType || "twin_sharing",
+      stayType: enrollmentObj.travelAndStay?.stayType || STAY_TYPE.TWIN_SHARING,
       placeOfTour: travelAndStayData.placeOfTour,
       frequentFlyerNo: travelAndStayData.frequentFlyerNo || "",
       modeOfTravel: travelAndStayData.modeOfTravel,
       purpose: travelAndStayData.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayData.bookingDetails || [],
       advancePaymentRequired: travelAndStayData.advancePaymentRequired || 0,
-      status: "submitted",
-      managerAction: "pending",
+      status: TOUR_STATUS.SUBMITTED,
+      managerAction: APPROVAL_STATUS.PENDING,
       managerReason: ""
    };
 
@@ -207,7 +216,7 @@ export const updateTravelDetailsService = async (
    enrollmentObj.timeline.push({
       stage: enrollmentObj.currentStage,
       actorId: toObjectId(userId),
-      actorType: "employee",
+      actorType: ROLE.EMPLOYEE,
       action: "updated_travel",
       note: "Updated travel and stay details",
       at: new Date()
@@ -231,8 +240,8 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
    }
 
    enrollmentObj.currentStage = ENROLLMENT_STAGE.MANAGER_REVIEW;
-   enrollmentObj.statusSummary.enrollmentStatus = "submitted";
-   enrollmentObj.statusSummary.tourStatus = "submitted";
+   enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STAGE.SUBMITTED;
+   enrollmentObj.statusSummary.tourStatus = TOUR_STATUS.SUBMITTED;
 
    if (!enrollmentObj.timeline) {
       enrollmentObj.timeline = [];
@@ -240,7 +249,7 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
    enrollmentObj.timeline.push({
       stage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       actorId: toObjectId(userId),
-      actorType: "employee",
+      actorType: ROLE.EMPLOYEE,
       action: "submitted",
       note: "Submitted for manager approval",
       at: new Date()

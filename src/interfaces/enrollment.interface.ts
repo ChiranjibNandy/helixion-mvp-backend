@@ -1,4 +1,12 @@
 import { Types } from "mongoose";
+import {
+   APPROVAL_STATUS,
+   ENROLLMENT_STATUS,
+   ENROLLMENT_STAGE,
+   TOUR_STATUS,
+   REIMBURSEMENT_STATUS,
+   REVIEW_MODE
+} from "../constants/enum.js";
 
 export interface IEnrollment {
    _id?: Types.ObjectId;
@@ -7,23 +15,23 @@ export interface IEnrollment {
    userId: Types.ObjectId; // Kept for backward compatibility with dashboard queries
    programId: Types.ObjectId;
    providerOrgId?: Types.ObjectId;
-   status: string;
-   approvalStatus: string;
-   currentStage: string;
+   status: ENROLLMENT_STATUS;
+   approvalStatus: APPROVAL_STATUS;
+   currentStage: ENROLLMENT_STAGE;
    statusSummary: {
-      enrollmentStatus: string;
-      tourStatus: string;
-      attendanceStatus: string;
-      reimbursementStatus: string;
+      enrollmentStatus: ENROLLMENT_STAGE;
+      tourStatus: TOUR_STATUS;
+      attendanceStatus: APPROVAL_STATUS;
+      reimbursementStatus: REIMBURSEMENT_STATUS;
    };
    policySnapshot?: {
       managerApproval?: { levels: number; minLevelToApprove: number };
-      trainingDeptApproval?: { enabled: boolean; reviewMode: string };
-      osdReview?: { enabled: boolean; reviewMode: string };
+      trainingDeptApproval?: { enabled: boolean; reviewMode: REVIEW_MODE };
+      osdReview?: { enabled: boolean; reviewMode: REVIEW_MODE };
    };
    managerApproval: {
       assignedApproverId?: Types.ObjectId;
-      action: string;
+      action: APPROVAL_STATUS;
       note?: string;
       actedAt?: Date;
    };
@@ -51,8 +59,8 @@ export interface IEnrollment {
          travelClass: string;
       }>;
       advancePaymentRequired?: number;
-      status?: string;
-      managerAction?: string;
+      status?: TOUR_STATUS;
+      managerAction?: APPROVAL_STATUS;
       managerReason?: string;
    };
    attendance?: {

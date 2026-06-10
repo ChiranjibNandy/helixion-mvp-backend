@@ -11,7 +11,8 @@ export enum STAY_TYPE {
   TWIN = "twin",
   SINGLE_OCCUPANCY = "single_occupancy",
   TWIN_SHARING = "twin_sharing",
-  NON_RESIDENTIAL = "non_residential"
+  NON_RESIDENTIAL = "non_residential",
+  NON_RES = "non-res"
 }
 
 // program saved status
@@ -59,10 +60,22 @@ export enum ENROLLMENT_STAGE {
   COMPLETED = "completed"
 }
 
-export enum STAY_TYPE_KEY {
-  SINGLE_OCCUPANCY = "single_occupancy",
-  TWIN_SHARING     = "twin_sharing",
-  NON_RESIDENTIAL  = "non_residential"
+export enum REVIEW_MODE {
+  JUNIOR_SENIOR = "junior_senior"
+}
+
+export enum TOUR_STATUS {
+  SUBMITTED = "submitted",
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected"
+}
+
+export enum REIMBURSEMENT_STATUS {
+  NOT_STARTED = "not_started",
+  SUBMITTED = "submitted",
+  APPROVED = "approved",
+  REJECTED = "rejected"
 }
 
 export enum ENROLLMENT_APPROVAL_STATUS {
