@@ -66,3 +66,19 @@ export enum ENROLLMENT_SOURCE {
 export enum CURRENCY {
   INR = "INR",
 }
+
+export enum OrganizationType {
+   CORPORATE = "corporate",
+   TRAINING_PROVIDER = "training_provider",
+   OSD_INTERNAL = "osd_internal",
+}
+
+export enum OrganizationStatus {
+   ACTIVE = "active",
+   INACTIVE = "inactive",
+}
+
+export enum AssignmentMode {
+   ASSIGNED = "assigned",
+   POOL = "pool",
+}
