@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'

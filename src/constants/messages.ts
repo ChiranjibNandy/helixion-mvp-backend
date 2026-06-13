@@ -70,6 +70,7 @@ export const MESSAGES = {
   CSV_REQUIRED: "CSV file is required",
   NO_PROGRAM_FOUND: "No valid programs found in CSV",
   CSV_ALLOWED: "Only CSV files are allowed",
+  CSV_EMPTY : "CSV file is empty",
 
   ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
   VALID_DATE_REQUIRED: "Valid date is required",
@@ -92,4 +93,12 @@ export const MESSAGES = {
   ENROLLMENT_SUCCESSFUL:    "Enrolled in program successfully",
   PROGRAM_FULL:             "This program has reached its maximum capacity",
   STAY_TYPE_INVALID:        "stayType must be one of: single_occupancy, twin_sharing, non_residential",
+
+  MIN_POLICY : "At least one policy section is required",
+  ORG_CREATE : "Organization created successfully",
+  POLICY_UPDATE : "Policy updated successfully",
+  ORG_BULK_UPLOAD_SUCCESS:"Organizations uploaded successfully",
+  ORG_NOT_FOUND : "Organization not found",
+  ORG_EXIST : "Organization already exists",
+  DUP_SLUG_FOUND : "Duplicate slugs found in CSV"
 } as const;

@@ -1,4 +1,3 @@
-// validations/program.validation.ts
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
 import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
