@@ -3,7 +3,7 @@ import { loginService, resetPasswordService, sendResetLinkService, signupService
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
-import { setAccessTokenCookie, setRefreshTokenCookie } from "../utils/cookies.js";
+import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
 
 /**
@@ -96,6 +96,24 @@ export const login = async (
       role: payload.role,
     });
 
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    clearAccessTokenCookie(res);
+    clearRefreshTokenCookie(res);
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Logged out successfully",
+    });
   } catch (error) {
     next(error);
   }
