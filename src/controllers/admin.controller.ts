@@ -200,10 +200,10 @@ export const getUsersController =
     next: NextFunction
   ) => {
     try {
-      const { page, limit, q } = req.query
+      const { page, limit, search } = req.query
 
       const users =
-        await getUsersService(Number(page), Number(limit), String(q));
+        await getUsersService(Number(page), Number(limit), search ? String(search) : "");
 
       res.status(HTTP_STATUS.OK).json({
         message:
