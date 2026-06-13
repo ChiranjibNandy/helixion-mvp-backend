@@ -11,15 +11,18 @@ export const sendResetMail = async (
     `${ ENV.FRONTEND_URL }/reset-password/${ userId }`;
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    family: 4,
     auth: {
       user: ENV.EMAIL_USER,
       pass: ENV.EMAIL_PASS
     }
-  });
+  } as any);
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: ENV.EMAIL_USER,
     to: email,
     subject: "Reset Your Helixon Password",
 
@@ -104,12 +107,15 @@ export const sendWelcomeMail = async (
   const loginUrl = `${ENV.FRONTEND_URL}/signin`;
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    family: 4,
     auth: {
       user: ENV.EMAIL_USER,
       pass: ENV.EMAIL_PASS
     }
-  });
+  } as any);
 
   await transporter.sendMail({
     from: ENV.EMAIL_USER,
