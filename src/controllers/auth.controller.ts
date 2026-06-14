@@ -5,6 +5,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
+import { AppError } from "../utils/appError.js";
 
 /**
  * Register a new user account.
@@ -68,34 +69,36 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    const user = await loginService(
-      email,
-      password
-    );
+    const { user, permissions } =
+      await loginService(email, password);
 
-    // Safe payload for creating token
+    if (!user._id) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
+    }
+
     const payload: JwtPayloadType = {
-      userId: user._id!.toString(),
+      userId: user._id.toString(),
       name: user.username,
       email: user.email,
       location: user.location,
       role: user.role,
+      permissions,
     };
+  
 
     const accessToken = generateAccessToken(payload);
-
     const refreshToken = generateRefreshToken(payload);
+
     setRefreshTokenCookie(res, refreshToken);
-    setAccessTokenCookie(res, accessToken)
+    setAccessTokenCookie(res, accessToken);
 
-
-    res.status(HTTP_STATUS.OK).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
       accessToken,
-      role: payload.role,
+      role: user.role,
+      permissions,
     });
-
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IUser } from "../interfaces/user.interface.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 
 
 const userSchema = new Schema<IUser>({
@@ -20,21 +21,31 @@ const userSchema = new Schema<IUser>({
     type: String,
     // required: true,
   },
+  organizationId: {
+    type: Schema.Types.ObjectId,
+    ref: "Organization",
+    required: true,
+  },
+  scale: {
+    type: Number,
+    required: true,
+    default: 1,
+  },
   approval_status: {
     type: String,
-    enum: ["approved", "dismissed", "pending"],
-    default: "pending"
+    enum: Object.values(APPROVAL_STATUS),
+    default: APPROVAL_STATUS.PENDING
   },
   status: {
     type: String,
-    enum: ["active", "deactive"],
-    default: "active"
+    enum: Object.values(USER_STATUS),
+    default: USER_STATUS.ACTIVE
   },
-  description:{
-    type:String,
+  description: {
+    type: String,
   },
-  location:{
-     type:String,
+  location: {
+    type: String,
   }
 }, {
   timestamps: true,

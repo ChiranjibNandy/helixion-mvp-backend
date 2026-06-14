@@ -6,7 +6,7 @@ import User from "../models/user.model.js";
 export const getUserByEmailRepo = async (
    email: string
 ): Promise<IUser | null> => {
-   return await User.findOne({ email });
+   return await User.findOne({ email }).populate("organizationId");
 };
 
 //save user model
