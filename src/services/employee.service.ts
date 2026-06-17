@@ -1,5 +1,5 @@
 import { getApprovalStatsRepo, getDashboardSummaryRepo, getListedProgramsRepo } from "../repositories/employee.repository.js";
-import { getEmployeeProgramsListRepo, getEmployeeProgramByIdRepo } from "../repositories/program.repository.js";
+import { getEmployeeProgramsListRepo, getEmployeeProgramByIdRepo, getAvailableProgramsPaginatedRepo } from "../repositories/program.repository.js";
 import {
    createEnrollmentRepo,
    findExistingEnrollmentRepo,
@@ -22,14 +22,6 @@ import {
    ROLE
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-  PROGRAM_SAVED_STATUS,
-  ENROLLMENT_APPROVAL_STATUS,
-  ENROLLMENT_SOURCE,
-  STAY_TYPE_KEY,
-  CURRENCY,
-} from "../constants/enum.js";
-import { Types } from "mongoose";
-import { resolveEnrollmentFee } from "../utils/fee.js";
 
 export const getEmployeeDashboardService = async (userId: string) => {
   const [summary, approvalStats, listedPrograms] = await Promise.all([
