@@ -154,4 +154,4 @@ const enrollmentSchema = new Schema<IEnrollment>(
 enrollmentSchema.index({ userId: 1, status: 1 });
 enrollmentSchema.index({ employeeId: 1, status: 1 });
 
-export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema)
+export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema);

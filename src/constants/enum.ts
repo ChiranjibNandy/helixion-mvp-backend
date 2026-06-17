@@ -15,6 +15,13 @@ export enum STAY_TYPE {
   NON_RES = "non-res"
 }
 
+export enum STAY_TYPE_KEY {
+  SINGLE_OCCUPANCY = "single_occupancy",
+  TWIN_SHARING     = "twin_sharing",
+  NON_RESIDENTIAL  = "non_residential"
+}
+
+
 // program saved status
 
 export enum PROGRAM_SAVED_STATUS{

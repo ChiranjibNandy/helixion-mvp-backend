@@ -22,24 +22,34 @@ import {
    ROLE
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+  PROGRAM_SAVED_STATUS,
+  ENROLLMENT_APPROVAL_STATUS,
+  ENROLLMENT_SOURCE,
+  STAY_TYPE_KEY,
+  CURRENCY,
+} from "../constants/enum.js";
+import { Types } from "mongoose";
+import { resolveEnrollmentFee } from "../utils/fee.js";
 
-// Service to retrieve dashboard data including active enrollments and available programs
 export const getEmployeeDashboardService = async (userId: string) => {
-   const [
-      summary,
-      approvalStats,
-      listedPrograms
-   ] = await Promise.all([
-      getDashboardSummaryRepo(userId),
-      getApprovalStatsRepo(userId),
-      getListedProgramsRepo(userId)
-   ]);
+  const [summary, approvalStats, listedPrograms] = await Promise.all([
+    getDashboardSummaryRepo(userId),
+    getApprovalStatsRepo(userId),
+    getListedProgramsRepo(userId),
+  ]);
 
-   return {
-      summary,
-      approvalStats,
-      listedPrograms
-   };
+  return { summary, approvalStats, listedPrograms };
+};
+
+export const getAvailableProgramsService = async (params: {
+  page:      number;
+  limit:     number;
+  search?:   string;
+  venue?:    string;
+  fromDate?: string;
+  toDate?:   string;
+}) => {
+  return await getAvailableProgramsPaginatedRepo(params);
 };
 
 export const getEmployeeProgramsListService = async (params: {

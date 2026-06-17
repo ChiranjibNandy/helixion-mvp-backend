@@ -40,6 +40,12 @@ export const validate = (schema: ValidationSchema) => {
             ),
           });
         }
+
+        Object.defineProperty(req, 'query', {
+          value: result.data,
+          writable: true,
+          configurable: true,
+        });
       }
 
       // PARAMS
