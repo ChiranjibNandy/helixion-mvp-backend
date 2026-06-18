@@ -72,7 +72,7 @@ const organizationSchema = new Schema<OrganizationDocument>(
 
       status: {
          type: String,
-         enum:Object.values(OrganizationStatus),
+         enum: Object.values(OrganizationStatus),
          default: OrganizationStatus.ACTIVE,
       },
 
@@ -82,12 +82,18 @@ const organizationSchema = new Schema<OrganizationDocument>(
          osdReview: approvalPolicySchema,
 
          tourForm: {
-            enabled: Boolean,
+            enabled: {
+               type: Boolean,
+               default: false,
+            },
             approvalStage: approvalPolicySchema,
          },
 
          reimbursement: {
-            enabled: Boolean,
+            enabled: {
+               type: Boolean,
+               default: false,
+            },
             approvalStage: approvalPolicySchema,
          },
       },

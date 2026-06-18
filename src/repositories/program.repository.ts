@@ -424,6 +424,68 @@ export const findProgramById = async (id: string) => {
   return await programModel.findById(id);
 };
 
+export const getEmployeeProgramByIdRepo = async (id: string) => {
+   return await programModel.findOne({
+      _id: toObjectId(id),
+      status: PROGRAM_SAVED_STATUS.PUBLISHED
+   });
+};
+
+export const getEmployeeProgramsListRepo = async ({
+   page,
+   limit,
+   search,
+   venue,
+   fromDate,
+   toDate
+}: {
+   page: number;
+   limit: number;
+   search?: string;
+   venue?: string;
+   fromDate?: string;
+   toDate?: string;
+}) => {
+   const skip = (page - 1) * limit;
+   const filter: any = {
+      status: PROGRAM_SAVED_STATUS.PUBLISHED
+   };
+
+   if (search) {
+      filter.title = { $regex: search, $options: "i" };
+   }
+   if (venue) {
+      filter.venue = { $regex: venue, $options: "i" };
+   }
+   if (fromDate || toDate) {
+      filter.startDate = {};
+      if (fromDate) {
+         filter.startDate.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+         filter.startDate.$lte = new Date(toDate);
+      }
+   }
+
+   const [programs, total] = await Promise.all([
+      programModel.find(filter)
+         .sort({ startDate: 1 })
+         .skip(skip)
+         .limit(limit)
+         .lean(),
+      programModel.countDocuments(filter)
+   ]);
+
+   return {
+      programs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+   };
+};
+
+
 
 
 

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { AssignmentMode, OrganizationStatus, OrganizationType } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
+import mongoose from "mongoose";
+import { objectIdSchema } from "./common.validator.js";
 
 const approvalPolicySchema = z.object({
   enabled: z.boolean(),
@@ -87,4 +89,8 @@ export const organizationCsvRowSchema = z.object({
 
   osdLevels: z.coerce.number().min(1),
   osdMinLevel: z.coerce.number().min(1),
+});
+
+export const organizationIdParamSchema = z.object({
+  organizationId: objectIdSchema,
 });

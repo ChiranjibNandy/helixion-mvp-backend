@@ -1,47 +1,8 @@
 import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
-import {
-  ENROLLMENT_STATUS,
-  STAY_TYPE_KEY,
-  CURRENCY,
-  ENROLLMENT_APPROVAL_STATUS,
-  ENROLLMENT_SOURCE,
-} from "../constants/enum.js";
-
-export interface CreateEnrollmentPayload {
-  userId:          mongoose.Types.ObjectId;
-  programId:       mongoose.Types.ObjectId;
-  stayType:        STAY_TYPE_KEY;
-  feeAmount:       number;
-  currency:        CURRENCY;
-  programSnapshot: {
-    title:               string;
-    startDate?:          Date;
-    endDate?:            Date;
-    venue?:              string;
-    training_providerId: mongoose.Types.ObjectId;
-  };
-  locationMatched: boolean;
-  approvalStatus:  ENROLLMENT_APPROVAL_STATUS;
-  source:          ENROLLMENT_SOURCE;
-  notes?:          string;
-}
-
-export const createEnrollmentRepo = async (payload: CreateEnrollmentPayload) => {
-  return await enrollmentModel.create({
-    userId:          payload.userId,
-    programId:       payload.programId,
-    status:          ENROLLMENT_STATUS.ACTIVE,
-    stayType:        payload.stayType,
-    feeAmount:       payload.feeAmount,
-    currency:        payload.currency,
-    programSnapshot: payload.programSnapshot,
-    locationMatched: payload.locationMatched,
-    approvalStatus:  payload.approvalStatus,
-    source:          payload.source,
-    notes:           payload.notes,
-  });
-};
+import { toObjectId } from "../utils/mongo.js";
+import { IEnrollment } from "../interfaces/enrollment.interface.js";
+import { ENROLLMENT_STATUS } from "../constants/enum.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -192,3 +153,88 @@ export const getEnrollmentActivities = async (trainingProviderId: string) => {
     },
   ];
 };
+
+export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
+   return await enrollmentModel.create(data);
+};
+
+export const getEmployeeEnrollmentsRepo = async (userId: string) => {
+   return await enrollmentModel.aggregate([
+      {
+         $match: {
+            $or: [
+               { employeeId: toObjectId(userId) },
+               { userId: toObjectId(userId) }
+            ]
+         }
+      },
+      {
+         $lookup: {
+            from: "programs",
+            localField: "programId",
+            foreignField: "_id",
+            as: "programDetails"
+         }
+      },
+      {
+         $addFields: {
+            programDetails: {
+               $arrayElemAt: ["$programDetails", 0]
+            },
+            programId: {
+               $arrayElemAt: ["$programDetails", 0]
+            }
+         }
+      },
+      {
+         $sort: {
+            createdAt: -1
+         }
+      }
+   ]);
+};
+
+export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
+   const results = await enrollmentModel.aggregate([
+      {
+         $match: {
+            _id: toObjectId(id),
+            $or: [
+               { employeeId: toObjectId(userId) },
+               { userId: toObjectId(userId) }
+            ]
+         }
+      },
+      {
+         $lookup: {
+            from: "programs",
+            localField: "programId",
+            foreignField: "_id",
+            as: "programDetails"
+         }
+      },
+      {
+         $addFields: {
+            programDetails: {
+               $arrayElemAt: ["$programDetails", 0]
+            },
+            programId: {
+               $arrayElemAt: ["$programDetails", 0]
+            }
+         }
+      }
+   ]);
+   return results[0] || null;
+};
+
+export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
+   return await enrollmentModel.findOne({
+      $or: [
+         { employeeId: toObjectId(userId) },
+         { userId: toObjectId(userId) }
+      ],
+      programId: toObjectId(programId),
+      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+   });
+};
+

@@ -7,7 +7,7 @@ import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 import { bulkUploadOrganizations, createOrganization, updatePolicy } from "../controllers/organization.controller.js";
-import { createOrganizationSchema, updatePolicySchema } from "../validators/organization.validator.js";
+import { createOrganizationSchema, organizationIdParamSchema, updatePolicySchema } from "../validators/organization.validator.js";
 import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 
@@ -60,7 +60,7 @@ router.post(
 
 router.patch(
    "/organizations/:organizationId/policy",
-   validate({ body: updatePolicySchema }),
+   validate({ params: organizationIdParamSchema, body: updatePolicySchema }),
    updatePolicy
 );
 
