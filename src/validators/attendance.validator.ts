@@ -49,7 +49,7 @@ export const validateParticipantsEnrollmentService =
          );
 
       const enrolledIds = enrolledParticipants.map(
-         (item) => item.userId.toString()
+         (item) => (item.employeeId as any).toString()
       );
       
       const invalidParticipants = participantIds.filter(

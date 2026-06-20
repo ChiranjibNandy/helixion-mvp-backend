@@ -1,64 +1,74 @@
-import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
+import { USER_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
-//get user model by email
-export const getUserByEmailRepo = async (
-   email: string
-): Promise<IUser | null> => {
-   return await User.findOne({ email });
+// ─── Lookups ──────────────────────────────────────────────────────────────────
+
+export const getUserByEmailRepo = async (email: string): Promise<IUser | null> => {
+   return await User.findOne({ email: email.toLowerCase() });
 };
 
-//save user model
-export const createUserRepo = async (
-   userData: Partial<IUser>
-): Promise<IUser> => {
+export const getUserByIdRepo = async (userId: string): Promise<IUser | null> => {
+   return await User.findById(userId);
+};
+
+export const getUsersByEmailsRepo = async (emails: string[]): Promise<IUser[]> => {
+   return await User.find({ email: { $in: emails } });
+};
+
+// ─── Create / Update ──────────────────────────────────────────────────────────
+
+export const createUserRepo = async (userData: Partial<IUser>): Promise<IUser> => {
    const user = await User.create(userData);
    return user;
 };
 
-//get user model by Id
-export const getUserByIdRepo = async (
-   userId: string
-): Promise<IUser | null> => {
-   return await User.findById(userId);
-};
-
-//approve user repository
-export const approveUserRepo = async (
-   id: string,
-   role: string,
-   description?: string
-) => {
-   const updatedUser = await User.findByIdAndUpdate(
-      id,
-      {
-         role: role,
-         status: USER_STATUS.ACTIVE,
-         approval_status: APPROVAL_STATUS.APPROVED,
-         description: description,
-      },
-      {
-         new: true,
-      }
-   );
-
-   return updatedUser;
+export const batchCreateUsersRepo = async (users: Partial<IUser>[]): Promise<IUser[]> => {
+   return await User.insertMany(users) as unknown as IUser[];
 };
 
 export const deactivateUserRepo = async (id: string) => {
    return await User.findByIdAndUpdate(
       id,
-      { status: USER_STATUS.DEACTIVE },
+      { status: USER_STATUS.INACTIVE },
       { new: true }
    );
 };
 
-export const getUsersByEmailsRepo = async (
-   emails: string[]
-): Promise<IUser[]> => {
-   return await User.find({ email: { $in: emails } });
+/** Update the user's orgRole (replaces the old role field) */
+export const updateUserRoleRepo = async (email: string, orgRole: string) => {
+   return await User.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { orgRole },
+      { new: true }
+   );
 };
+
+/** Update the user's passwordHash field */
+export const updatePasswordRepo = async (userId: string, hashedPassword: string) => {
+   return await User.findByIdAndUpdate(
+      userId,
+      { passwordHash: hashedPassword, mustChangePassword: false },
+      { new: true }
+   );
+};
+
+// ─── Approval flow (admin approves a pending user) ───────────────────────────
+
+export const approveUserRepo = async (id: string, orgRole: string, placeOfPosting?: string) => {
+   return await User.findByIdAndUpdate(
+      id,
+      {
+         orgRole,
+         status: USER_STATUS.ACTIVE,
+         mustChangePassword: false,
+         ...(placeOfPosting && { placeOfPosting }),
+      },
+      { new: true }
+   );
+};
+
+// ─── Search / List ────────────────────────────────────────────────────────────
 
 export const searchUsersRepo = async (
    query: string,
@@ -66,20 +76,21 @@ export const searchUsersRepo = async (
    limit: number
 ) => {
    const filter: Record<string, unknown> = {
-      approval_status: APPROVAL_STATUS.APPROVED,
+      status: USER_STATUS.ACTIVE,
    };
 
    if (query) {
-      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
-         { username: { $regex: escapedQuery, $options: "i" } },
-         { email: { $regex: escapedQuery, $options: "i" } },
+         { name: { $regex: escaped, $options: "i" } },
+         { email: { $regex: escaped, $options: "i" } },
+         { employeeCode: { $regex: escaped, $options: "i" } },
       ];
    }
 
    const [users, total] = await Promise.all([
       User.find(filter)
-         .select("-password")
+         .select("-passwordHash")
          .sort({ createdAt: -1 })
          .skip((page - 1) * limit)
          .limit(limit),
@@ -89,39 +100,46 @@ export const searchUsersRepo = async (
    return { users, total };
 };
 
-export const batchCreateUsersRepo = async (
-   users: Partial<IUser>[]
+/** Get all users belonging to a specific org (tenant-scoped) */
+export const getUsersByOrgRepo = async (
+   orgId: string,
+   page: number,
+   limit: number,
+   search?: string
 ) => {
-   return await User.insertMany(users);
+   const filter: Record<string, unknown> = { orgId };
+
+   if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+         { name: { $regex: escaped, $options: "i" } },
+         { email: { $regex: escaped, $options: "i" } },
+         { employeeCode: { $regex: escaped, $options: "i" } },
+      ];
+   }
+
+   const [users, total] = await Promise.all([
+      User.find(filter)
+         .select("-passwordHash")
+         .sort({ createdAt: -1 })
+         .skip((page - 1) * limit)
+         .limit(limit),
+      User.countDocuments(filter),
+   ]);
+
+   return { users, total };
 };
 
-
-//update user's password 
-export const updatePasswordRepo = async (
-   userId: string,
-   hashedPassword: string
+/** Find users in an org who hold a specific office role at min level */
+export const getUsersByOfficeRoleRepo = async (
+   orgId: string,
+   type: "trainingDept" | "osd",
+   minLevel: 1 | 2
 ) => {
-
-   return await User.findByIdAndUpdate(
-      userId,
-      {
-         password: hashedPassword
-      },
-      {
-         new: true
-      }
-   );
-
-};
-
-//update user's role
-export const updateUserRoleRepo = async (
-   email: string,
-   role: string
-) => {
-   return await User.findOneAndUpdate(
-      { email },
-      { role },
-      { new: true }
-   );
+   return await User.find({
+      orgId,
+      [`officeRoles.${type}.enabled`]: true,
+      [`officeRoles.${type}.level`]:   { $gte: minLevel },
+      status: USER_STATUS.ACTIVE,
+   }).select("-passwordHash");
 };

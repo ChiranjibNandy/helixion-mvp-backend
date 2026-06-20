@@ -15,9 +15,11 @@ import {
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
+import { USER_STATUS } from "../constants/enum.js";
 import { ENV } from "../config/env.js";
 import { sendWelcomeMail } from "../utils/sendMail.js";
+import { toObjectId } from "../utils/mongo.js";
+
 
 
 export const getPendingRegistrationsService = async (
@@ -114,17 +116,14 @@ export const batchCreateUsersService = async (
 
     if (action === "approve") {
       if (existingEmailSet.has(emailLower)) {
-        // Email already exists — skip creation
         skipped.push(row.email);
       } else {
         toCreate.push(row);
       }
     } else if (action === "update") {
       if (existingEmailSet.has(emailLower)) {
-        // Email exists — update role
         toUpdate.push(row);
       } else {
-        // Email doesn't exist — skip update
         skipped.push(row.email);
       }
     } else {
@@ -132,44 +131,64 @@ export const batchCreateUsersService = async (
     }
   }
 
-  // 4. Create new users — derive username & hash default password
+  // 4. Create new users — hash default password, map all new schema fields
   let createdCount = 0;
   const defaultPassword = ENV.DEFAULT_PASSWORD;
 
   if (toCreate.length > 0) {
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
-    const newUsers = toCreate.map((row) => ({
-      username: row.email.split("@")[0],
-      email: row.email.toLowerCase(),
-      password: hashedPassword,
-      role: row.role,
-      status: USER_STATUS.ACTIVE,
-      approval_status: APPROVAL_STATUS.APPROVED,
-    }));
+    const newUsers = toCreate.map((row) => {
+      const tdEnabled = row.trainingDeptEnabled === true || row.trainingDeptEnabled === "true" || row.trainingDeptEnabled === "Yes";
+      const osdEnabled = row.osdEnabled === true || row.osdEnabled === "true" || row.osdEnabled === "Yes";
 
-    const created = await batchCreateUsersRepo(newUsers);
+      return {
+        name:               row.name || row.email.split("@")[0],
+        email:              row.email.toLowerCase(),
+        passwordHash:       hashedPassword,
+        orgRole:            row.orgRole,
+        employeeCode:       row.employeeCode,
+        placeOfPosting:     row.placeOfPosting,
+        mobile:             row.mobile,
+        mustChangePassword: true,        // batch-imported users must set their own pw
+        status:             USER_STATUS.ACTIVE,
+        hierarchy: {
+          level:        0,
+          managerId:    row.managerId ? toObjectId(row.managerId) : undefined,
+          managerChain: [],              // populated in a second pass once all users exist
+        },
+        officeRoles: {
+          trainingDept: {
+            enabled: tdEnabled,
+            level:   tdEnabled ? Number(row.trainingDeptLevel) || 1 : null,
+          },
+          osd: {
+            enabled: osdEnabled,
+            level:   osdEnabled ? Number(row.osdLevel) || 1 : null,
+          },
+        },
+      };
+    });
+
+    const created = await batchCreateUsersRepo(newUsers as any);
     createdCount = created.length;
 
-    // 5. Send welcome emails (fire-and-forget — don't block response)
+    // Send welcome emails (fire-and-forget)
     for (const row of toCreate) {
-      const username = row.email.split("@")[0];
-      sendWelcomeMail(row.email, username, defaultPassword).catch((err) => {
-        console.error(
-          `${ MESSAGES.WELCOME_EMAIL_SEND_FAILED }: ${ row.email }`,
-          err
-        );
+      const displayName = row.name || row.email.split("@")[0];
+      sendWelcomeMail(row.email, displayName, defaultPassword).catch((err) => {
+        console.error(`${MESSAGES.WELCOME_EMAIL_SEND_FAILED}: ${row.email}`, err);
       });
     }
   }
 
-  // 6. Update roles for existing users
+  // 5. Update existing users' roles
   let updatedCount = 0;
 
   if (toUpdate.length > 0) {
     await Promise.all(
       toUpdate.map((row) =>
-        updateUserRoleRepo(row.email.toLowerCase(), row.role)
+        updateUserRoleRepo(row.email.toLowerCase(), row.orgRole)
       )
     );
     updatedCount = toUpdate.length;
@@ -182,6 +201,7 @@ export const batchCreateUsersService = async (
     skippedEmails: skipped,
   };
 };
+
 
 //get all user
 export const getUsersService = async (
@@ -208,12 +228,12 @@ export const searchUsersService = async (
 
   return {
     data: users.map(user => ({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      approval_status: user.approval_status,
+      id:       user._id,
+      name:     user.name,
+      email:    user.email,
+      orgRole:  user.orgRole,
+      status:   user.status,
+      mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     })),

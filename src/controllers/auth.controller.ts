@@ -68,38 +68,39 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    const user = await loginService(
-      email,
-      password
-    );
+    const user = await loginService(email, password);
 
-    // Safe payload for creating token
+    // Build full RBAC payload — stored in token so no DB hit on every request
     const payload: JwtPayloadType = {
-      userId: user._id!.toString(),
-      name: user.username,
-      email: user.email,
-      location: user.location,
-      role: user.role,
+      userId:             user._id!.toString(),
+      name:               user.name,
+      email:              user.email,
+      orgId:              user.orgId?.toString(),
+      orgRole:            user.orgRole,
+      officeRoles:        user.officeRoles,
+      mustChangePassword: user.mustChangePassword,
     };
 
-    const accessToken = generateAccessToken(payload);
-
+    const accessToken  = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
-    setRefreshTokenCookie(res, refreshToken);
-    setAccessTokenCookie(res, accessToken)
 
+    setRefreshTokenCookie(res, refreshToken);
+    setAccessTokenCookie(res, accessToken);
 
     res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
+      success:            true,
+      message:            MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
       accessToken,
-      role: payload.role,
+      orgRole:            payload.orgRole,
+      officeRoles:        payload.officeRoles,
+      mustChangePassword: payload.mustChangePassword,
     });
 
   } catch (error) {
     next(error);
   }
 };
+
 
 export const logout = async (
   req: Request,

@@ -24,6 +24,7 @@ export const getProgramParticipantsService = async (
    const enrollments = await getProgramParticipantsRepo(programId);
 
    return enrollments.map((enrollment) =>
-      mapUserBasicDetail(enrollment.userId as any)
+      mapUserBasicDetail(enrollment.employeeId as any)
    );
+
 };
