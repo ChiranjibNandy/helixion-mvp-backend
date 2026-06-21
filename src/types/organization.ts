@@ -11,16 +11,8 @@ export interface OrganizationPolicy {
    managerApproval: ApprovalPolicy;
    trainingDeptApproval: ApprovalPolicy;
    osdReview: ApprovalPolicy;
-
-   tourForm: {
-      enabled: boolean;
-      approvalStage: ApprovalPolicy;
-   };
-
-   reimbursement: {
-      enabled: boolean;
-      approvalStage: ApprovalPolicy;
-   };
+   tourForm: ApprovalPolicy
+   reimbursement: ApprovalPolicy
 }
 
 export interface CreateOrganization {

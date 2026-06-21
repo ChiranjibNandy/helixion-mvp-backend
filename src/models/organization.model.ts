@@ -1,42 +1,11 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { AssignmentMode, OrganizationStatus, OrganizationType } from "../constants/enum.js";
+import { IOrganization } from "../interfaces/organization.interface.js";
 
-export interface OrganizationDocument extends Document {
-   name: string;
-   slug: string;
-   orgType: OrganizationType;
-   status: OrganizationStatus;
-
-   policy: {
-      managerApproval: ApprovalPolicy;
-      trainingDeptApproval: ApprovalPolicy;
-      osdReview: ApprovalPolicy;
-
-      tourForm: {
-         enabled: boolean;
-         approvalStage: ApprovalPolicy;
-      };
-
-      reimbursement: {
-         enabled: boolean;
-         approvalStage: ApprovalPolicy;
-      };
-   };
-
-   createdAt: Date;
-   updatedAt: Date;
-}
-
-interface ApprovalPolicy {
-   enabled: boolean;
-   levels: number;
-   minLevelToApprove: number;
-   assignmentMode: AssignmentMode;
-}
 
 const approvalPolicySchema = new Schema(
    {
-      enabled: { type: Boolean, default: true },
+      enabled: { type: Boolean, default: false },
       levels: { type: Number, required: true },
       minLevelToApprove: { type: Number, required: true },
       assignmentMode: {
@@ -48,7 +17,7 @@ const approvalPolicySchema = new Schema(
    { _id: false }
 );
 
-const organizationSchema = new Schema<OrganizationDocument>(
+const organizationSchema = new Schema<IOrganization>(
    {
       name: {
          type: String,
@@ -80,22 +49,8 @@ const organizationSchema = new Schema<OrganizationDocument>(
          managerApproval: approvalPolicySchema,
          trainingDeptApproval: approvalPolicySchema,
          osdReview: approvalPolicySchema,
-
-         tourForm: {
-            enabled: {
-               type: Boolean,
-               default: false,
-            },
-            approvalStage: approvalPolicySchema,
-         },
-
-         reimbursement: {
-            enabled: {
-               type: Boolean,
-               default: false,
-            },
-            approvalStage: approvalPolicySchema,
-         },
+         tourForm: approvalPolicySchema,
+         reimbursement: approvalPolicySchema
       },
    },
    {
@@ -104,7 +59,7 @@ const organizationSchema = new Schema<OrganizationDocument>(
 );
 
 export const organizationModel =
-   mongoose.model<OrganizationDocument>(
+   mongoose.model<IOrganization>(
       "Organization",
       organizationSchema
    );

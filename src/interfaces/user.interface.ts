@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { APPROVAL_STATUS, ROLE, USER_STATUS } from "../constants/enum.js";
+import { IOrganization } from "./organization.interface.js";
 
 
 export interface IUser {
@@ -9,7 +10,7 @@ export interface IUser {
   password: string;
   role: ROLE;
 
-  organizationId: Types.ObjectId;
+  organizationId?: Types.ObjectId;
   scale: number;
 
   approval_status: APPROVAL_STATUS;
@@ -20,4 +21,9 @@ export interface IUser {
 
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface IUserWithOrganization
+  extends Omit<IUser, "organizationId"> {
+  organizationId?: IOrganization;
 }

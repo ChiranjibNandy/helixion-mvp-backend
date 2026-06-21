@@ -93,17 +93,6 @@ export const bulkUploadOrganizationService = async (
     );
   }
 
-  // Existing slug validation
-  const existingOrganizations =
-    await findOrganizationsBySlugs(slugs);
-
-  if (existingOrganizations.length) {
-    throw new AppError(
-      MESSAGES.ORG_EXIST,
-      HTTP_STATUS.CONFLICT
-    );
-  }
-
   const organizations = validatedRows.map((row) => ({
     name: row.name,
     slug: row.slug.toLowerCase(),

@@ -7,7 +7,7 @@ export interface JwtPayloadType {
   email: string;
   location: string;
   role?: string;
-  permissions: {
+  permissions?: {
     canEnroll: boolean;
     canApproveEnrollment: boolean;
     canRecommend: boolean;

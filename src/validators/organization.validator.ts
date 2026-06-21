@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { AssignmentMode, OrganizationStatus, OrganizationType } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
-import mongoose from "mongoose";
 import { objectIdSchema } from "./common.validator.js";
 
 const approvalPolicySchema = z.object({
@@ -18,21 +17,12 @@ export const createOrganizationSchema = z.object({
   slug: z.string().min(2),
   orgType: z.enum(Object.values(OrganizationType)),
   status: z.enum(Object.values(OrganizationStatus)).default(OrganizationStatus.ACTIVE),
-
   policy: z.object({
     managerApproval: approvalPolicySchema,
     trainingDeptApproval: approvalPolicySchema,
     osdReview: approvalPolicySchema,
-
-    tourForm: z.object({
-      enabled: z.boolean(),
-      approvalStage: approvalPolicySchema,
-    }),
-
-    reimbursement: z.object({
-      enabled: z.boolean(),
-      approvalStage: approvalPolicySchema,
-    }),
+    tourForm: approvalPolicySchema,
+    reimbursement: approvalPolicySchema
   }),
 });
 
@@ -44,20 +34,8 @@ export const updatePolicySchema = z.object({
       managerApproval: approvalPolicySchema.optional(),
       trainingDeptApproval: approvalPolicySchema.optional(),
       osdReview: approvalPolicySchema.optional(),
-
-      tourForm: z
-        .object({
-          enabled: z.boolean(),
-          approvalStage: approvalPolicySchema,
-        })
-        .optional(),
-
-      reimbursement: z
-        .object({
-          enabled: z.boolean(),
-          approvalStage: approvalPolicySchema,
-        })
-        .optional(),
+      tourForm:approvalPolicySchema,
+      reimbursement: approvalPolicySchema
     })
     .refine(
       (data) => Object.keys(data).length > 0,
@@ -89,6 +67,12 @@ export const organizationCsvRowSchema = z.object({
 
   osdLevels: z.coerce.number().min(1),
   osdMinLevel: z.coerce.number().min(1),
+
+  tourFormLevels : z.coerce.number().min(1),
+  tourFormMinLevel : z.coerce.number().min(1),
+
+  reimbursementLevels : z.coerce.number().min(1),
+  reimbursementMinLevel : z.coerce.number().min(1),
 });
 
 export const organizationIdParamSchema = z.object({

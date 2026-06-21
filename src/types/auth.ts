@@ -1,8 +1,8 @@
-import { IUser } from "../interfaces/user.interface.js";
+import { IUserWithOrganization } from "../interfaces/user.interface.js";
 
 export interface LoginResponse {
-   user: IUser;
-   permissions: {
+   user: IUserWithOrganization;
+   permissions?: {
       canEnroll: boolean;
       canApproveEnrollment: boolean;
       canRecommend: boolean;

@@ -8,6 +8,8 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { LoginResponse } from "../types/auth.js";
 import { buildPermissions } from "../utils/buildPermission.js";
+import { IOrganization } from "../interfaces/organization.interface.js";
+
 
 // -----------------------------
 // Register User Service
@@ -77,12 +79,13 @@ export const loginService = async (
     );
   }
 
-  const org = user.organizationId as any;
+  const permissions = user.organizationId
+    ? buildPermissions(
+      user.scale,
+      user.organizationId.policy
+    )
+    : undefined;
 
-  const permissions = buildPermissions(
-    user.scale,
-    org?.policy
-  );
 
   return {
     user,

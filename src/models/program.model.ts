@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IProgram } from "../interfaces/program.interface.js";
-import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 
 const programSchema = new Schema<IProgram>(

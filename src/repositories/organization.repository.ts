@@ -19,7 +19,10 @@ export const updateOrganizationPolicy = async (
       await organizationModel.findByIdAndUpdate(
          organizationId,
          { $set: { policy } },
-         { new: true }
+         {
+            new: true,
+            runValidators: true,
+         }
       );
 
    if (!updatedOrganization) {
@@ -28,12 +31,23 @@ export const updateOrganizationPolicy = async (
 };
 
 export const bulkCreateOrganizations = async (
-   organizations: CreateOrganization[]
+  organizations: CreateOrganization[]
 ): Promise<void> => {
-   await organizationModel.insertMany(
+  try {
+    await organizationModel.insertMany(
       organizations,
       { ordered: false }
-   );
+    );
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new AppError(
+        MESSAGES.ORG_EXIST,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    throw error;
+  }
 };
 
 export const findOrganizationsBySlugs = async (
@@ -47,7 +61,7 @@ export const findOrganizationsBySlugs = async (
 };
 
 export const findOrganizationBySlug = async (
-  slug: string
+   slug: string
 ) => {
-  return organizationModel.findOne({ slug }).lean();
+   return organizationModel.findOne({ slug }).lean();
 };

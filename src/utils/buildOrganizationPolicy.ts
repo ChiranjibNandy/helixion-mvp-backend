@@ -7,6 +7,10 @@ interface PolicyInput {
   trainingDeptMinLevel: number;
   osdLevels: number;
   osdMinLevel: number;
+  tourFormLevels: number;
+  tourFormMinLevel: number;
+  reimbursementLevels: number;
+  reimbursementMinLevel: number;
 }
 
 export const buildOrganizationPolicy = (
@@ -42,23 +46,17 @@ export const buildOrganizationPolicy = (
 
   tourForm: {
     enabled: true,
-    approvalStage: {
-      enabled: true,
-      levels: 1,
-      minLevelToApprove: 1,
-      assignmentMode:
-        AssignmentMode.ASSIGNED,
-    },
+    levels: row.tourFormLevels,
+    minLevelToApprove: row.tourFormMinLevel,
+    assignmentMode:
+      AssignmentMode.ASSIGNED,
   },
 
   reimbursement: {
     enabled: true,
-    approvalStage: {
-      enabled: true,
-      levels: 2,
-      minLevelToApprove: 2,
-      assignmentMode:
-        AssignmentMode.POOL,
-    },
+    levels: row.reimbursementLevels,
+    minLevelToApprove: row.reimbursementMinLevel,
+    assignmentMode:
+      AssignmentMode.POOL,
   },
 });
