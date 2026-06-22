@@ -81,6 +81,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
          index: true,
       },
 
+      /**
+       * SINGLE SOURCE OF TRUTH for the enrollment's position in the workflow.
+       * All stage transitions must go through service-layer methods that update
+       * this field atomically together with any sub-document action fields.
+       * Never update sub-document action fields without also updating currentStage.
+       */
       currentStage: {
          type:    String,
          enum:    Object.values(ENROLLMENT_STAGE),
@@ -88,6 +94,15 @@ const enrollmentSchema = new Schema<IEnrollment>(
          index:   true,
       },
 
+      /**
+       * Denormalized read-optimized cache for dashboard and list queries.
+       * Always updated atomically alongside currentStage in the same DB operation.
+       * Not a driver of workflow logic — currentStage is authoritative.
+       *
+       * Sub-document fields (attendance.status, reimbursement.osdJunior.action, etc.)
+       * are granular action logs, not workflow state — they record WHO did WHAT
+       * at each step; the workflow position is always currentStage.
+       */
       statusSummary: {
          enrollmentStatus:   { type: String, default: "submitted" },
          tourStatus:         { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
@@ -124,6 +139,17 @@ const enrollmentSchema = new Schema<IEnrollment>(
          default: [],
       },
 
+      /**
+       * managerApproval — summary of the most recent manager action taken.
+       *
+       * Relationship to managerChain:
+       *   managerChain  → granular per-level state (one entry per approver).
+       *   managerApproval → denormalized "last action" summary for quick reads.
+       *
+       * These two structures MUST be updated atomically in the same DB operation
+       * (use $set on both fields in one findOneAndUpdate call). Updating only one
+       * will cause them to drift out of sync.
+       */
       managerApproval: {
          assignedApproverId: { type: Schema.Types.ObjectId, ref: "User" },
          action:    { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },

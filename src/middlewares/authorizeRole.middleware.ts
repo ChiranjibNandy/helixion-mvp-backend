@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { verifyAccessToken } from "../utils/jwt.js";
+import { ORG_ROLE } from "../constants/enum.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // authenticate
@@ -56,11 +57,11 @@ export const authenticate = (
  *
  * Must be called AFTER authenticate.
  */
-export const authorizeRole = (...allowedRoles: string[]) => {
+export const authorizeRole = (...allowedRoles: ORG_ROLE[]) => {
    return (req: Request, res: Response, next: NextFunction) => {
       const role = req.orgRole;
 
-      if (!role || !allowedRoles.includes(role)) {
+      if (!role || !allowedRoles.includes(role as ORG_ROLE)) {
          return res.status(HTTP_STATUS.FORBIDDEN).json({
             success: false,
             message: MESSAGES.ACCESS_DENIED,
@@ -93,7 +94,7 @@ export const authorizeOfficeRole = (
    return (req: Request, res: Response, next: NextFunction) => {
       const officerInfo = req.officeRoles?.[type];
 
-      if (!officerInfo?.enabled || !officerInfo.level || officerInfo.level < minLevel) {
+      if (!officerInfo?.enabled || officerInfo.level == null || officerInfo.level < minLevel) {
          return res.status(HTTP_STATUS.FORBIDDEN).json({
             success: false,
             message: MESSAGES.ACCESS_DENIED,

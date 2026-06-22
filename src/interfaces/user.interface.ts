@@ -50,8 +50,8 @@ export interface IUser {
    passwordHash: string;         // was: password
    mustChangePassword: boolean;
 
-   orgRole: ORG_ROLE | string;   // top-level role (admin | employee | training_provider)
-   status: USER_STATUS | string;
+   orgRole: ORG_ROLE;            // top-level role (admin | employee | training_provider)
+   status: USER_STATUS;
 
    hierarchy: IHierarchy;
 

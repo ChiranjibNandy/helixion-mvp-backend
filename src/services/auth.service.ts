@@ -27,19 +27,28 @@ export const signupService = async (
 
    const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-   return await createUserRepo({
-      name:         userData.name || (userData as any).username,
-      email:        userData.email,
-      passwordHash: hashedPassword,
-      orgRole:      (userData as any).orgRole || (userData as any).role,
-      mustChangePassword: false,
-      status:       USER_STATUS.ACTIVE,
-      hierarchy:    { level: 0, managerChain: [] },
-      officeRoles:  {
-         trainingDept: { enabled: false, level: null },
-         osd:          { enabled: false, level: null },
-      },
-   });
+   try {
+      return await createUserRepo({
+         name:         userData.name || (userData as any).username,
+         email:        userData.email,
+         passwordHash: hashedPassword,
+         orgRole:      (userData as any).orgRole || (userData as any).role,
+         mustChangePassword: false,
+         status:       USER_STATUS.ACTIVE,
+         hierarchy:    { level: 0, managerChain: [] },
+         officeRoles:  {
+            trainingDept: { enabled: false, level: null },
+            osd:          { enabled: false, level: null },
+         },
+      });
+   } catch (err: any) {
+      // MongoDB duplicate key — concurrent request registered the same email
+      // between our getUserByEmail check and the insert above
+      if (err?.code === 11000) {
+         throw new AppError(MESSAGES.USER_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+      }
+      throw err;
+   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

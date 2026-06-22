@@ -15,7 +15,7 @@ import { takeAttendanceBodySchema } from "../validators/attendance.validator.js"
 const router = express.Router();
 
 
-router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.TRAINING_PROVIDER, "training-provider"));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.TRAINING_PROVIDER));
 
 
 //create programme

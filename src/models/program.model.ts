@@ -114,7 +114,7 @@ const programSchema = new Schema<IProgram>(
 programSchema.index({ createdBy: 1, status: 1 });
 programSchema.index({ createdBy: 1, createdAt: -1 });
 programSchema.index({ status: 1 });
-programSchema.index({ startDate: 1 });
+programSchema.index({ startDate: 1 }); // startDate field is defined in schema (see above)
 programSchema.index({ batchId: 1 });
 programSchema.index({ city: 1, status: 1 });   // employee browse by city
 

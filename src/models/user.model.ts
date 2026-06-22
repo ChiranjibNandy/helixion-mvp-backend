@@ -79,6 +79,15 @@ const userSchema = new Schema<IUser>(
       hierarchy: {
          level: { type: Number, default: 0 }, // 0 = individual contributor
          managerId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+         /**
+          * LIVE manager chain — must be updated atomically whenever the user's
+          * reporting structure changes (reassignment, promotion, etc.).
+          * Enrollment documents capture a FROZEN copy of this chain at submission
+          * time (via policySnapshot + enrollment.managerChain), so historical
+          * approvals are unaffected by later org-structure changes.
+          * Drifting this field from actual hierarchy will break pending-approval
+          * queries; always update via a dedicated "reassign manager" service method.
+          */
          managerChain: {
             type:    [managerChainEntrySchema],
             default: [],
