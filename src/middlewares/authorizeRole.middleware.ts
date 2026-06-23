@@ -3,7 +3,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 
-export const authorizeRole = (requiredRole: string) => {
+export const authorizeRole = (...roles: string[]) => {
   return (
     req: Request,
     res: Response,
@@ -11,7 +11,6 @@ export const authorizeRole = (requiredRole: string) => {
   ) => {
     try {
       let token = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
-
 
       if (!token) {
         return res.status(
@@ -21,15 +20,9 @@ export const authorizeRole = (requiredRole: string) => {
         });
       }
 
-      // Verify token
-      const decoded: any =
-        verifyAccessToken(token);
+      const decoded: any = verifyAccessToken(token);
 
-      // Check role
-  
-      if (decoded.role !== requiredRole) {
-
-
+      if (!roles.includes(decoded.role)) {
         return res.status(
           HTTP_STATUS.FORBIDDEN
         ).json({
@@ -37,7 +30,14 @@ export const authorizeRole = (requiredRole: string) => {
         });
       }
 
-      // Attach user info
+      if (!decoded.userId) {
+        return res.status(
+          HTTP_STATUS.UNAUTHORIZED
+        ).json({
+          message: MESSAGES.INVALID_OR_EXPIRED_TOKEN,
+        });
+      }
+
       req.userId = decoded.userId;
 
       next();

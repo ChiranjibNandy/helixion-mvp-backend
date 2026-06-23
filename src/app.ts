@@ -3,6 +3,7 @@ import authRoutes from './routes/auth.routes.js'
 import adminRoutes from './routes/admin.routes.js'
 import employeeRoutes from './routes/employee.routes.js'
 import trainingProviderRoutes from './routes/training_provider.routes.js'
+import managerRoutes from './routes/manager.routes.js'
 import { corsMiddleware } from "./middlewares/cors.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
@@ -17,6 +18,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes)
 app.use("/api/employee", employeeRoutes)
 app.use("/api/training-provider", trainingProviderRoutes)
+app.use("/api/manager", managerRoutes)
 
 app.use(errorMiddleware);
 

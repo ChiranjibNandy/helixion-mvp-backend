@@ -150,8 +150,9 @@ const enrollmentSchema = new Schema<IEnrollment>(
       timestamps: true
    });
 
-//add compound index with fields userId and status
 enrollmentSchema.index({ userId: 1, status: 1 });
 enrollmentSchema.index({ employeeId: 1, status: 1 });
+enrollmentSchema.index({ status: 1, createdAt: -1 });
+enrollmentSchema.index({ currentStage: 1, createdAt: -1 });
 
 export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema);

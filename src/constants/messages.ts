@@ -94,5 +94,6 @@ export const MESSAGES = {
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
   PROGRAM_FULL: "This program has reached its capacity",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
-  NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters"
+  NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters",
+  MANAGER_DASHBOARD_FETCH: "Manager dashboard data fetched successfully"
 } as const;
