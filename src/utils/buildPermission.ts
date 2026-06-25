@@ -1,36 +1,100 @@
-import { OrganizationPolicy } from "../types/organization.js";
+import { ROLE } from "../constants/enum.js";
+import { IUserWithOrganization } from "../interfaces/user.interface.js";
+import { getUsersByOrganizationId } from "../repositories/user.repository.js";
 
-export const buildPermissions = (
-  userScale: number,
-  policy?: OrganizationPolicy
+export const checkCanApproveEnrollment = async (
+   organizationId: string,
+   approverId: string,
+   minLevelToApprove: number
+): Promise<boolean> => {
+   const users = await getUsersByOrganizationId(
+      organizationId
+   );
+
+   return users.some((employee) =>
+      employee.hierarchy?.managerChain?.some(
+         (manager) =>
+            manager.userId.toString() ===
+            approverId &&
+            manager.level >=
+            minLevelToApprove
+      )
+   );
+};
+
+export const buildPermissions = async (
+   user: IUserWithOrganization
 ) => {
-  const managerApproval = policy?.managerApproval;
-  const trainingDeptApproval = policy?.trainingDeptApproval;
-  const osdReview = policy?.osdReview;
+   const organization =
+      user.organizationId;
 
-  return {
-    canEnroll: true,
+   if (!organization) {
+      return {
+         canEnroll: false,
+         canApproveEnrollment: false,
+         canRecommend: false,
+         canReviewTrainingDept: false,
+         canApproveTrainingDept: false,
+         canReviewOsd: false,
+         canApproveOsd: false,
+      };
+   }
 
-    canRecommend: userScale >= 1,
+   const userId = user._id.toString();
 
-    canApproveEnrollment:
-      managerApproval?.enabled === true &&
-      userScale >= managerApproval.minLevelToApprove,
+   const trainingDeptEntry =
+      organization.policyAssignments.trainingDeptChain.find(
+         (item) =>
+            item.userId.toString() === userId
+      );
 
-    canReviewTrainingDept:
-      trainingDeptApproval?.enabled === true &&
-      userScale < trainingDeptApproval.minLevelToApprove,
+   const osdEntry =
+      organization.policyAssignments.osdChain.find(
+         (item) =>
+            item.userId.toString() === userId
+      );
 
-    canApproveTrainingDept:
-      trainingDeptApproval?.enabled === true &&
-      userScale >= trainingDeptApproval.minLevelToApprove,
+   const canApproveEnrollment =
+      await checkCanApproveEnrollment(
+         organization._id?.toString() ?? "",
+         userId,
+         organization.policy.managerApproval
+            .minLevelToApprove
+      );
 
-    canReviewOsd:
-      osdReview?.enabled === true &&
-      userScale < osdReview.minLevelToApprove,
+   return {
+      canEnroll:
+         user.role === ROLE.EMPLOYEE,
 
-    canApproveOsd:
-      osdReview?.enabled === true &&
-      userScale >= osdReview.minLevelToApprove,
-  };
+      canApproveEnrollment,
+
+      canRecommend:
+         user.role === ROLE.EMPLOYEE,
+
+      canReviewTrainingDept:
+         !!trainingDeptEntry &&
+         trainingDeptEntry.level <
+         organization.policy
+            .trainingDeptApproval
+            .minLevelToApprove,
+
+      canApproveTrainingDept:
+         !!trainingDeptEntry &&
+         trainingDeptEntry.level >=
+         organization.policy
+            .trainingDeptApproval
+            .minLevelToApprove,
+
+      canReviewOsd:
+         !!osdEntry &&
+         osdEntry.level <
+         organization.policy.osdReview
+            .minLevelToApprove,
+
+      canApproveOsd:
+         !!osdEntry &&
+         osdEntry.level >=
+         organization.policy.osdReview
+            .minLevelToApprove,
+   };
 };

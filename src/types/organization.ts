@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { AssignmentMode, OrganizationStatus, OrganizationType } from "../constants/enum.js";
 
 export interface ApprovalPolicy {
@@ -7,6 +8,11 @@ export interface ApprovalPolicy {
    assignmentMode: AssignmentMode;
 }
 
+export interface PolicyAssignment {
+   userId: Types.ObjectId;
+   level: number;
+};
+
 export interface OrganizationPolicy {
    managerApproval: ApprovalPolicy;
    trainingDeptApproval: ApprovalPolicy;
@@ -15,13 +21,17 @@ export interface OrganizationPolicy {
    reimbursement: ApprovalPolicy
 }
 
-export interface CreateOrganization {
+export type CreateOrganization = {
    name: string;
    slug: string;
    orgType: OrganizationType;
    status: OrganizationStatus;
    policy: OrganizationPolicy;
-}
+   policyAssignments?: {
+      trainingDeptChain: PolicyAssignment[];
+      osdChain: PolicyAssignment[];
+   };
+};
 
 export interface UpdatePolicyParams {
    organizationId: string;

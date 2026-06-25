@@ -8,7 +8,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { LoginResponse } from "../types/auth.js";
 import { buildPermissions } from "../utils/buildPermission.js";
-import { IOrganization } from "../interfaces/organization.interface.js";
+
 
 
 // -----------------------------
@@ -79,12 +79,9 @@ export const loginService = async (
     );
   }
 
-  const permissions = user.organizationId
-    ? buildPermissions(
-      user.scale,
-      user.organizationId.policy
-    )
-    : undefined;
+  const permissions =
+    await buildPermissions(user);
+
 
 
   return {

@@ -28,11 +28,14 @@ export const createOrganizationService = async (
 
 export const updateOrganizationPolicyService = async (
   organizationId: string,
-  policy: CreateOrganization["policy"]
+  data: {
+    policy: CreateOrganization["policy"];
+    policyAssignments: CreateOrganization["policyAssignments"];
+  }
 ) => {
   await updateOrganizationPolicy(
     organizationId,
-    policy
+    data
   );
 };
 

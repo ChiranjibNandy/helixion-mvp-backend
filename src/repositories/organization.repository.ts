@@ -13,41 +13,53 @@ export const createOrganization = async (
 
 export const updateOrganizationPolicy = async (
    organizationId: string,
-   policy: CreateOrganization["policy"]
+   data: {
+      policy: CreateOrganization["policy"];
+      policyAssignments: CreateOrganization["policyAssignments"];
+   }
 ): Promise<void> => {
-   const updatedOrganization =
+   const organization =
       await organizationModel.findByIdAndUpdate(
          organizationId,
-         { $set: { policy } },
+         {
+            $set: {
+               policy: data.policy,
+               policyAssignments:
+                  data.policyAssignments,
+            },
+         },
          {
             new: true,
             runValidators: true,
          }
       );
 
-   if (!updatedOrganization) {
-      throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   if (!organization) {
+      throw new AppError(
+         MESSAGES.ORG_NOT_FOUND,
+         HTTP_STATUS.NOT_FOUND
+      );
    }
 };
 
 export const bulkCreateOrganizations = async (
-  organizations: CreateOrganization[]
+   organizations: CreateOrganization[]
 ): Promise<void> => {
-  try {
-    await organizationModel.insertMany(
-      organizations,
-      { ordered: false }
-    );
-  } catch (error: any) {
-    if (error.code === 11000) {
-      throw new AppError(
-        MESSAGES.ORG_EXIST,
-        HTTP_STATUS.CONFLICT
+   try {
+      await organizationModel.insertMany(
+         organizations,
+         { ordered: false }
       );
-    }
+   } catch (error: any) {
+      if (error.code === 11000) {
+         throw new AppError(
+            MESSAGES.ORG_EXIST,
+            HTTP_STATUS.CONFLICT
+         );
+      }
 
-    throw error;
-  }
+      throw error;
+   }
 };
 
 export const findOrganizationsBySlugs = async (

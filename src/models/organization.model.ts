@@ -1,16 +1,43 @@
-import mongoose, { Schema, Document } from "mongoose";
-import { AssignmentMode, OrganizationStatus, OrganizationType } from "../constants/enum.js";
+import mongoose, { Schema } from "mongoose";
+import {
+   AssignmentMode,
+   OrganizationStatus,
+   OrganizationType,
+} from "../constants/enum.js";
 import { IOrganization } from "../interfaces/organization.interface.js";
-
 
 const approvalPolicySchema = new Schema(
    {
-      enabled: { type: Boolean, default: false },
-      levels: { type: Number, required: true },
-      minLevelToApprove: { type: Number, required: true },
+      enabled: {
+         type: Boolean,
+         default: false,
+      },
+      levels: {
+         type: Number,
+         required: true,
+      },
+      minLevelToApprove: {
+         type: Number,
+         required: true,
+      },
       assignmentMode: {
          type: String,
          enum: Object.values(AssignmentMode),
+         required: true,
+      },
+   },
+   { _id: false }
+);
+
+const policyAssignmentSchema = new Schema(
+   {
+      userId: {
+         type: Schema.Types.ObjectId,
+         ref: "User",
+         required: true,
+      },
+      level: {
+         type: Number,
          required: true,
       },
    },
@@ -50,7 +77,19 @@ const organizationSchema = new Schema<IOrganization>(
          trainingDeptApproval: approvalPolicySchema,
          osdReview: approvalPolicySchema,
          tourForm: approvalPolicySchema,
-         reimbursement: approvalPolicySchema
+         reimbursement: approvalPolicySchema,
+      },
+
+      policyAssignments: {
+         trainingDeptChain: {
+            type: [policyAssignmentSchema],
+            default: [],
+         },
+
+         osdChain: {
+            type: [policyAssignmentSchema],
+            default: [],
+         },
       },
    },
    {
@@ -58,8 +97,7 @@ const organizationSchema = new Schema<IOrganization>(
    }
 );
 
-export const organizationModel =
-   mongoose.model<IOrganization>(
-      "Organization",
-      organizationSchema
-   );
+export const organizationModel = mongoose.model<IOrganization>(
+   "Organization",
+   organizationSchema
+);

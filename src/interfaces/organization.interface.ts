@@ -1,6 +1,13 @@
 import { Types } from "mongoose";
 import { OrganizationStatus, OrganizationType } from "../constants/enum.js";
 import { ApprovalPolicy } from "../types/organization.js";
+import mongoose from "mongoose";
+
+export interface IPolicyAssignment {
+   userId: mongoose.Types.ObjectId;
+   level: number;
+}
+
 
 export interface IOrganization {
    _id?: Types.ObjectId
@@ -13,12 +20,13 @@ export interface IOrganization {
       managerApproval: ApprovalPolicy;
       trainingDeptApproval: ApprovalPolicy;
       osdReview: ApprovalPolicy;
-
       tourForm: ApprovalPolicy,
-
       reimbursement: ApprovalPolicy
    };
-
+   policyAssignments: {
+      trainingDeptChain: IPolicyAssignment[];
+      osdChain: IPolicyAssignment[];
+   };
    createdAt: Date;
    updatedAt: Date;
 }
