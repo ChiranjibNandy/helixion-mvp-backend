@@ -1,6 +1,21 @@
 import mongoose, { Schema } from "mongoose";
 import { IUser } from "../interfaces/user.interface.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 
+const managerChainSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    level: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+);
 
 const userSchema = new Schema<IUser>({
   username: {
@@ -20,22 +35,39 @@ const userSchema = new Schema<IUser>({
     type: String,
     // required: true,
   },
+  organizationId: {
+    type: Schema.Types.ObjectId,
+    ref: "Organization",
+    required: false,
+  },
   approval_status: {
     type: String,
-    enum: ["approved", "dismissed", "pending"],
-    default: "pending"
+    enum: Object.values(APPROVAL_STATUS),
+    default: APPROVAL_STATUS.PENDING
   },
   status: {
     type: String,
-    enum: ["active", "deactive"],
-    default: "active"
+    enum: Object.values(USER_STATUS),
+    default: USER_STATUS.ACTIVE
   },
-  description:{
-    type:String,
+  description: {
+    type: String,
   },
-  location:{
-     type:String,
-  }
+  location: {
+    type: String,
+  },
+  hierarchy: {
+    managerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    managerChain: {
+      type: [managerChainSchema],
+      default: [],
+    },
+  },
 }, {
   timestamps: true,
 });

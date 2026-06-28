@@ -1,12 +1,14 @@
 import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
-import { IUser } from "../interfaces/user.interface.js";
+import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
 //get user model by email
 export const getUserByEmailRepo = async (
    email: string
-): Promise<IUser | null> => {
-   return await User.findOne({ email });
+): Promise<IUserWithOrganization | null> => {
+   return await User.findOne({ email })
+      .populate("organizationId")
+      .lean<IUserWithOrganization>();
 };
 
 //save user model
@@ -125,3 +127,9 @@ export const updateUserRoleRepo = async (
       { new: true }
    );
 };
+
+export const getUsersByOrganizationId = async (
+   organizationId: string
+) => {
+   return await User.find({ organizationId })
+}

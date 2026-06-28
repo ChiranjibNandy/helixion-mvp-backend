@@ -3,10 +3,19 @@ import { ENV } from "../config/env.js";
 
 export interface JwtPayloadType {
   userId: string;
-  name:string;
+  name: string;
   email: string;
-  location:string;
-  role?:string
+  location: string;
+  role?: string;
+  permissions?: {
+    canEnroll: boolean;
+    canApproveEnrollment: boolean;
+    canRecommend: boolean;
+    canReviewTrainingDept: boolean;
+    canApproveTrainingDept: boolean;
+    canReviewOsd: boolean;
+    canApproveOsd: boolean;
+  }
 }
 
 export const generateAccessToken = (payload: JwtPayloadType) => {

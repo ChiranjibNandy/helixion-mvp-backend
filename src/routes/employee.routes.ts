@@ -1,9 +1,4 @@
 import express from "express";
-import {
-  getEmployeeDashboard,
-  getAvailablePrograms,
-  enrollInProgram,
-} from "../controllers/employee.controller.js";
 import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { ROLE } from "../constants/enum.js";
@@ -17,7 +12,6 @@ import {
    updateTravelDetails,
    submitEnrollment
 } from "../controllers/employee.controller.js";
-import { validate } from "../middlewares/validate.middleware.js";
 import {
    getProgramsQuerySchema,
    programParamsSchema,

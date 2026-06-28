@@ -1,5 +1,5 @@
 export const MESSAGES = {
-  UNAUTHORIZED:"UnAuthorized",
+  UNAUTHORIZED: "UnAuthorized",
   PASSWORDS_DO_NOT_MATCH: "Passwords do not match",
   USER_ALREADY_EXISTS: "User already exists",
   USER_CREATED_SUCCESSFULLY: "User created successfully",
@@ -70,6 +70,7 @@ export const MESSAGES = {
   CSV_REQUIRED: "CSV file is required",
   NO_PROGRAM_FOUND: "No valid programs found in CSV",
   CSV_ALLOWED: "Only CSV files are allowed",
+  CSV_EMPTY: "CSV file is empty",
 
   ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
   VALID_DATE_REQUIRED: "Valid date is required",
@@ -92,7 +93,16 @@ export const MESSAGES = {
   PROGRAMS_FETCHED: "Programs fetched successfully",
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
-  PROGRAM_FULL: "This program has reached its capacity",
+  PROGRAM_FULL: "This program has reached its maximum capacity",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
-  NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters"
+
+  MIN_POLICY: "At least one policy section is required",
+  ORG_CREATE: "Organization created successfully",
+  POLICY_UPDATE: "Policy updated successfully",
+  ORG_BULK_UPLOAD_SUCCESS: "Organizations uploaded successfully",
+  ORG_NOT_FOUND: "Organization not found",
+  ORG_EXIST: "Organization already exists",
+  DUP_SLUG_FOUND: "Duplicate slugs found in CSV",
+  NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters",
+  INVALID_ORG_ID_: "Invalid organization Id"
 } as const;
