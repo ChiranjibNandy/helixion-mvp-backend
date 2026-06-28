@@ -143,3 +143,9 @@ export const getUsersByOfficeRoleRepo = async (
       status: USER_STATUS.ACTIVE,
    }).select("-passwordHash");
 };
+
+export const getUsersByOrganizationId = async (
+   organizationId: string
+) => {
+   return await User.find({ organizationId })
+}

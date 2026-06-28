@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { USER_STATUS, ORG_ROLE } from "../constants/enum.js";
+import { IOrganization } from "./organization.interface.js";
 
 export interface IManagerChainEntry {
    userId: Types.ObjectId;
@@ -59,4 +60,9 @@ export interface IUser {
 
    createdAt?: Date;
    updatedAt?: Date;
+}
+
+export interface IUserWithOrganization extends Omit<IUser, "orgId"> {
+   orgId?: IOrganization | Types.ObjectId;
+
 }
