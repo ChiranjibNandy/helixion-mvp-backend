@@ -9,10 +9,10 @@ export enum ORG_ROLE {
  * @deprecated Use ORG_ROLE instead. Kept for backward-compat during migration.
  */
 export enum ROLE {
-  ADMIN = "admin",
-  EMPLOYEE = "employee",
+  ADMIN             = "admin",
+  EMPLOYEE          = "employee",
   TRAINING_PROVIDER = "training-provider",
-  MANAGER = "manager"
+  MANAGER           = "manager",
 }
 
 // ─── Office role levels (1 = junior / 2 = senior) ────────────────────────────
@@ -190,6 +190,10 @@ export enum ENROLLMENT_SOURCE {
 
 export enum CURRENCY {
   INR = "INR",
+}
+
+export enum REVIEW_MODE {
+  JUNIOR_SENIOR = "junior_senior",
 }
 
 export enum OrganizationType {

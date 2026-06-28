@@ -1,14 +1,15 @@
-import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
-import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
+import { USER_STATUS } from "../constants/enum.js";
+import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
-//get user model by email
-export const getUserByEmailRepo = async (
-   email: string
-): Promise<IUserWithOrganization | null> => {
-   return await User.findOne({ email })
-      .populate("organizationId")
-      .lean<IUserWithOrganization>();
+// ─── Lookups ──────────────────────────────────────────────────────────────────
+
+export const getUserByEmailRepo = async (email: string): Promise<IUser | null> => {
+   return await User.findOne({ email: email.toLowerCase() });
+};
+
+export const getUserByIdRepo = async (userId: string): Promise<IUser | null> => {
+   return await User.findById(userId);
 };
 
 export const getUsersByEmailsRepo = async (emails: string[]): Promise<IUser[]> => {

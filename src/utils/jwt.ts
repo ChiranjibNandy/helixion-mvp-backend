@@ -2,20 +2,24 @@ import jwt from "jsonwebtoken";
 import { ENV } from "../config/env.js";
 
 export interface JwtPayloadType {
-  userId: string;
-  name: string;
-  email: string;
-  location: string;
-  role?: string;
-  permissions?: {
-    canEnroll: boolean;
-    canApproveEnrollment: boolean;
-    canRecommend: boolean;
-    canReviewTrainingDept: boolean;
-    canApproveTrainingDept: boolean;
-    canReviewOsd: boolean;
-    canApproveOsd: boolean;
-  }
+   userId: string;
+   name: string;
+   email: string;
+
+   /** MongoDB _id of the user's organisation (undefined for training providers) */
+   orgId?: string;
+
+   /** Top-level org role: admin | employee | training_provider */
+   orgRole?: string;
+
+   /** Office role flags — embedded to avoid DB round trip on every request */
+   officeRoles?: {
+      trainingDept: { enabled: boolean; level: number | null };
+      osd: { enabled: boolean; level: number | null };
+   };
+
+   /** If true the user must change their password before accessing the app */
+   mustChangePassword?: boolean;
 }
 
 export const generateAccessToken = (payload: JwtPayloadType) => {
