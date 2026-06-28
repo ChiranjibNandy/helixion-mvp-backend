@@ -1,6 +1,11 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
-import { createUserRepo, getUserByEmailRepo, getUserByIdRepo, updatePasswordRepo } from "../repositories/user.repository.js";
+import {
+   createUserRepo,
+   getUserByEmailRepo,
+   getUserByIdRepo,
+   updatePasswordRepo,
+} from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
@@ -11,11 +16,11 @@ import { buildPermissions } from "../utils/buildPermission.js";
 
 
 
-// -----------------------------
-// Register User Service
-// -----------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Register User
+// ─────────────────────────────────────────────────────────────────────────────
 export const signupService = async (
-  userData: CreateUserDto
+   userData: CreateUserDto
 ): Promise<UserResponseDto> => {
 
   const existingUser = await getUserByEmailRepo(userData.email);
@@ -36,9 +41,9 @@ export const signupService = async (
 
 };
 
-// -----------------------------
-// Login User Service
-// -----------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Login
+// ─────────────────────────────────────────────────────────────────────────────
 export const loginService = async (
   email: string,
   password: string
@@ -101,20 +106,24 @@ export const sendResetLinkService = async (
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
+   if (!user) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
 
-  await sendResetMail(
-    email,
-    user._id.toString(),
-    user.username,
-  );
+   await sendResetMail(email, user._id.toString(), user.name);
 };
 
-//Reset password 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reset password
+// ─────────────────────────────────────────────────────────────────────────────
 export const resetPasswordService = async (
-  userId: string,
-  newPassword: string,
-  confirmPassword: string
+   userId: string,
+   newPassword: string,
+   confirmPassword: string
 ) => {
+   if (newPassword !== confirmPassword) {
+      throw new AppError(MESSAGES.PASSWORDS_DO_NOT_MATCH, HTTP_STATUS.CONFLICT);
+   }
 
   if (newPassword !== confirmPassword) {
     throw new AppError(
@@ -122,8 +131,9 @@ export const resetPasswordService = async (
     );
   }
 
-  const user =
-    await getUserByIdRepo(userId);
+   if (!user) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
 
   if (!user) {
     throw new AppError(
@@ -139,5 +149,5 @@ export const resetPasswordService = async (
     hashedPassword
   );
 
+   await updatePasswordRepo(userId, hashedPassword);
 };
-

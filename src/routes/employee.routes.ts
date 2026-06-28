@@ -20,7 +20,8 @@ import {
 
 const router = express.Router();
 
-router.use(authorizeRole(ROLE.EMPLOYEE));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+
 
 router.get("/dashboard", getEmployeeDashboard);
 

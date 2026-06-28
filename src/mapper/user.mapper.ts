@@ -5,18 +5,18 @@ export const mapUserToPendingRegistrationDto = (
   user: IUser
 ): PendingRegistrationResponseDto => {
   return {
-    id: user._id!.toString(),
-    username: user.username,
-    email: user.email,
-    approval_status: user.approval_status,
-    createdAt: user.createdAt,
+    id:               user._id!.toString(),
+    username:         user.name,           // name replaces username
+    email:            user.email,
+    approval_status:  user.status,         // status replaces approval_status
+    createdAt:        user.createdAt,
   };
 };
 
 export const mapUserBasicDetail = (user: IUser) => {
   return {
-    id: user._id!.toString(),
-    username: user.username,
-    email: user.email
+    id:       user._id!.toString(),
+    username: user.name,
+    email:    user.email,
   };
 };

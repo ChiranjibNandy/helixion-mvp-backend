@@ -227,14 +227,67 @@ export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
    return results[0] || null;
 };
 
+
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
    return await enrollmentModel.findOne({
       $or: [
          { employeeId: toObjectId(userId) },
-         { userId: toObjectId(userId) }
       ],
       programId: toObjectId(programId),
-      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+      currentStage: { $nin: ["rejected", "completed"] },
    });
 };
 
+// ─── Manager approval queue ───────────────────────────────────────────────────
+
+/**
+ * Returns enrollments where the given user appears in the frozen managerChain
+ * with a "pending" status at the specified level (or any level if not supplied).
+ *
+ * Usage:
+ *   - Direct reports only: level = 1
+ *   - All levels this manager is responsible for: level = undefined
+ */
+export const getPendingEnrollmentsForManagerRepo = async (
+   userId: string,
+   orgId: string,
+   options: { level?: number } = {}
+) => {
+   const chainFilter: Record<string, unknown> = {
+      userId:  toObjectId(userId),
+      status:  "pending",
+   };
+
+   if (options.level !== undefined) {
+      chainFilter.level = options.level;
+   }
+
+   return await enrollmentModel
+      .find({
+         orgId:        toObjectId(orgId),
+         managerChain: { $elemMatch: chainFilter },
+      })
+      .populate("employeeId", "name email employeeCode placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
+
+// ─── Training dept / OSD queues ───────────────────────────────────────────────
+
+/**
+ * Enrollments currently sitting at a given stage within an org.
+ * Used by training dept and OSD controllers.
+ */
+export const getPendingEnrollmentsForStageRepo = async (
+   orgId: string,
+   stage: string
+) => {
+   return await enrollmentModel
+      .find({
+         orgId:        toObjectId(orgId),
+         currentStage: stage,
+      })
+      .populate("employeeId", "name email employeeCode placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
