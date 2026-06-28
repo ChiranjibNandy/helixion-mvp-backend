@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
@@ -427,7 +426,7 @@ export const findProgramById = async (id: string) => {
 
 export const getEmployeeProgramByIdRepo = async (id: string) => {
    return await programModel.findOne({
-      _id: new mongoose.Types.ObjectId(id),
+      _id: toObjectId(id),
       status: PROGRAM_SAVED_STATUS.PUBLISHED
    });
 };

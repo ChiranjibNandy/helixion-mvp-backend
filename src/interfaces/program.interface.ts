@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 
 export interface IStayOption {
    type: STAY_TYPE;

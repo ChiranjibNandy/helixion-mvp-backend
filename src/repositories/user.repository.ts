@@ -1,15 +1,14 @@
-import { USER_STATUS } from "../constants/enum.js";
-import { IUser } from "../interfaces/user.interface.js";
+import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
+import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
-// ─── Lookups ──────────────────────────────────────────────────────────────────
-
-export const getUserByEmailRepo = async (email: string): Promise<IUser | null> => {
-   return await User.findOne({ email: email.toLowerCase() });
-};
-
-export const getUserByIdRepo = async (userId: string): Promise<IUser | null> => {
-   return await User.findById(userId);
+//get user model by email
+export const getUserByEmailRepo = async (
+   email: string
+): Promise<IUserWithOrganization | null> => {
+   return await User.findOne({ email })
+      .populate("organizationId")
+      .lean<IUserWithOrganization>();
 };
 
 export const getUsersByEmailsRepo = async (emails: string[]): Promise<IUser[]> => {
@@ -143,3 +142,9 @@ export const getUsersByOfficeRoleRepo = async (
       status: USER_STATUS.ACTIVE,
    }).select("-passwordHash");
 };
+
+export const getUsersByOrganizationId = async (
+   organizationId: string
+) => {
+   return await User.find({ organizationId })
+}
