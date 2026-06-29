@@ -1,14 +1,14 @@
-import { STAY_TYPE_KEY } from "../constants/enum.js";
+import { STAY_TYPE } from "../constants/enum.js";
 import { IProgram } from "../interfaces/program.interface.js";
 
+/**
+ * Resolves the fee for a given stayType from the program's stayOptions array.
+ * Replaces the old flat fee fields (singleOccupancyFee, twinSharingFee, nonResidentialFee).
+ */
 export function resolveEnrollmentFee(
-  program: Pick<IProgram, "singleOccupancyFee" | "twinSharingFee" | "nonResidentialFee">,
-  stayType: STAY_TYPE_KEY
+   program: Pick<IProgram, "stayOptions">,
+   stayType: STAY_TYPE | string
 ): number {
-  switch (stayType) {
-    case STAY_TYPE_KEY.SINGLE_OCCUPANCY: return program.singleOccupancyFee ?? 0;
-    case STAY_TYPE_KEY.TWIN_SHARING:     return program.twinSharingFee     ?? 0;
-    case STAY_TYPE_KEY.NON_RESIDENTIAL:  return program.nonResidentialFee  ?? 0;
-    default:                             return 0;
-  }
+   const option = program.stayOptions?.find((o) => o.type === stayType);
+   return option?.price ?? 0;
 }

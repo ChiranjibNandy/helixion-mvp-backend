@@ -11,20 +11,22 @@ import {
 } from "../repositories/enrollment.repository.js";
 import userModel from "../models/user.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
+import { organizationModel } from "../models/organization.model.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import {
-   APPROVAL_STATUS,
-   ENROLLMENT_STATUS,
    ENROLLMENT_STAGE,
-   STAY_TYPE,
    TOUR_STATUS,
    REIMBURSEMENT_STATUS,
-   REVIEW_MODE,
-   ROLE
+   MANAGER_ACTION,
+   MANAGER_CHAIN_STATUS,
+   ACTOR_TYPE,
+   ATTENDANCE_RECORD_STATUS,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+import { resolveEnrollmentFee } from "../utils/fee.js";
+
 
 export const getEmployeeDashboardService = async (userId: string) => {
   const [summary, approvalStats, listedPrograms] = await Promise.all([
@@ -91,54 +93,63 @@ export const enrollInProgramService = async (
       throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   // 4. Map stayType to extract feeAmount from the program
-   let feeAmount = 0;
-   if (stayType === STAY_TYPE.SINGLE_OCCUPANCY || stayType === STAY_TYPE.SINGLE) {
-      feeAmount = program.singleOccupancyFee || 0;
-   } else if (stayType === STAY_TYPE.TWIN_SHARING || stayType === STAY_TYPE.TWIN) {
-      feeAmount = program.twinSharingFee || 0;
-   } else if (stayType === STAY_TYPE.NON_RESIDENTIAL || stayType === STAY_TYPE.NON_RES) {
-      feeAmount = program.nonResidentialFee || 0;
+   // 3.5. Retrieve organization to get its policy
+   const organization = await organizationModel.findById((user as any).orgId);
+   if (!organization) {
+      throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+
+   // 4. Resolve fee from stayOptions array
+   const feeAmount = resolveEnrollmentFee(program, stayType);
 
    // 5. Structure travel and stay details
    const travelAndStay = {
       stayType,
-      placeOfTour: travelAndStayInput?.placeOfTour || (program as any).city || program.venue || "",
+      placeOfTour: travelAndStayInput?.placeOfTour || (program as any).city || program.venueName || "",
       frequentFlyerNo: travelAndStayInput?.frequentFlyerNo || "",
       modeOfTravel: travelAndStayInput?.modeOfTravel || "flight",
       purpose: travelAndStayInput?.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayInput?.bookingDetails || [],
       advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
       status: TOUR_STATUS.SUBMITTED,
-      managerAction: APPROVAL_STATUS.PENDING,
+      managerAction: MANAGER_ACTION.PENDING,
       managerReason: ""
    };
 
+
    // 6. Build enrollment payload
+   const user_hierarchy = (user as any).hierarchy || {};
+   const managerChain = (user_hierarchy.managerChain || []).map((entry: any) => ({
+      userId: entry.userId,
+      level:  entry.level,
+      status: MANAGER_CHAIN_STATUS.WAITING,
+   }));
+   // Activate the first level immediately
+   if (managerChain.length > 0) {
+      managerChain[0].status = MANAGER_CHAIN_STATUS.PENDING;
+   }
+
    const enrollmentPayload: any = {
       orgId: (user as any).orgId,
       employeeId: toObjectId(userId),
-      userId: toObjectId(userId),
       programId: toObjectId(programId),
-      providerOrgId: (program as any).providerOrgId || (program as any).training_providerId,
-      status: ENROLLMENT_STATUS.PENDING,
-      approvalStatus: APPROVAL_STATUS.PENDING,
+      providerOrgId: (program as any).providerOrgId || (program as any).createdBy,
       currentStage: ENROLLMENT_STAGE.SUBMITTED,
       statusSummary: {
-         enrollmentStatus: ENROLLMENT_STAGE.SUBMITTED,
+         enrollmentStatus: "submitted",
          tourStatus: TOUR_STATUS.SUBMITTED,
-         attendanceStatus: APPROVAL_STATUS.PENDING,
+         attendanceStatus: ATTENDANCE_RECORD_STATUS.PENDING,
          reimbursementStatus: REIMBURSEMENT_STATUS.NOT_STARTED
       },
       policySnapshot: {
-         managerApproval: { levels: 3, minLevelToApprove: 1 },
-         trainingDeptApproval: { enabled: true, reviewMode: REVIEW_MODE.JUNIOR_SENIOR },
-         osdReview: { enabled: true, reviewMode: REVIEW_MODE.JUNIOR_SENIOR }
+         managerApproval: organization.policy?.managerApproval || { levels: 3, minLevelToApprove: 1 },
+         trainingDeptApproval: organization.policy?.trainingDeptApproval || { enabled: true, levels: 2, minLevelToApprove: 2 },
+         osdReview: organization.policy?.osdReview || { enabled: true, levels: 2, minLevelToApprove: 2 }
       },
+      managerChain,
       managerApproval: {
-         assignedApproverId: (user as any).hierarchy?.managerId || null,
-         action: APPROVAL_STATUS.PENDING,
+         assignedApproverId: (user_hierarchy.managerId) || null,
+         action: MANAGER_ACTION.PENDING,
          note: ""
       },
       travelAndStay,
@@ -147,7 +158,7 @@ export const enrollInProgramService = async (
          {
             stage: ENROLLMENT_STAGE.SUBMITTED,
             actorId: toObjectId(userId),
-            actorType: ROLE.EMPLOYEE,
+            actorType: ACTOR_TYPE.EMPLOYEE,
             action: "created",
             note: "Enrollment request submitted",
             at: new Date()
@@ -155,22 +166,24 @@ export const enrollInProgramService = async (
       ]
    };
 
+
    // Save to DB
    const created = await createEnrollmentRepo(enrollmentPayload);
 
    return {
       enrollmentId: created._id.toString(),
-      status: created.status,
-      approvalStatus: created.approvalStatus,
+      currentStage: created.currentStage,
       feeAmount,
       currency: "INR",
       programSnapshot: {
          title: program.title,
          startDate: program.startDate ? program.startDate.toISOString() : undefined,
          endDate: program.endDate ? program.endDate.toISOString() : undefined,
-         venue: program.venue
+         venueName: program.venueName,
+         city: program.city,
       }
    };
+
 };
 
 export const getEmployeeEnrollmentsService = async (userId: string) => {
@@ -203,7 +216,7 @@ export const updateTravelDetailsService = async (
    }
 
    enrollmentObj.travelAndStay = {
-      stayType: enrollmentObj.travelAndStay?.stayType || STAY_TYPE.TWIN_SHARING,
+      stayType: enrollmentObj.travelAndStay?.stayType || "twin_sharing",
       placeOfTour: travelAndStayData.placeOfTour,
       frequentFlyerNo: travelAndStayData.frequentFlyerNo || "",
       modeOfTravel: travelAndStayData.modeOfTravel,
@@ -211,7 +224,7 @@ export const updateTravelDetailsService = async (
       bookingDetails: travelAndStayData.bookingDetails || [],
       advancePaymentRequired: travelAndStayData.advancePaymentRequired || 0,
       status: TOUR_STATUS.SUBMITTED,
-      managerAction: APPROVAL_STATUS.PENDING,
+      managerAction: MANAGER_ACTION.PENDING,
       managerReason: ""
    };
 
@@ -221,11 +234,12 @@ export const updateTravelDetailsService = async (
    enrollmentObj.timeline.push({
       stage: enrollmentObj.currentStage,
       actorId: toObjectId(userId),
-      actorType: ROLE.EMPLOYEE,
+      actorType: ACTOR_TYPE.EMPLOYEE,
       action: "updated_travel",
       note: "Updated travel and stay details",
       at: new Date()
    });
+
 
    await enrollmentObj.save();
    return enrollmentObj;
@@ -263,7 +277,8 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
    enrollmentObj.timeline.push({
       stage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       actorId: toObjectId(userId),
-      actorType: ROLE.EMPLOYEE,
+      actorType: ACTOR_TYPE.EMPLOYEE,
+
       action: "submitted",
       note: "Submitted for manager approval",
       at: new Date()

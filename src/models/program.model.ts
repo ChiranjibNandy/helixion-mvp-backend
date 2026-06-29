@@ -1,13 +1,48 @@
 import mongoose, { Schema } from "mongoose";
-import { IProgram } from "../interfaces/program.interface.js";
+import { IProgram, IStayOption } from "../interfaces/program.interface.js";
 import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 
+const stayOptionSchema = new Schema<IStayOption>(
+   {
+      type:  { type: String, enum: Object.values(STAY_TYPE), required: true },
+      price: { type: Number, min: 0, required: true },
+   },
+   { _id: false }
+);
+
 const programSchema = new Schema<IProgram>(
    {
-      title: {
-         type: String,
+      createdBy: {
+         type:     Schema.Types.ObjectId,
+         ref:      "User",
          required: true,
+         index:    true,
+      },
+
+      title: {
+         type:     String,
+         required: true,
+         trim:     true,
+      },
+
+      trainingInstitute: {
+         type: String,
+         trim: true,
+      },
+
+      venueName: {
+         type: String,
+         trim: true,
+      },
+
+      city: {
+         type: String,
+         trim: true,
+      },
+
+      state: {
+         type: String,
          trim: true,
       },
 
@@ -26,35 +61,27 @@ const programSchema = new Schema<IProgram>(
          },
       },
 
-      venue: {
-         type: String,
-         trim: true,
-      },
-      singleOccupancyFee: {
-         type: Number,
-         min: 0,
-      },
-
-      twinSharingFee: {
-         type: Number,
-         min: 0,
-      },
-
-      nonResidentialFee: {
-         type: Number,
-         min: 0,
+      /**
+       * Replaces singleOccupancyFee / twinSharingFee / nonResidentialFee.
+       * Storing as an array means adding a new stay type never requires
+       * a schema migration.
+       */
+      stayOptions: {
+         type:    [stayOptionSchema],
+         default: [],
       },
 
       brochureUrl: {
          type: String,
       },
+
       brochurePublicId: {
          type: String,
       },
 
       minParticipants: {
          type: Number,
-         min: 1,
+         min:  1,
       },
 
       maxParticipants: {
@@ -67,36 +94,28 @@ const programSchema = new Schema<IProgram>(
             message: MESSAGES.MAX_PARTICIPANTS_INVALID,
          },
       },
+
       status: {
-         type: String,
-         enum: Object.values(PROGRAM_SAVED_STATUS),
+         type:    String,
+         enum:    Object.values(PROGRAM_SAVED_STATUS),
          default: PROGRAM_SAVED_STATUS.DRAFT,
       },
-      training_providerId: {
-         type: Schema.Types.ObjectId,
-         ref: "User",
-         required: true,
-         index: true,
-      },
+
       batchId: {
-         type: String
-      }
+         type: String,
+      },
    },
    {
       timestamps: true,
    }
 );
 
-programSchema.index({ training_providerId: 1, status: 1 });
-
-programSchema.index({ training_providerId: 1, createdAt: -1 });
-
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+programSchema.index({ createdBy: 1, status: 1 });
+programSchema.index({ createdBy: 1, createdAt: -1 });
 programSchema.index({ status: 1 });
-
-programSchema.index({ startDate: 1 });
-
+programSchema.index({ startDate: 1 }); // startDate field is defined in schema (see above)
 programSchema.index({ batchId: 1 });
-
-
+programSchema.index({ city: 1, status: 1 });   // employee browse by city
 
 export default mongoose.model<IProgram>("Program", programSchema);

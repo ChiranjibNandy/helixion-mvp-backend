@@ -227,127 +227,55 @@ export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
    return results[0] || null;
 };
 
+
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
    return await enrollmentModel.findOne({
       $or: [
          { employeeId: toObjectId(userId) },
-         { userId: toObjectId(userId) }
       ],
       programId: toObjectId(programId),
-      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+      currentStage: { $nin: ["rejected", "completed"] },
    });
 };
 
-export const getManagerDashboardSummaryRepo = async (managerId: string) => {
-   const managOId = toObjectId(managerId);
+// ─── Manager approval queue ───────────────────────────────────────────────────
 
-   const [personalResult, teamResult] = await Promise.all([
-      // Manager's own enrollments (personal stats)
-      enrollmentModel.aggregate([
-         { $match: { $or: [{ userId: managOId }, { employeeId: managOId }] } },
-         {
-            $facet: {
-               completed: [{ $match: { status: ENROLLMENT_STATUS.COMPLETED } }, { $count: "n" }],
-               active: [{ $match: { status: ENROLLMENT_STATUS.ACTIVE } }, { $count: "n" }],
-            },
-         },
-      ]),
-      // Team-wide stats (org-wide until hierarchy is modelled).
-      // $match before $facet so MongoDB can use { status, currentStage } indexes.
-      enrollmentModel.aggregate([
-         {
-            $match: {
-               $or: [
-                  { currentStage: { $in: [ENROLLMENT_STAGE.SUBMITTED, ENROLLMENT_STAGE.MANAGER_REVIEW] } },
-                  { status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] } },
-               ],
-            },
-         },
-         {
-            $facet: {
-               pendingApprovals: [
-                  { $match: { currentStage: { $in: [ENROLLMENT_STAGE.SUBMITTED, ENROLLMENT_STAGE.MANAGER_REVIEW] } } },
-                  { $count: "n" },
-               ],
-               teamEnrollments: [
-                  { $match: { status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] } } },
-                  { $count: "n" },
-               ],
-            },
-         },
-      ]),
-   ]);
-
-   const p = personalResult[0];
-   const t = teamResult[0];
-   return {
-      programsCompleted: p.completed[0]?.n ?? 0,
-      programsEnrolled: p.active[0]?.n ?? 0,
-      pendingApprovals: t.pendingApprovals[0]?.n ?? 0,
-      teamEnrollments: t.teamEnrollments[0]?.n ?? 0,
+export const getPendingEnrollmentsForManagerRepo = async (
+   userId: string,
+   orgId: string,
+   options: { level?: number } = {}
+) => {
+   const chainFilter: Record<string, unknown> = {
+      userId:  toObjectId(userId),
+      status:  "pending",
    };
+
+   if (options.level !== undefined) {
+      chainFilter.level = options.level;
+   }
+
+   return await enrollmentModel
+      .find({
+         orgId:        toObjectId(orgId),
+         managerChain: { $elemMatch: chainFilter },
+      })
+      .populate("employeeId", "name email employeeCode placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
 };
 
-export const getManagerApprovalStatsRepo = async (_managerId: string) => {
-   const stats = await enrollmentModel.aggregate([
-      { $group: { _id: "$managerApproval.action", count: { $sum: 1 } } },
-   ]);
-   const result: Record<string, number> = { approved: 0, pending: 0, dismissed: 0 };
-   stats.forEach((item) => { if (item._id) result[item._id] = item.count; });
-   return result;
-};
+// ─── Training dept / OSD queues ───────────────────────────────────────────────
 
-export const getManagerPendingTeamEnrollmentsRepo = async (_managerId: string) => {
-   return await enrollmentModel.aggregate([
-      {
-         // Show all active/pending enrollments regardless of assignedApproverId
-         $match: {
-            status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] },
-         },
-      },
-      {
-         $lookup: {
-            from: "users",
-            localField: "employeeId",
-            foreignField: "_id",
-            as: "employee",
-         },
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "program",
-         },
-      },
-      { $sort: { createdAt: -1 } },
-      { $limit: 20 },
-      {
-         $addFields: {
-            employee: { $arrayElemAt: ["$employee", 0] },
-            program: { $arrayElemAt: ["$program", 0] },
-         },
-      },
-      {
-         $project: {
-            _id: 1,
-            employeeName: { $ifNull: ["$employee.username", "$employee.email"] },
-            programTitle: "$program.title",
-            fromDate: "$program.startDate",
-            toDate: "$program.endDate",
-            venue: { $ifNull: ["$program.venue", "—"] },
-            status: {
-               $switch: {
-                  branches: [
-                     { case: { $eq: ["$managerApproval.action", APPROVAL_STATUS.APPROVED] }, then: "Approved" },
-                     { case: { $eq: ["$managerApproval.action", APPROVAL_STATUS.DISMISSED] }, then: "Rejected" },
-                  ],
-                  default: "Pending Approval",
-               },
-            },
-         },
-      },
-   ]);
+export const getPendingEnrollmentsForStageRepo = async (
+   orgId: string,
+   stage: string
+) => {
+   return await enrollmentModel
+      .find({
+         orgId:        toObjectId(orgId),
+         currentStage: stage,
+      })
+      .populate("employeeId", "name email employeeCode placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
 };
-

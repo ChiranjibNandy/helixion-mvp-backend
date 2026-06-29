@@ -1,12 +1,14 @@
 import express from "express";
-import { getManagerDashboard } from "../controllers/manager.controller.js";
-import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
-import { ROLE } from "../constants/enum.js";
+import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
+import { ORG_ROLE } from "../constants/enum.js";
+import { getPendingEnrollments, takeManagerAction } from "../controllers/manager.controller.js";
 
 const router = express.Router();
 
-router.use(authorizeRole(ROLE.MANAGER));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
 
-router.get("/dashboard", getManagerDashboard);
+router.get("/pending", getPendingEnrollments);
+
+router.patch("/enrollments/:id/action", takeManagerAction);
 
 export default router;
