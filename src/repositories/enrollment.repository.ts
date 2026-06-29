@@ -3,6 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
+import { Types } from "mongoose";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -29,7 +30,7 @@ export const getEnrollmentByIdAndUserRepo = async (
   userId: string
 ) => {
   return await enrollmentModel.findOne({
-    _id:    new mongoose.Types.ObjectId(enrollmentId),
+    _id: new mongoose.Types.ObjectId(enrollmentId),
     userId: new mongoose.Types.ObjectId(userId),
   });
 };
@@ -44,10 +45,10 @@ export const getActiveEnrollmentsRepo = async (userId: string) => {
     },
     {
       $lookup: {
-        from:         "programs",
-        localField:   "programId",
+        from: "programs",
+        localField: "programId",
         foreignField: "_id",
-        as:           "programDetails",
+        as: "programDetails",
       },
     },
     {
@@ -63,7 +64,7 @@ export const getProgramParticipantsRepo = async (programId: string) => {
   return await enrollmentModel
     .find({
       programId: new mongoose.Types.ObjectId(programId),
-      status:    ENROLLMENT_STATUS.ACTIVE,
+      status: ENROLLMENT_STATUS.ACTIVE,
     })
     .populate({ path: "userId", select: "_id username email" });
 };
@@ -75,8 +76,8 @@ export const validateParticipantsEnrollmentRepo = async (
   return await enrollmentModel
     .find({
       programId: new mongoose.Types.ObjectId(programId),
-      userId:    { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      status:    ENROLLMENT_STATUS.ACTIVE,
+      userId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      status: ENROLLMENT_STATUS.ACTIVE,
     })
     .select("userId");
 };
@@ -86,7 +87,7 @@ export const getTotalEnrollments = async (trainingProviderId: string) => {
     {
       $lookup: {
         from: "programs",
-        let:  { programId: "$programId" },
+        let: { programId: "$programId" },
         pipeline: [
           {
             $match: {
@@ -118,7 +119,7 @@ export const getTodayEnrollmentCount = async (trainingProviderId: string) => {
     {
       $lookup: {
         from: "programs",
-        let:  { programId: "$programId" },
+        let: { programId: "$programId" },
         pipeline: [
           {
             $match: {
@@ -147,94 +148,102 @@ export const getEnrollmentActivities = async (trainingProviderId: string) => {
 
   return [
     {
-      type:    "enrollment",
-      message: `${count} new enrollments received today`,
-      time:    new Date(),
+      type: "enrollment",
+      message: `${ count } new enrollments received today`,
+      time: new Date(),
     },
   ];
 };
 
 export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
-   return await enrollmentModel.create(data);
+  return await enrollmentModel.create(data);
 };
 
 export const getEmployeeEnrollmentsRepo = async (userId: string) => {
-   return await enrollmentModel.aggregate([
-      {
-         $match: {
-            $or: [
-               { employeeId: toObjectId(userId) },
-               { userId: toObjectId(userId) }
-            ]
-         }
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
-      },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            },
-            programId: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
-      },
-      {
-         $sort: {
-            createdAt: -1
-         }
+  return await enrollmentModel.aggregate([
+    {
+      $match: {
+        $or: [
+          { employeeId: toObjectId(userId) },
+          { userId: toObjectId(userId) }
+        ]
       }
-   ]);
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programDetails"
+      }
+    },
+    {
+      $addFields: {
+        programDetails: {
+          $arrayElemAt: ["$programDetails", 0]
+        },
+        programId: {
+          $arrayElemAt: ["$programDetails", 0]
+        }
+      }
+    },
+    {
+      $sort: {
+        createdAt: -1
+      }
+    }
+  ]);
 };
 
 export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
-   const results = await enrollmentModel.aggregate([
-      {
-         $match: {
-            _id: toObjectId(id),
-            $or: [
-               { employeeId: toObjectId(userId) },
-               { userId: toObjectId(userId) }
-            ]
-         }
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
-      },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            },
-            programId: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
+  const results = await enrollmentModel.aggregate([
+    {
+      $match: {
+        _id: toObjectId(id),
+        $or: [
+          { employeeId: toObjectId(userId) },
+          { userId: toObjectId(userId) }
+        ]
       }
-   ]);
-   return results[0] || null;
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programDetails"
+      }
+    },
+    {
+      $addFields: {
+        programDetails: {
+          $arrayElemAt: ["$programDetails", 0]
+        },
+        programId: {
+          $arrayElemAt: ["$programDetails", 0]
+        }
+      }
+    }
+  ]);
+  return results[0] || null;
 };
 
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
-   return await enrollmentModel.findOne({
-      $or: [
-         { employeeId: toObjectId(userId) },
-         { userId: toObjectId(userId) }
-      ],
-      programId: toObjectId(programId),
-      status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
-   });
+  return await enrollmentModel.findOne({
+    $or: [
+      { employeeId: toObjectId(userId) },
+      { userId: toObjectId(userId) }
+    ],
+    programId: toObjectId(programId),
+    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+  });
 };
 
+export const findEnrollmentByEmployeeIds = async (employeeIds: Types.ObjectId[]) => {
+  return enrollmentModel.find({
+    employeeId: { $in: employeeIds },
+  })
+    .populate("employeeId", "username email")
+    .populate("programId", "name")
+    .sort({ createdAt: -1 });
+}

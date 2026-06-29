@@ -1,3 +1,4 @@
+import { StringDecoder } from "node:string_decoder";
 import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
@@ -133,3 +134,11 @@ export const getUsersByOrganizationId = async (
 ) => {
    return await User.find({ organizationId })
 }
+
+
+export const findEmployeesByManager = async (managerId: string) => {
+   return await User.find({
+      "hierarchy.managerChain.userId": managerId,
+   });
+}
+

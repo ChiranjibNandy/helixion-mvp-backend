@@ -10,7 +10,8 @@ import {
    getEmployeeEnrollments,
    getEnrollmentDetails,
    updateTravelDetails,
-   submitEnrollment
+   submitEnrollment,
+   getRelevantEnrollments
 } from "../controllers/employee.controller.js";
 import {
    getProgramsQuerySchema,
@@ -45,5 +46,8 @@ router.get("/enrollments/:id", getEnrollmentDetails);
 router.put("/enrollments/:id/travel", updateTravelDetails);
 
 router.post("/enrollments/:id/submit", submitEnrollment);
+
+//get relevent enrollment data for employees
+router.get("/manager-enrollments", getRelevantEnrollments);
 
 export default router;
