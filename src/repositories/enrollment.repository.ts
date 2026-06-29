@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { ENROLLMENT_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE } from "../constants/enum.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -240,14 +240,6 @@ export const findExistingEnrollmentRepo = async (userId: string, programId: stri
 
 // ─── Manager approval queue ───────────────────────────────────────────────────
 
-/**
- * Returns enrollments where the given user appears in the frozen managerChain
- * with a "pending" status at the specified level (or any level if not supplied).
- *
- * Usage:
- *   - Direct reports only: level = 1
- *   - All levels this manager is responsible for: level = undefined
- */
 export const getPendingEnrollmentsForManagerRepo = async (
    userId: string,
    orgId: string,
@@ -274,10 +266,6 @@ export const getPendingEnrollmentsForManagerRepo = async (
 
 // ─── Training dept / OSD queues ───────────────────────────────────────────────
 
-/**
- * Enrollments currently sitting at a given stage within an org.
- * Used by training dept and OSD controllers.
- */
 export const getPendingEnrollmentsForStageRepo = async (
    orgId: string,
    stage: string

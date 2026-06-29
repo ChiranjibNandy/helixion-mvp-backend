@@ -8,13 +8,6 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/pending
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * Returns enrollments waiting for this manager's action.
- *
- * Query param:
- *   - level=1  → only direct reports (default)
- *   - level=0  → all levels this manager is in the chain for
- */
 export const getPendingEnrollments = async (
    req: Request,
    res: Response,
@@ -40,13 +33,6 @@ export const getPendingEnrollments = async (
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/manager/enrollments/:id/action
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * Manager takes an action on an enrollment.
- *
- * Body:
- *   - action: "recommend" | "approve" | "reject"
- *   - note: string (optional)
- */
 export const takeManagerAction = async (
    req: Request,
    res: Response,

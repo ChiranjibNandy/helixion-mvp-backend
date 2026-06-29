@@ -4,15 +4,6 @@ import { MESSAGES } from "../constants/messages.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { ORG_ROLE } from "../constants/enum.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// authenticate
-// ─────────────────────────────────────────────────────────────────────────────
-/**
- * Verifies the JWT (cookie or Authorization header) and attaches decoded
- * claims to req: userId, orgId, orgRole, officeRoles, mustChangePassword.
- *
- * Must be applied BEFORE any of the authorize* middlewares.
- */
 export const authenticate = (
    req: Request,
    res: Response,
