@@ -8,6 +8,7 @@ import {
 } from "../repositories/enrollment.repository.js";
 import userModel from "../models/user.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
+import { organizationModel } from "../models/organization.model.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
@@ -89,6 +90,12 @@ export const enrollInProgramService = async (
       throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
+   // 3.5. Retrieve organization to get its policy
+   const organization = await organizationModel.findById((user as any).orgId);
+   if (!organization) {
+      throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
    // 4. Resolve fee from stayOptions array
    const feeAmount = resolveEnrollmentFee(program, stayType);
 
@@ -132,9 +139,9 @@ export const enrollInProgramService = async (
          reimbursementStatus: REIMBURSEMENT_STATUS.NOT_STARTED
       },
       policySnapshot: {
-         managerApproval: { levels: 3, minLevelToApprove: 1 },
-         trainingDeptApproval: { enabled: true, levels: 2, minLevelToApprove: 2 },
-         osdReview: { enabled: true, levels: 2, minLevelToApprove: 2 }
+         managerApproval: organization.policy?.managerApproval || { levels: 3, minLevelToApprove: 1 },
+         trainingDeptApproval: organization.policy?.trainingDeptApproval || { enabled: true, levels: 2, minLevelToApprove: 2 },
+         osdReview: organization.policy?.osdReview || { enabled: true, levels: 2, minLevelToApprove: 2 }
       },
       managerChain,
       managerApproval: {
