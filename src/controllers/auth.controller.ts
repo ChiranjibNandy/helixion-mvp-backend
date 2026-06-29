@@ -5,7 +5,6 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
-import { AppError } from "../utils/appError.js";
 
 /**
  * Register a new user account.
@@ -69,40 +68,39 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    const { user, permissions } =
-      await loginService(email, password);
+    const user = await loginService(email, password);
 
-    if (!user._id) {
-      throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
-    }
-
+    // Build full RBAC payload — stored in token so no DB hit on every request
     const payload: JwtPayloadType = {
-      userId: user._id.toString(),
-      name: user.username,
-      email: user.email,
-      location: user.location,
-      role: user.role,
-      permissions,
+      userId:             user._id!.toString(),
+      name:               user.name,
+      email:              user.email,
+      orgId:              user.orgId?.toString(),
+      orgRole:            user.orgRole,
+      officeRoles:        user.officeRoles,
+      mustChangePassword: user.mustChangePassword,
     };
-  
 
-    const accessToken = generateAccessToken(payload);
+    const accessToken  = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
     setRefreshTokenCookie(res, refreshToken);
     setAccessTokenCookie(res, accessToken);
 
-    return res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
+    res.status(HTTP_STATUS.OK).json({
+      success:            true,
+      message:            MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
       accessToken,
-      role: user.role,
-      permissions,
+      orgRole:            payload.orgRole,
+      officeRoles:        payload.officeRoles,
+      mustChangePassword: payload.mustChangePassword,
     });
+
   } catch (error) {
     next(error);
   }
 };
+
 
 export const logout = async (
   req: Request,

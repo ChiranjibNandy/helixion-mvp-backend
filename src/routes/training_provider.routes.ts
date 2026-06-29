@@ -2,8 +2,8 @@ import express from "express";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProgramSchema, updateProgramSchema } from "../validators/training_provider.validator.js";
 import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, getTrainingProviderDashboard, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
-import { ROLE } from "../constants/enum.js";
-import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
+import { ORG_ROLE } from "../constants/enum.js";
+import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
@@ -15,7 +15,8 @@ import { takeAttendanceBodySchema } from "../validators/attendance.validator.js"
 const router = express.Router();
 
 
-router.use(authorizeRole(ROLE.TRAINING_PROVIDER));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.TRAINING_PROVIDER));
+
 
 //create programme
 

@@ -12,7 +12,7 @@ export const getRelevantEnrollmentService = async (managerId: string) => {
 
    const response = enrollments.map((enrollment) => {
       const employee = employees.find(
-         (emp) => emp._id.toString() === enrollment.userId.toString()
+         (emp) => emp._id.toString() === enrollment.employeeId.toString()
       );
 
       if (!employee) {
