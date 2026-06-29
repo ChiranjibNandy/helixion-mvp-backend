@@ -5,9 +5,6 @@ import {
    findExistingEnrollmentRepo,
    getEmployeeEnrollmentsRepo,
    getEnrollmentDetailsRepo,
-   getManagerDashboardSummaryRepo,
-   getManagerApprovalStatsRepo,
-   getManagerPendingTeamEnrollmentsRepo,
 } from "../repositories/enrollment.repository.js";
 import userModel from "../models/user.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
@@ -243,15 +240,6 @@ export const updateTravelDetailsService = async (
 
    await enrollmentObj.save();
    return enrollmentObj;
-};
-
-export const getManagerDashboardService = async (managerId: string) => {
-   const [summary, approvalStats, pendingTeamEnrollments] = await Promise.all([
-      getManagerDashboardSummaryRepo(managerId),
-      getManagerApprovalStatsRepo(managerId),
-      getManagerPendingTeamEnrollmentsRepo(managerId),
-   ]);
-   return { summary, approvalStats, pendingTeamEnrollments };
 };
 
 export const submitEnrollmentService = async (userId: string, enrollmentId: string) => {
