@@ -29,16 +29,16 @@ export const signupService = async (
 
    try {
       return await createUserRepo({
-         name:         userData.name || (userData as any).username,
-         email:        userData.email,
+         name: userData.name || (userData as any).username,
+         email: userData.email,
          passwordHash: hashedPassword,
-         orgRole:      (userData as any).orgRole || (userData as any).role,
+         orgRole: (userData as any).orgRole || (userData as any).role,
          mustChangePassword: false,
-         status:       USER_STATUS.ACTIVE,
-         hierarchy:    { level: 0, managerChain: [] },
-         officeRoles:  {
+         status: USER_STATUS.ACTIVE,
+         hierarchy: { level: 0, managerChain: [] },
+         officeRoles: {
             trainingDept: { enabled: false, level: null },
-            osd:          { enabled: false, level: null },
+            osd: { enabled: false, level: null },
          },
       });
    } catch (err: any) {

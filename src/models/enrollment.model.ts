@@ -12,6 +12,7 @@ import {
    OSD_SENIOR_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   ENROLLMENT_STATUS,
 } from "../constants/enum.js";
 
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
        * at each step; the workflow position is always currentStage.
        */
       statusSummary: {
-         enrollmentStatus:   { type: String, default: "submitted" },
+         enrollmentStatus:   { type: String, default: ENROLLMENT_STATUS.SUBMITTED },
          tourStatus:         { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
          attendanceStatus:   { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
          reimbursementStatus: { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED },

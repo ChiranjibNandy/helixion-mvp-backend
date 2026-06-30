@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import { Types } from "mongoose";
+import { ENROLLMENT_STATUS } from "../constants/enum.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -12,7 +12,7 @@ export const checkExistingEnrollmentRepo = async (
   return await enrollmentModel.findOne({
     userId,
     programId,
-    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] },
+    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING, ENROLLMENT_STATUS.SUBMITTED] },
   });
 };
 
@@ -21,7 +21,7 @@ export const getEnrollmentCountForProgramRepo = async (
 ) => {
   return await enrollmentModel.countDocuments({
     programId,
-    status: ENROLLMENT_STATUS.ACTIVE,
+    "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
   });
 };
 
@@ -40,7 +40,7 @@ export const getActiveEnrollmentsRepo = async (userId: string) => {
     {
       $match: {
         userId: new mongoose.Types.ObjectId(userId),
-        status: ENROLLMENT_STATUS.ACTIVE,
+        "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
       },
     },
     {
@@ -64,7 +64,7 @@ export const getProgramParticipantsRepo = async (programId: string) => {
   return await enrollmentModel
     .find({
       programId: new mongoose.Types.ObjectId(programId),
-      status: ENROLLMENT_STATUS.ACTIVE,
+      "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
     })
     .populate({ path: "userId", select: "_id username email" });
 };
@@ -77,7 +77,7 @@ export const validateParticipantsEnrollmentRepo = async (
     .find({
       programId: new mongoose.Types.ObjectId(programId),
       userId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      status: ENROLLMENT_STATUS.ACTIVE,
+      "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
     })
     .select("userId");
 };
@@ -236,7 +236,7 @@ export const findExistingEnrollmentRepo = async (userId: string, programId: stri
       { userId: toObjectId(userId) }
     ],
     programId: toObjectId(programId),
-    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
   });
 };
 
@@ -251,55 +251,43 @@ export const findEnrollmentByEmployeeIds = async (employeeIds: Types.ObjectId[])
 
 // ─── Manager approval queue ───────────────────────────────────────────────────
 
-/**
- * Returns enrollments where the given user appears in the frozen managerChain
- * with a "pending" status at the specified level (or any level if not supplied).
- *
- * Usage:
- *   - Direct reports only: level = 1
- *   - All levels this manager is responsible for: level = undefined
- */
 export const getPendingEnrollmentsForManagerRepo = async (
-   userId: string,
-   orgId: string,
-   options: { level?: number } = {}
+  userId: string,
+  orgId: string,
+  options: { level?: number } = {}
 ) => {
-   const chainFilter: Record<string, unknown> = {
-      userId:  toObjectId(userId),
-      status:  "pending",
-   };
+  const chainFilter: Record<string, unknown> = {
+    userId: toObjectId(userId),
+    "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.PENDING,
+  };
 
-   if (options.level !== undefined) {
-      chainFilter.level = options.level;
-   }
+  if (options.level !== undefined) {
+    chainFilter.level = options.level;
+  }
 
-   return await enrollmentModel
-      .find({
-         orgId:        toObjectId(orgId),
-         managerChain: { $elemMatch: chainFilter },
-      })
-      .populate("employeeId", "name email employeeCode placeOfPosting")
-      .populate("programId", "title startDate endDate city venueName")
-      .sort({ createdAt: -1 });
+  return await enrollmentModel
+    .find({
+      orgId: toObjectId(orgId),
+      managerChain: { $elemMatch: chainFilter },
+    })
+    .populate("employeeId", "name email employeeCode placeOfPosting")
+    .populate("programId", "title startDate endDate city venueName")
+    .sort({ createdAt: -1 });
 };
 
 // ─── Training dept / OSD queues ───────────────────────────────────────────────
 
-/**
- * Enrollments currently sitting at a given stage within an org.
- * Used by training dept and OSD controllers.
- */
 export const getPendingEnrollmentsForStageRepo = async (
-   orgId: string,
-   stage: string
+  orgId: string,
+  stage: string
 ) => {
-   return await enrollmentModel
-      .find({
-         orgId:        toObjectId(orgId),
-         currentStage: stage,
-      })
-      .populate("employeeId", "name email employeeCode placeOfPosting")
-      .populate("programId", "title startDate endDate city venueName")
-      .sort({ createdAt: -1 });
+  return await enrollmentModel
+    .find({
+      orgId: toObjectId(orgId),
+      currentStage: stage,
+    })
+    .populate("employeeId", "name email employeeCode placeOfPosting")
+    .populate("programId", "title startDate endDate city venueName")
+    .sort({ createdAt: -1 });
 };
 
