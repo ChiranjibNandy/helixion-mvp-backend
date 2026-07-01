@@ -1,8 +1,10 @@
+import { Types } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { organizationModel } from "../models/organization.model.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
+import { IOrganization } from "../interfaces/organization.interface.js";
 
 
 export const createOrganization = async (
@@ -77,3 +79,7 @@ export const findOrganizationBySlug = async (
 ) => {
    return organizationModel.findOne({ slug }).lean();
 };
+
+export const findOrganizationById = async (id: Types.ObjectId):Promise<IOrganization | null> => {
+   return organizationModel.findById(id)
+}

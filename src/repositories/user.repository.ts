@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
 import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
@@ -138,22 +139,26 @@ export const getUsersByOfficeRoleRepo = async (
 ) => {
    return await User.find({
       orgId,
-      [`officeRoles.${type}.enabled`]: true,
-      [`officeRoles.${type}.level`]:   { $gte: minLevel },
+      [`officeRoles.${ type }.enabled`]: true,
+      [`officeRoles.${ type }.level`]: { $gte: minLevel },
       status: USER_STATUS.ACTIVE,
    }).select("-passwordHash");
 };
 
 export const getUsersByOrganizationId = async (
    organizationId: string
-) => {
+): Promise<IUser[]> => {
    return await User.find({ organizationId })
 }
 
 
-export const findEmployeesByManager = async (managerId: string) => {
-   return await User.find({
+export const hasReportingEmployees = (
+   orgId: Types.ObjectId,
+   managerId: Types.ObjectId
+) => {
+   return User.exists({
+      orgId,
       "hierarchy.managerChain.userId": managerId,
    });
-}
+};
 
