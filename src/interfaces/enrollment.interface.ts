@@ -71,6 +71,8 @@ export interface IEnrollment {
       managerApproval?: { levels: number; minLevelToApprove: number };
       trainingDeptApproval?: { enabled: boolean; levels: number; minLevelToApprove: number };
       osdReview?: { enabled: boolean; levels: number; minLevelToApprove: number };
+      tourApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
+      reimbursementApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
    };
 
    /** Frozen copy of the full manager chain at enrollment creation time */
