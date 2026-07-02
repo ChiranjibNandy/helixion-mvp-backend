@@ -20,3 +20,12 @@ export const enrollProgramBodySchema = z.object({
   ),
   notes: z.string().trim().max(500, MESSAGES.NOTES_MAX_LENGTH).optional(),
 });
+
+export const submitReimbursementBodySchema = z.object({
+  expenses: z.object({
+    travelCost:        z.number().min(0),
+    accommodationCost: z.number().min(0),
+    foodCost:           z.number().min(0),
+  }),
+  receipts: z.array(z.string()).default([]),
+});

@@ -7,7 +7,8 @@ import {
    getEmployeeEnrollments,
    getEnrollmentDetails,
    updateTravelDetails,
-   submitEnrollment
+   submitEnrollment,
+   submitReimbursement
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -15,7 +16,8 @@ import { ORG_ROLE } from "../constants/enum.js";
 import {
    getProgramsQuerySchema,
    programParamsSchema,
-   enrollProgramBodySchema
+   enrollProgramBodySchema,
+   submitReimbursementBodySchema
 } from "../validators/employee.validator.js";
 
 const router = express.Router();
@@ -46,5 +48,11 @@ router.get("/enrollments/:id", getEnrollmentDetails);
 router.put("/enrollments/:id/travel", updateTravelDetails);
 
 router.post("/enrollments/:id/submit", submitEnrollment);
+
+router.post(
+   "/enrollments/:id/reimbursement/submit",
+   validate({ params: programParamsSchema, body: submitReimbursementBodySchema }),
+   submitReimbursement
+);
 
 export default router;

@@ -74,11 +74,10 @@ export const validateParticipantsEnrollmentRepo = async (
 ) => {
   return await enrollmentModel
     .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      userId:    { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      status:    ENROLLMENT_STATUS.ACTIVE,
+      programId:  new mongoose.Types.ObjectId(programId),
+      employeeId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
     })
-    .select("userId");
+    .select("employeeId");
 };
 
 export const getTotalEnrollments = async (trainingProviderId: string) => {
@@ -279,3 +278,21 @@ export const getPendingEnrollmentsForStageRepo = async (
       .populate("programId", "title startDate endDate city venueName")
       .sort({ createdAt: -1 });
 };
+
+// ─── Reimbursement manager queue ───────────────────────────────────────────────
+
+export const getPendingReimbursementsForManagerRepo = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await enrollmentModel
+      .find({
+         orgId:                             toObjectId(orgId),
+         currentStage:                      ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId": toObjectId(managerId),
+      })
+      .populate("employeeId", "name email employeeCode placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
+

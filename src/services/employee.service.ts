@@ -276,4 +276,52 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
    return enrollmentObj;
 };
 
+export const submitReimbursementService = async (
+   userId: string,
+   enrollmentId: string,
+   expenses: { travelCost: number; accommodationCost: number; foodCost: number },
+   receipts: string[]
+) => {
+   const enrollmentObj = await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      $or: [
+         { employeeId: toObjectId(userId) },
+         { userId: toObjectId(userId) }
+      ]
+   });
 
+   if (!enrollmentObj) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   if (!enrollmentObj.reimbursement?.enabled) {
+      throw new AppError(MESSAGES.REIMBURSEMENT_NOT_ENABLED, HTTP_STATUS.CONFLICT);
+   }
+
+   if (enrollmentObj.reimbursement.status !== REIMBURSEMENT_STATUS.NOT_STARTED) {
+      throw new AppError(MESSAGES.REIMBURSEMENT_ALREADY_SUBMITTED, HTTP_STATUS.CONFLICT);
+   }
+
+   const totalAmount = expenses.travelCost + expenses.accommodationCost + expenses.foodCost;
+
+   enrollmentObj.reimbursement.expenses = expenses;
+   enrollmentObj.reimbursement.receipts = receipts;
+   enrollmentObj.reimbursement.totalAmount = totalAmount;
+   enrollmentObj.reimbursement.status = REIMBURSEMENT_STATUS.SUBMITTED;
+   enrollmentObj.currentStage = ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW;
+
+   if (!enrollmentObj.timeline) {
+      enrollmentObj.timeline = [];
+   }
+   enrollmentObj.timeline.push({
+      stage: ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+      actorId: toObjectId(userId),
+      actorType: ACTOR_TYPE.EMPLOYEE,
+      action: "submitted",
+      note: "Reimbursement claim submitted",
+      at: new Date()
+   });
+
+   await enrollmentObj.save();
+   return enrollmentObj;
+};

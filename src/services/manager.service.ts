@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getPendingEnrollmentsForManagerRepo } from "../repositories/enrollment.repository.js";
+import { getPendingEnrollmentsForManagerRepo, getPendingReimbursementsForManagerRepo } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -9,6 +9,8 @@ import {
    MANAGER_CHAIN_STATUS,
    ENROLLMENT_STAGE,
    ACTOR_TYPE,
+   REIMBURSEMENT_MANAGER_ACTION,
+   REIMBURSEMENT_STATUS,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -168,6 +170,87 @@ export const takeManagerActionService = async (
       updateOps,
       { arrayFilters, new: true }
    );
+
+   return { currentStage: nextStage };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get pending reimbursement claims awaiting this manager's approval
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getPendingReimbursementsService = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await getPendingReimbursementsForManagerRepo(managerId, orgId);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager approve/reject a reimbursement claim (approve | reject)
+//
+// Single-tier gate — no chain, keyed on the same assignedApproverId set when
+// the enrollment was created. Reject is terminal (no rework loop, per ticket
+// 0031's linear flow); approve hands off to OSD review.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const takeReimbursementManagerActionService = async (
+   enrollmentId: string,
+   managerId: string,
+   orgId: string,
+   action: string,
+   note: string
+) => {
+   if (
+      !Object.values(REIMBURSEMENT_MANAGER_ACTION).includes(action as REIMBURSEMENT_MANAGER_ACTION) ||
+      action === REIMBURSEMENT_MANAGER_ACTION.PENDING
+   ) {
+      throw new AppError(MESSAGES.INVALID_REIMBURSEMENT_ACTION, HTTP_STATUS.BAD_REQUEST);
+   }
+
+   const nextStage =
+      action === REIMBURSEMENT_MANAGER_ACTION.REJECT
+         ? ENROLLMENT_STAGE.REJECTED
+         : ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW;
+
+   const nextReimbursementStatus =
+      action === REIMBURSEMENT_MANAGER_ACTION.REJECT
+         ? REIMBURSEMENT_STATUS.REJECTED
+         : REIMBURSEMENT_STATUS.SUBMITTED;
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id:                                   toObjectId(String(enrollmentId)),
+         orgId:                                 toObjectId(orgId),
+         currentStage:                          ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId":  toObjectId(managerId),
+      },
+      {
+         $set: {
+            currentStage:                        nextStage,
+            "reimbursement.status":              nextReimbursementStatus,
+            "reimbursement.managerApproval": {
+               action:  action as REIMBURSEMENT_MANAGER_ACTION,
+               note,
+               actedAt: new Date(),
+            },
+         },
+         $push: {
+            timeline: {
+               stage:     nextStage,
+               actorId:   toObjectId(managerId),
+               actorType: ACTOR_TYPE.MANAGER,
+               action,
+               note,
+               at:        new Date(),
+            },
+         },
+      },
+      { new: true }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
 
    return { currentStage: nextStage };
 };

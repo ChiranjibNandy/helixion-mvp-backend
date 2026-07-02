@@ -7,8 +7,8 @@ import {
    MANAGER_CHAIN_STATUS,
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
-   OSD_JUNIOR_ACTION,
    OSD_SENIOR_ACTION,
+   REIMBURSEMENT_MANAGER_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
 } from "../constants/enum.js";
@@ -45,8 +45,8 @@ export interface ITimelineEntry {
  *   enrollment creation time. This means approver identity never changes
  *   even if the org restructures after the fact.
  * - `policySnapshot` is similarly frozen from org.policy at creation time.
- * - Officer IDs (trainingDeptReview, osdJunior/Senior) are assigned at
- *   enrollment time (pool/assigned per policy), NOT stored on the User doc.
+ * - Officer IDs (trainingDeptReview) are assigned at enrollment time
+ *   (pool/assigned per policy), NOT stored on the User doc.
  * - `userId` is kept as an alias for `employeeId` for backward-compat with
  *   existing dashboard queries. Both point to the same user.
  */
@@ -114,7 +114,8 @@ export interface IEnrollment {
    };
 
    reimbursement?: {
-      submittedAt?: Date;
+      enabled?: boolean;
+      status?: REIMBURSEMENT_STATUS;
       expenses?: {
          travelCost: number;
          accommodationCost: number;
@@ -122,14 +123,12 @@ export interface IEnrollment {
       };
       receipts?: string[];
       totalAmount?: number;
-      osdJunior?: {
-         officerId?: Types.ObjectId;
-         action: OSD_JUNIOR_ACTION;
+      managerApproval?: {
+         action: REIMBURSEMENT_MANAGER_ACTION;
          note?: string;
          actedAt?: Date;
       };
-      osdSenior?: {
-         officerId?: Types.ObjectId;
+      osdApproval?: {
          action: OSD_SENIOR_ACTION;
          note?: string;
          actedAt?: Date;
