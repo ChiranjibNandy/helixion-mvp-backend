@@ -12,6 +12,8 @@ import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { USER_STATUS } from "../constants/enum.js";
+import { buildPermission } from "../utils/permission.js";
+import { LoginResponse } from "../types/auth.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register User
@@ -57,7 +59,7 @@ export const signupService = async (
 export const loginService = async (
    email: string,
    password: string
-): Promise<IUser> => {
+): Promise<LoginResponse> => {
    const user = await getUserByEmailRepo(email);
 
    if (!user) {
@@ -73,8 +75,12 @@ export const loginService = async (
    if (user.status !== USER_STATUS.ACTIVE) {
       throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
    }
+   const permissions = await buildPermission(user);
 
-   return user;
+   return {
+      user,
+      permissions,
+   };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

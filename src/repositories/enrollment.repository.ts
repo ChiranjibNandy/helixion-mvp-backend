@@ -4,6 +4,7 @@ import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
+import { IUser } from "../interfaces/user.interface.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -291,3 +292,9 @@ export const getPendingEnrollmentsForStageRepo = async (
     .sort({ createdAt: -1 });
 };
 
+export const getEnrollmentByUserIdInManagerChain = async (user: IUser) => {
+  return await enrollmentModel.find({
+    orgId: user.orgId,
+    // "managerChain.userId": user._id,
+  });
+}

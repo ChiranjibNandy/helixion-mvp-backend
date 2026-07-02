@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { USER_STATUS, ORG_ROLE } from "../constants/enum.js";
+import { USER_STATUS, ORG_ROLE, ROLE } from "../constants/enum.js";
 import { IOrganization } from "./organization.interface.js";
 
 export interface IManagerChainEntry {

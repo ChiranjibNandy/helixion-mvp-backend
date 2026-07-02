@@ -12,7 +12,6 @@ export enum ROLE {
   ADMIN = "admin",
   EMPLOYEE = "employee",
   TRAINING_PROVIDER = "training-provider",
-  MANAGER = "manager",
 }
 
 // ─── Office role levels (1 = junior / 2 = senior) ────────────────────────────

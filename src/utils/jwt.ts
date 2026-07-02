@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { ENV } from "../config/env.js";
+import { IPermission } from "../types/auth.js";
 
 export interface JwtPayloadType {
    userId: string;
@@ -20,6 +21,7 @@ export interface JwtPayloadType {
 
    /** If true the user must change their password before accessing the app */
    mustChangePassword?: boolean;
+   permissions:IPermission
 }
 
 export const generateAccessToken = (payload: JwtPayloadType) => {

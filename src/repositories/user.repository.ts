@@ -162,3 +162,19 @@ export const hasReportingEmployees = (
    });
 };
 
+export const hasApproveEmployees = (
+   orgId: Types.ObjectId,
+   managerId: Types.ObjectId,
+   minLevel: number
+) => {
+   return User.exists({
+      orgId,
+      "hierarchy.managerChain": {
+         $elemMatch: {
+            userId: managerId,
+            level: { $gte: minLevel }
+         }
+      }
+   });
+};
+
