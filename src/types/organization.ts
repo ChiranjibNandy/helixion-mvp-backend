@@ -17,8 +17,16 @@ export interface OrganizationPolicy {
    managerApproval: ApprovalPolicy;
    trainingDeptApproval: ApprovalPolicy;
    osdReview: ApprovalPolicy;
-   tourForm: ApprovalPolicy
-   reimbursement: ApprovalPolicy
+   tourForm: ApprovalPolicy;
+   reimbursement: ApprovalPolicy;
+   tourApproval?: {
+      managerApprovalRequired: boolean;
+      osdApprovalRequired: boolean;
+   };
+   reimbursementApproval?: {
+      managerApprovalRequired: boolean;
+      osdApprovalRequired: boolean;
+   };
 }
 
 export type CreateOrganization = {

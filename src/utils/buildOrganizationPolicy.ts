@@ -59,4 +59,14 @@ export const buildOrganizationPolicy = (
     assignmentMode:
       AssignmentMode.POOL,
   },
+
+  tourApproval: {
+    managerApprovalRequired: true,
+    osdApprovalRequired: true,
+  },
+
+  reimbursementApproval: {
+    managerApprovalRequired: true,
+    osdApprovalRequired: true,
+  },
 });
