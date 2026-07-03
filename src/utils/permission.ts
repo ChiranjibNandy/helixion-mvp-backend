@@ -1,4 +1,4 @@
-import { ROLE } from "../constants/enum.js";
+import { ORG_ROLE, ROLE } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { IUser } from "../interfaces/user.interface.js";
@@ -7,7 +7,8 @@ import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user
 import { AppError } from "./appError.js";
 
 export const canEnroll = (user: IUser): boolean => {
-   return user.role === ROLE.EMPLOYEE;
+   if(!user.orgRole) return false
+   return user.orgRole === ORG_ROLE.EMPLOYEE;
 };
 
 export const canRecommend = async (user: IUser) => {
