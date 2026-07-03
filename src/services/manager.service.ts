@@ -10,6 +10,7 @@ import {
    ENROLLMENT_STAGE,
    ACTOR_TYPE,
    TOUR_STATUS,
+   ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -119,7 +120,7 @@ export const takeManagerActionService = async (
 
    if (action === MANAGER_ACTION.REJECT) {
       nextStage             = ENROLLMENT_STAGE.REJECTED;
-      nextEnrollmentStatus  = "rejected";
+      nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
@@ -148,7 +149,7 @@ export const takeManagerActionService = async (
       if (lowestApproved <= minLevel) {
          // Minimum required level has approved — advance to training dept review
          nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
-         nextEnrollmentStatus = "recommended";
+         nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
          updateOps.$set.currentStage = nextStage;
          updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
          updateOps.$push.timeline.stage = nextStage;

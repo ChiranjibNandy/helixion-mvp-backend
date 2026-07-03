@@ -20,6 +20,7 @@ import {
    MANAGER_CHAIN_STATUS,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
@@ -262,7 +263,7 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
 
    const tourManagerApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
    enrollmentObj.currentStage = ENROLLMENT_STAGE.MANAGER_REVIEW;
-   enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STAGE.SUBMITTED;
+   enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STATUS_SUMMARY.SUBMITTED;
    enrollmentObj.statusSummary.tourStatus = tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED;
 
    if (!enrollmentObj.timeline) {

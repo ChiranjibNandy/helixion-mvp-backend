@@ -21,7 +21,6 @@ export interface JwtPayloadType {
    /** If true the user must change their password before accessing the app */
    mustChangePassword?: boolean;
 
-   role?: string;
    isManager?: boolean;
 }
 
