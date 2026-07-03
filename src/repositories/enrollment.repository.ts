@@ -292,9 +292,87 @@ export const getPendingEnrollmentsForStageRepo = async (
     .sort({ createdAt: -1 });
 };
 
-export const getEnrollmentByUserIdInManagerChain = async (user: IUser) => {
-  return await enrollmentModel.find({
-    orgId: user.orgId,
-    // "managerChain.userId": user._id,
-  });
-}
+export const getEnrollmentByUserIdInManagerChain = async (
+  user: IUser,
+  page: number,
+  limit: number,
+  search: string
+) => {
+  const skip = (page - 1) * limit;
+
+  const pipeline: any[] = [
+    {
+      $match: {
+        orgId: user.orgId,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "employeeId",
+        foreignField: "_id",
+        as: "employeeId",
+      },
+    },
+    {
+      $unwind: "$employeeId",
+    },
+  ];
+
+  if (search?.trim()) {
+    pipeline.push({
+      $match: {
+        $or: [
+          {
+            "employeeId.name": {
+              $regex: search,
+              $options: "i",
+            },
+          },
+          {
+            "programSnapshot.title": {
+              $regex: search,
+              $options: "i",
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  // Total Count
+  const totalResult = await enrollmentModel.aggregate([
+    ...pipeline,
+    {
+      $count: "total",
+    },
+  ]);
+
+  const total = totalResult[0]?.total || 0;
+
+  // Data
+  const enrollments = await enrollmentModel.aggregate([
+    ...pipeline,
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    {
+      $skip: skip,
+    },
+    {
+      $limit: limit,
+    },
+  ]);
+
+  return {
+    enrollments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};

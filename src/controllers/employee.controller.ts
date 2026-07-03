@@ -12,7 +12,7 @@ import {
    updateTravelDetailsService,
    submitEnrollmentService
 } from "../services/employee.service.js";
-import { getRelevantEnrollmentService } from "../services/enrollment.service.js";
+
 
 /**
  * Fetch employee dashboard enrollments and available active programs.
@@ -211,17 +211,3 @@ export const submitEnrollment = async (req: Request, res: Response, next: NextFu
    }
 };
 
-export const getRelevantEnrollments = async (req: Request, res: Response, next: NextFunction) => {
-   try {
-      const managerId = req.userId!;
-
-      const enrollments = await getRelevantEnrollmentService(managerId);
-
-      res.status(200).json({
-         success: true,
-         data: enrollments,
-      });
-   } catch (error) {
-      next(error);
-   }
-};

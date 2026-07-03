@@ -7,8 +7,7 @@ import {
    getEmployeeEnrollments,
    getEnrollmentDetails,
    updateTravelDetails,
-   submitEnrollment,
-   getRelevantEnrollments
+   submitEnrollment
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -48,7 +47,6 @@ router.put("/enrollments/:id/travel", updateTravelDetails);
 
 router.post("/enrollments/:id/submit", submitEnrollment);
 
-//get relevent enrollment data for employees
-router.get("/manager-enrollments", getRelevantEnrollments);
+
 
 export default router;
