@@ -17,7 +17,8 @@ import {
    getProgramsQuerySchema,
    programParamsSchema,
    enrollProgramBodySchema,
-   submitReimbursementBodySchema
+   submitReimbursementBodySchema,
+   submitReimbursementParamsSchema
 } from "../validators/employee.validator.js";
 
 const router = express.Router();
@@ -50,8 +51,8 @@ router.put("/enrollments/:id/travel", updateTravelDetails);
 router.post("/enrollments/:id/submit", submitEnrollment);
 
 router.post(
-   "/enrollments/:id/reimbursement/submit",
-   validate({ params: programParamsSchema, body: submitReimbursementBodySchema }),
+   "/enrollments/:enrollmentId/reimbursement/submit",
+   validate({ params: submitReimbursementParamsSchema, body: submitReimbursementBodySchema }),
    submitReimbursement
 );
 

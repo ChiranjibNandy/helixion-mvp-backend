@@ -12,7 +12,7 @@ import {
    takeReimbursementOsdAction,
 } from "../controllers/osd.controller.js";
 import {
-   enrollmentParamsSchema,
+   reimbursementEnrollmentParamsSchema,
    reimbursementOsdActionBodySchema,
 } from "../validators/osd.validator.js";
 
@@ -46,13 +46,13 @@ router.get(
 );
 
 /**
- * PATCH /api/osd/enrollments/:id/reimbursement-action
+ * PATCH /api/osd/enrollments/:enrollmentId/reimbursement-action
  * Body: { action: "approve" | "reject", note? }
  */
 router.patch(
-   "/enrollments/:id/reimbursement-action",
+   "/enrollments/:enrollmentId/reimbursement-action",
    authorizeOfficeRole("osd", 1),
-   validate({ params: enrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
    takeReimbursementOsdAction
 );
 

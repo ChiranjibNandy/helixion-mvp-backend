@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS } from "../constants/enum.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -294,5 +294,114 @@ export const getPendingReimbursementsForManagerRepo = async (
       .populate("employeeId", "name email employeeCode placeOfPosting")
       .populate("programId", "title startDate endDate city venueName")
       .sort({ createdAt: -1 });
+};
+
+export const takeReimbursementManagerActionRepo = async (
+   enrollmentId: string,
+   orgId: string,
+   managerId: string,
+   updateSet: Record<string, unknown>,
+   timelineEntry: Record<string, unknown>
+) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:                                   toObjectId(enrollmentId),
+         orgId:                                 toObjectId(orgId),
+         currentStage:                          ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId":  toObjectId(managerId),
+      },
+      { $set: updateSet, $push: { timeline: timelineEntry } },
+      { new: true }
+   );
+};
+
+export const takeReimbursementOsdActionRepo = async (
+   enrollmentId: string,
+   orgId: string,
+   updateSet: Record<string, unknown>,
+   timelineEntry: Record<string, unknown>
+) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(enrollmentId),
+         orgId:        toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW,
+      },
+      { $set: updateSet, $push: { timeline: timelineEntry } },
+      { new: true }
+   );
+};
+
+// ─── Reimbursement submission (employee) ───────────────────────────────────────
+
+// Pre-check used only to produce a specific error message (not enabled vs.
+// already submitted vs. not found) before the atomic write below.
+export const findEnrollmentForReimbursementSubmitRepo = async (
+   enrollmentId: string,
+   userId: string
+) => {
+   return await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      $or: [
+         { employeeId: toObjectId(userId) },
+         { userId: toObjectId(userId) },
+      ],
+   });
+};
+
+export const submitReimbursementRepo = async (
+   enrollmentId: string,
+   userId: string,
+   updateSet: Record<string, unknown>,
+   timelineEntry: Record<string, unknown>
+) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         $or: [
+            { employeeId: toObjectId(userId) },
+            { userId: toObjectId(userId) },
+         ],
+         "reimbursement.enabled": true,
+         "reimbursement.status": REIMBURSEMENT_STATUS.NOT_STARTED,
+      },
+      { $set: updateSet, $push: { timeline: timelineEntry } },
+      { new: true }
+   );
+};
+
+// ─── Attendance → Enrollment sync ──────────────────────────────────────────────
+
+export const syncEnrollmentAttendanceRepo = async (
+   programId: string,
+   employeeId: string,
+   excludedStages: ENROLLMENT_STAGE[],
+   updateFields: Record<string, unknown>
+) => {
+   return await enrollmentModel.updateOne(
+      {
+         programId:    toObjectId(programId),
+         employeeId:   toObjectId(employeeId),
+         currentStage: { $nin: excludedStages },
+      },
+      { $set: updateFields }
+   );
+};
+
+export const bulkSyncEnrollmentAttendanceRepo = async (
+   programId: string,
+   employeeIds: string[],
+   excludedStages: ENROLLMENT_STAGE[],
+   updateFields: Record<string, unknown>
+) => {
+   if (employeeIds.length === 0) return;
+   return await enrollmentModel.updateMany(
+      {
+         programId:    toObjectId(programId),
+         employeeId:   { $in: employeeIds.map((id) => toObjectId(id)) },
+         currentStage: { $nin: excludedStages },
+      },
+      { $set: updateFields }
+   );
 };
 

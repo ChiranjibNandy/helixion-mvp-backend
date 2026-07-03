@@ -1,7 +1,11 @@
 import { Types } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getPendingEnrollmentsForManagerRepo, getPendingReimbursementsForManagerRepo } from "../repositories/enrollment.repository.js";
+import {
+   getPendingEnrollmentsForManagerRepo,
+   getPendingReimbursementsForManagerRepo,
+   takeReimbursementManagerActionRepo,
+} from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -9,7 +13,7 @@ import {
    MANAGER_CHAIN_STATUS,
    ENROLLMENT_STAGE,
    ACTOR_TYPE,
-   REIMBURSEMENT_MANAGER_ACTION,
+   REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
@@ -197,55 +201,44 @@ export const takeReimbursementManagerActionService = async (
    enrollmentId: string,
    managerId: string,
    orgId: string,
-   action: string,
+   action: REIMBURSEMENT_ACTION,
    note: string
 ) => {
    if (
-      !Object.values(REIMBURSEMENT_MANAGER_ACTION).includes(action as REIMBURSEMENT_MANAGER_ACTION) ||
-      action === REIMBURSEMENT_MANAGER_ACTION.PENDING
+      !Object.values(REIMBURSEMENT_ACTION).includes(action) ||
+      action === REIMBURSEMENT_ACTION.PENDING ||
+      action === REIMBURSEMENT_ACTION.WAITING
    ) {
       throw new AppError(MESSAGES.INVALID_REIMBURSEMENT_ACTION, HTTP_STATUS.BAD_REQUEST);
    }
 
    const nextStage =
-      action === REIMBURSEMENT_MANAGER_ACTION.REJECT
+      action === REIMBURSEMENT_ACTION.REJECT
          ? ENROLLMENT_STAGE.REJECTED
          : ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW;
 
    const nextReimbursementStatus =
-      action === REIMBURSEMENT_MANAGER_ACTION.REJECT
+      action === REIMBURSEMENT_ACTION.REJECT
          ? REIMBURSEMENT_STATUS.REJECTED
          : REIMBURSEMENT_STATUS.SUBMITTED;
 
-   const updated = await enrollmentModel.findOneAndUpdate(
+   const updated = await takeReimbursementManagerActionRepo(
+      enrollmentId,
+      orgId,
+      managerId,
       {
-         _id:                                   toObjectId(String(enrollmentId)),
-         orgId:                                 toObjectId(orgId),
-         currentStage:                          ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
-         "managerApproval.assignedApproverId":  toObjectId(managerId),
+         currentStage:                    nextStage,
+         "reimbursement.status":          nextReimbursementStatus,
+         "reimbursement.managerApproval": { action, note, actedAt: new Date() },
       },
       {
-         $set: {
-            currentStage:                        nextStage,
-            "reimbursement.status":              nextReimbursementStatus,
-            "reimbursement.managerApproval": {
-               action:  action as REIMBURSEMENT_MANAGER_ACTION,
-               note,
-               actedAt: new Date(),
-            },
-         },
-         $push: {
-            timeline: {
-               stage:     nextStage,
-               actorId:   toObjectId(managerId),
-               actorType: ACTOR_TYPE.MANAGER,
-               action,
-               note,
-               at:        new Date(),
-            },
-         },
-      },
-      { new: true }
+         stage:     nextStage,
+         actorId:   toObjectId(managerId),
+         actorType: ACTOR_TYPE.MANAGER,
+         action,
+         note,
+         at:        new Date(),
+      }
    );
 
    if (!updated) {

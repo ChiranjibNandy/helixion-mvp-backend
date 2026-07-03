@@ -48,16 +48,9 @@ export enum TRAINING_DEPT_SENIOR_ACTION {
   REJECT   = "reject",
 }
 
-// ─── OSD actions ──────────────────────────────────────────────────────────────
-export enum OSD_SENIOR_ACTION {
-  WAITING = "waiting",
-  APPROVE = "approve",
-  REJECT  = "reject",
-}
-
-// ─── Reimbursement manager action ─────────────────────────────────────────────
-export enum REIMBURSEMENT_MANAGER_ACTION {
-  PENDING = "pending",
+export enum REIMBURSEMENT_ACTION {
+  PENDING = "pending",   // manager gate's "not yet acted" value
+  WAITING = "waiting",   // OSD gate's "not yet acted" value
   APPROVE = "approve",
   REJECT  = "reject",
 }
@@ -154,7 +147,7 @@ export enum REIMBURSEMENT_STATUS {
 
 // ─── Legacy enums (kept for backward-compat during migration) ─────────────────
 /**
- * @deprecated Use stage-specific action enums (MANAGER_ACTION, OSD_SENIOR_ACTION, etc.)
+ * @deprecated Use stage-specific action enums (MANAGER_ACTION, REIMBURSEMENT_ACTION, etc.)
  */
 export enum APPROVAL_STATUS {
   APPROVED  = "approved",

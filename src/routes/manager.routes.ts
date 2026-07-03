@@ -9,7 +9,7 @@ import {
    takeReimbursementManagerAction,
 } from "../controllers/manager.controller.js";
 import {
-   enrollmentParamsSchema,
+   reimbursementEnrollmentParamsSchema,
    reimbursementManagerActionBodySchema,
 } from "../validators/manager.validator.js";
 
@@ -24,8 +24,8 @@ router.patch("/enrollments/:id/action", takeManagerAction);
 router.get("/reimbursements/pending", getPendingReimbursements);
 
 router.patch(
-   "/enrollments/:id/reimbursement-action",
-   validate({ params: enrollmentParamsSchema, body: reimbursementManagerActionBodySchema }),
+   "/enrollments/:enrollmentId/reimbursement-action",
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementManagerActionBodySchema }),
    takeReimbursementManagerAction
 );
 

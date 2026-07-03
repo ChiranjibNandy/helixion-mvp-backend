@@ -218,7 +218,7 @@ export const submitReimbursement = async (req: Request, res: Response, next: Nex
          throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
       }
 
-      const { id: enrollmentId } = req.params;
+      const { enrollmentId } = req.params;
       const { expenses, receipts } = req.body;
 
       const result = await submitReimbursementService(

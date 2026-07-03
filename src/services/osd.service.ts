@@ -1,11 +1,10 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getPendingEnrollmentsForStageRepo } from "../repositories/enrollment.repository.js";
-import enrollmentModel from "../models/enrollment.model.js";
+import { getPendingEnrollmentsForStageRepo, takeReimbursementOsdActionRepo } from "../repositories/enrollment.repository.js";
 import { AppError } from "../utils/appError.js";
 import {
    ENROLLMENT_STAGE,
-   OSD_SENIOR_ACTION,
+   REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
    ACTOR_TYPE,
 } from "../constants/enum.js";
@@ -27,61 +26,51 @@ export const getPendingEnrollmentsService = async (orgId: string) => {
 // completes the enrollment.
 //
 // Idempotency: query filters on currentStage === REIMBURSEMENT_OSD_REVIEW.
-// Atomicity: single findOneAndUpdate — no read-modify-write race.
+// Atomicity: single findOneAndUpdate (in the repository layer) — no read-
+// modify-write race.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const takeReimbursementOsdActionService = async (
    enrollmentId: string,
    officerId: string,
    orgId: string,
-   action: string,
+   action: REIMBURSEMENT_ACTION,
    note: string
 ) => {
    if (
-      !Object.values(OSD_SENIOR_ACTION).includes(action as OSD_SENIOR_ACTION) ||
-      action === OSD_SENIOR_ACTION.WAITING
+      !Object.values(REIMBURSEMENT_ACTION).includes(action) ||
+      action === REIMBURSEMENT_ACTION.WAITING ||
+      action === REIMBURSEMENT_ACTION.PENDING
    ) {
       throw new AppError(MESSAGES.INVALID_REIMBURSEMENT_ACTION, HTTP_STATUS.BAD_REQUEST);
    }
 
    const nextStage =
-      action === OSD_SENIOR_ACTION.APPROVE
+      action === REIMBURSEMENT_ACTION.APPROVE
          ? ENROLLMENT_STAGE.COMPLETED
          : ENROLLMENT_STAGE.REJECTED;
 
    const nextReimbursementStatus =
-      action === OSD_SENIOR_ACTION.APPROVE
+      action === REIMBURSEMENT_ACTION.APPROVE
          ? REIMBURSEMENT_STATUS.APPROVED
          : REIMBURSEMENT_STATUS.REJECTED;
 
-   const updated = await enrollmentModel.findOneAndUpdate(
+   const updated = await takeReimbursementOsdActionRepo(
+      enrollmentId,
+      orgId,
       {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW,
+         currentStage:               nextStage,
+         "reimbursement.status":     nextReimbursementStatus,
+         "reimbursement.osdApproval": { action, note, actedAt: new Date() },
       },
       {
-         $set: {
-            currentStage:            nextStage,
-            "reimbursement.status":  nextReimbursementStatus,
-            "reimbursement.osdApproval": {
-               action:  action as OSD_SENIOR_ACTION,
-               note,
-               actedAt: new Date(),
-            },
-         },
-         $push: {
-            timeline: {
-               stage:     nextStage,
-               actorId:   toObjectId(officerId),
-               actorType: ACTOR_TYPE.OSD,
-               action,
-               note,
-               at:        new Date(),
-            },
-         },
-      },
-      { new: true }
+         stage:     nextStage,
+         actorId:   toObjectId(officerId),
+         actorType: ACTOR_TYPE.OSD,
+         action,
+         note,
+         at:        new Date(),
+      }
    );
 
    if (!updated) {

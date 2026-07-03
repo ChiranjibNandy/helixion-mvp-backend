@@ -8,8 +8,7 @@ import {
    MANAGER_CHAIN_STATUS,
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
-   OSD_SENIOR_ACTION,
-   REIMBURSEMENT_MANAGER_ACTION,
+   REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
 } from "../constants/enum.js";
@@ -198,12 +197,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
          receipts:    [{ type: String }],
          totalAmount: { type: Number, default: 0 },
          managerApproval: {
-            action:  { type: String, enum: Object.values(REIMBURSEMENT_MANAGER_ACTION), default: REIMBURSEMENT_MANAGER_ACTION.PENDING },
+            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.PENDING },
             note:    { type: String, default: "" },
             actedAt: { type: Date },
          },
          osdApproval: {
-            action:  { type: String, enum: Object.values(OSD_SENIOR_ACTION), default: OSD_SENIOR_ACTION.WAITING },
+            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.WAITING },
             note:    { type: String, default: "" },
             actedAt: { type: Date },
          },

@@ -18,7 +18,7 @@ export const getPendingEnrollments = async (
 
       const enrollments = await getPendingEnrollmentsService(orgId);
 
-      res.status(HTTP_STATUS.OK).json({
+      return res.status(HTTP_STATUS.OK).json({
          success: true,
          data:    enrollments,
          count:   enrollments.length,
@@ -29,7 +29,7 @@ export const getPendingEnrollments = async (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/osd/enrollments/:id/reimbursement-action
+// PATCH /api/osd/enrollments/:enrollmentId/reimbursement-action
 // ─────────────────────────────────────────────────────────────────────────────
 export const takeReimbursementOsdAction = async (
    req: Request,
@@ -37,20 +37,20 @@ export const takeReimbursementOsdAction = async (
    next: NextFunction
 ) => {
    try {
-      const id                = String(req.params.id);
+      const enrollmentId      = String(req.params.enrollmentId);
       const officerId         = req.userId!;
       const orgId             = req.orgId!;
       const { action, note }  = req.body;
 
       const result = await takeReimbursementOsdActionService(
-         id,
+         enrollmentId,
          officerId,
          orgId,
          action,
          note || ""
       );
 
-      res.status(HTTP_STATUS.OK).json({
+      return res.status(HTTP_STATUS.OK).json({
          success:      true,
          message:      `OSD action '${action}' recorded`,
          currentStage: result.currentStage,

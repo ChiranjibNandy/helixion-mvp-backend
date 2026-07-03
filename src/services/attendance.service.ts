@@ -2,12 +2,11 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { getAttendanceByProgramIdRepo, updateParticipantAttendanceRepository, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
 import { findProgramById } from "../repositories/program.repository.js";
-import enrollmentModel from "../models/enrollment.model.js";
+import { syncEnrollmentAttendanceRepo, bulkSyncEnrollmentAttendanceRepo } from "../repositories/enrollment.repository.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
 import { AppError } from "../utils/appError.js";
 import { validateParticipantsEnrollmentService } from "../validators/attendance.validator.js";
 import { ATTENDANCE_RECORD_STATUS, ATTENDANCE_STATUS, ENROLLMENT_STAGE } from "../constants/enum.js";
-import { toObjectId } from "../utils/mongo.js";
 
 // Enrollment stages at or past which a (re-)mark of attendance must not
 // clobber forward progress (e.g. TP re-marking attendance after the
@@ -38,23 +37,22 @@ const absentUpdate = (now: Date) => ({
 });
 
 // Marking attendance Present unlocks reimbursement (reimbursement.enabled);
-// marking Absent ends the workflow. Single atomic updateOne — no read-
-// modify-write race. No-op (0 matched) if no matching non-terminal
-// enrollment exists (e.g. the participant isn't enrolled, or the enrollment
-// already advanced past the point where attendance should still drive it).
+// marking Absent ends the workflow. Single atomic update (in the repository
+// layer) — no read-modify-write race. No-op (0 matched) if no matching
+// non-terminal enrollment exists (e.g. the participant isn't enrolled, or
+// the enrollment already advanced past the point where attendance should
+// still drive it).
 export const syncEnrollmentOnAttendanceService = async (
    programId: string,
    participantId: string,
    present_status: string
 ) => {
    const now = new Date();
-   await enrollmentModel.updateOne(
-      {
-         programId:    toObjectId(programId),
-         employeeId:   toObjectId(participantId),
-         currentStage: { $nin: ATTENDANCE_LOCKED_STAGES },
-      },
-      { $set: present_status === ATTENDANCE_STATUS.PRESENT ? presentUpdate(now) : absentUpdate(now) }
+   await syncEnrollmentAttendanceRepo(
+      programId,
+      participantId,
+      ATTENDANCE_LOCKED_STAGES,
+      present_status === ATTENDANCE_STATUS.PRESENT ? presentUpdate(now) : absentUpdate(now)
    );
 };
 
@@ -70,33 +68,21 @@ export const syncEnrollmentsOnAttendanceService = async (
    participants: { participantId: string; present_status: string }[]
 ) => {
    const now = new Date();
-   const presentIds = participants
-      .filter((p) => p.present_status === ATTENDANCE_STATUS.PRESENT)
-      .map((p) => toObjectId(p.participantId));
-   const absentIds = participants
-      .filter((p) => p.present_status !== ATTENDANCE_STATUS.PRESENT)
-      .map((p) => toObjectId(p.participantId));
+   const presentIds: string[] = [];
+   const absentIds: string[] = [];
 
-   const ops: Promise<unknown>[] = [];
-
-   if (presentIds.length > 0) {
-      ops.push(
-         enrollmentModel.updateMany(
-            { programId: toObjectId(programId), employeeId: { $in: presentIds }, currentStage: { $nin: ATTENDANCE_LOCKED_STAGES } },
-            { $set: presentUpdate(now) }
-         )
-      );
-   }
-   if (absentIds.length > 0) {
-      ops.push(
-         enrollmentModel.updateMany(
-            { programId: toObjectId(programId), employeeId: { $in: absentIds }, currentStage: { $nin: ATTENDANCE_LOCKED_STAGES } },
-            { $set: absentUpdate(now) }
-         )
-      );
+   for (const participant of participants) {
+      if (participant.present_status === ATTENDANCE_STATUS.PRESENT) {
+         presentIds.push(participant.participantId);
+      } else {
+         absentIds.push(participant.participantId);
+      }
    }
 
-   const results = await Promise.allSettled(ops);
+   const results = await Promise.allSettled([
+      bulkSyncEnrollmentAttendanceRepo(programId, presentIds, ATTENDANCE_LOCKED_STAGES, presentUpdate(now)),
+      bulkSyncEnrollmentAttendanceRepo(programId, absentIds, ATTENDANCE_LOCKED_STAGES, absentUpdate(now)),
+   ]);
    for (const result of results) {
       if (result.status === "rejected") {
          console.error("[attendance] enrollment sync failed:", result.reason);

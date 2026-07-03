@@ -7,8 +7,7 @@ import {
    MANAGER_CHAIN_STATUS,
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
-   OSD_SENIOR_ACTION,
-   REIMBURSEMENT_MANAGER_ACTION,
+   REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
 } from "../constants/enum.js";
@@ -124,12 +123,12 @@ export interface IEnrollment {
       receipts?: string[];
       totalAmount?: number;
       managerApproval?: {
-         action: REIMBURSEMENT_MANAGER_ACTION;
+         action: REIMBURSEMENT_ACTION;
          note?: string;
          actedAt?: Date;
       };
       osdApproval?: {
-         action: OSD_SENIOR_ACTION;
+         action: REIMBURSEMENT_ACTION;
          note?: string;
          actedAt?: Date;
       };

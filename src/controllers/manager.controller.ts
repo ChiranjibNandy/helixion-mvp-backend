@@ -78,7 +78,7 @@ export const getPendingReimbursements = async (
 
       const enrollments = await getPendingReimbursementsService(managerId, orgId);
 
-      res.status(HTTP_STATUS.OK).json({
+      return res.status(HTTP_STATUS.OK).json({
          success: true,
          data:    enrollments,
          count:   enrollments.length,
@@ -89,7 +89,7 @@ export const getPendingReimbursements = async (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/manager/enrollments/:id/reimbursement-action
+// PATCH /api/manager/enrollments/:enrollmentId/reimbursement-action
 // ─────────────────────────────────────────────────────────────────────────────
 export const takeReimbursementManagerAction = async (
    req: Request,
@@ -97,20 +97,20 @@ export const takeReimbursementManagerAction = async (
    next: NextFunction
 ) => {
    try {
-      const id                = String(req.params.id);
-      const managerId         = req.userId!;
-      const orgId             = req.orgId!;
-      const { action, note }  = req.body;
+      const enrollmentId     = String(req.params.enrollmentId);
+      const managerId        = req.userId!;
+      const orgId            = req.orgId!;
+      const { action, note } = req.body;
 
       const result = await takeReimbursementManagerActionService(
-         id,
+         enrollmentId,
          managerId,
          orgId,
          action,
          note || ""
       );
 
-      res.status(HTTP_STATUS.OK).json({
+      return res.status(HTTP_STATUS.OK).json({
          success:      true,
          message:      `Action '${action}' recorded`,
          currentStage: result.currentStage,

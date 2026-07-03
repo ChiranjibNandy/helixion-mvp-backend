@@ -29,3 +29,7 @@ export const submitReimbursementBodySchema = z.object({
   }),
   receipts: z.array(z.string()).default([]),
 });
+
+export const submitReimbursementParamsSchema = z.object({
+  enrollmentId: objectIdSchema,
+});
