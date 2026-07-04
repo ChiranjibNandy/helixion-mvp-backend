@@ -4,7 +4,6 @@ import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
-import { buildAuthPayload } from "../utils/auth.helper.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
 import { ORG_ROLE } from "../constants/enum.js";
 
@@ -71,8 +70,15 @@ export const login = async (
 
     const user = await loginService(email, password);
 
-    // Build full RBAC payload — stored in token so no DB hit on every request
-    const payload: JwtPayloadType = buildAuthPayload(user);
+    const payload: JwtPayloadType = {
+      userId:             user._id!.toString(),
+      name:               user.name,
+      email:              user.email,
+      orgId:              user.orgId?.toString(),
+      orgRole:            user.orgRole,
+      officeRoles:        user.officeRoles,
+      mustChangePassword: user.mustChangePassword,
+    };
 
     const accessToken  = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
@@ -87,7 +93,6 @@ export const login = async (
       orgRole:            payload.orgRole,
       officeRoles:        payload.officeRoles,
       mustChangePassword: payload.mustChangePassword,
-      isManager:          payload.isManager,
     });
 
   } catch (error) {

@@ -20,8 +20,6 @@ export interface JwtPayloadType {
 
    /** If true the user must change their password before accessing the app */
    mustChangePassword?: boolean;
-
-   isManager?: boolean;
 }
 
 export const generateAccessToken = (payload: JwtPayloadType) => {
