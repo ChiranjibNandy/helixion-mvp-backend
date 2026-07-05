@@ -41,10 +41,14 @@ export const getProgramParticipantsController = async (
    next: NextFunction
 ) => {
    try {
+      const requestingUserId = req.userId;
+      if (!requestingUserId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
       const { id } = req.params;
 
       const participants =
-         await getProgramParticipantsService(String(id));
+         await getProgramParticipantsService(String(id), requestingUserId);
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
