@@ -48,15 +48,9 @@ export enum TRAINING_DEPT_SENIOR_ACTION {
   REJECT   = "reject",
 }
 
-// ─── OSD actions ──────────────────────────────────────────────────────────────
-export enum OSD_JUNIOR_ACTION {
-  PENDING   = "pending",
-  RETURN    = "return",
-  RECOMMEND = "recommend",
-}
-
-export enum OSD_SENIOR_ACTION {
-  WAITING = "waiting",
+export enum REIMBURSEMENT_ACTION {
+  PENDING = "pending",   // manager gate's "not yet acted" value
+  WAITING = "waiting",   // OSD gate's "not yet acted" value
   APPROVE = "approve",
   REJECT  = "reject",
 }
@@ -112,17 +106,16 @@ export enum ATTENDANCE_STATUS {
 
 // ─── Enrollment lifecycle stage ───────────────────────────────────────────────
 export enum ENROLLMENT_STAGE {
-  SUBMITTED              = "submitted",
-  MANAGER_REVIEW         = "manager_review",
-  TRAINING_DEPT_REVIEW   = "training_dept_review",
-  APPROVED               = "approved",
-  REJECTED               = "rejected",
-  ATTENDED               = "attended",
-  REIMBURSEMENT_SUBMITTED = "reimbursement_submitted",
-  OSD_JUNIOR_REVIEW      = "osd_junior_review",
-  OSD_SENIOR_REVIEW      = "osd_senior_review",
-  REIMBURSEMENT_APPROVED = "reimbursement_approved",
-  COMPLETED              = "completed",
+  SUBMITTED                    = "submitted",
+  MANAGER_REVIEW               = "manager_review",
+  TRAINING_DEPT_REVIEW         = "training_dept_review",
+  APPROVED                     = "approved",
+  REJECTED                     = "rejected",
+  ATTENDED                     = "attended",
+  ABSENT                       = "absent",
+  REIMBURSEMENT_MANAGER_REVIEW = "reimbursement_manager_review",
+  REIMBURSEMENT_OSD_REVIEW     = "reimbursement_osd_review",
+  COMPLETED                    = "completed",
 }
 
 // ─── Status summaries ─────────────────────────────────────────────────────────
@@ -148,15 +141,13 @@ export enum ATTENDANCE_RECORD_STATUS {
 export enum REIMBURSEMENT_STATUS {
   NOT_STARTED = "not_started",
   SUBMITTED   = "submitted",
-  RETURNED    = "returned",
-  RECOMMENDED = "recommended",
   APPROVED    = "approved",
   REJECTED    = "rejected",
 }
 
 // ─── Legacy enums (kept for backward-compat during migration) ─────────────────
 /**
- * @deprecated Use stage-specific action enums (MANAGER_ACTION, OSD_JUNIOR_ACTION, etc.)
+ * @deprecated Use stage-specific action enums (MANAGER_ACTION, REIMBURSEMENT_ACTION, etc.)
  */
 export enum APPROVAL_STATUS {
   APPROVED  = "approved",
