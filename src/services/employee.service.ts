@@ -21,6 +21,8 @@ import {
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAVEL_TYPE,
+   TOUR_OSD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
@@ -102,6 +104,15 @@ export const enrollInProgramService = async (
 
    // 5. Structure travel and stay details
    const managerApprovalRequired = organization.policy?.tourApproval?.managerApprovalRequired ?? true;
+   const osdApprovalRequired = organization.policy?.tourApproval?.osdApprovalRequired ?? true;
+
+   const travelType = travelAndStayInput?.travelType || TRAVEL_TYPE.LOCAL;
+
+   let initialTourStatus = TOUR_STATUS.NOT_REQUIRED;
+   if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+      initialTourStatus = managerApprovalRequired ? TOUR_STATUS.SUBMITTED : (osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED);
+   }
+
    const travelAndStay = {
       stayType,
       placeOfTour: travelAndStayInput?.placeOfTour || (program as any).city || program.venueName || "",
@@ -113,6 +124,25 @@ export const enrollInProgramService = async (
       status: managerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
       managerAction: managerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
+   };
+
+   const tour = {
+      travelType,
+      status: initialTourStatus,
+      details: {
+         placeOfTour: travelAndStayInput?.placeOfTour || (program as any).city || program.venueName || "",
+         frequentFlyerNo: travelAndStayInput?.frequentFlyerNo || "",
+         modeOfTravel: travelAndStayInput?.modeOfTravel || "flight",
+         purpose: travelAndStayInput?.purpose || "To Attend Training Program",
+         advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
+         bookingDetails: travelAndStayInput?.bookingDetails || [],
+      },
+      managerApproval: {
+         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && managerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
+      },
+      osdApproval: {
+         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && osdApprovalRequired ? TOUR_OSD_ACTION.WAITING : TOUR_OSD_ACTION.APPROVE,
+      }
    };
 
 
@@ -154,6 +184,7 @@ export const enrollInProgramService = async (
          note: ""
       },
       travelAndStay,
+      tour,
       notes,
       timeline: [
          {
@@ -218,6 +249,8 @@ export const updateTravelDetailsService = async (
    }
 
    const tourManagerApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
+   const tourOsdApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+
    enrollmentObj.travelAndStay = {
       stayType: enrollmentObj.travelAndStay?.stayType || "twin_sharing",
       placeOfTour: travelAndStayData.placeOfTour,
@@ -229,6 +262,31 @@ export const updateTravelDetailsService = async (
       status: tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
       managerAction: tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
+   };
+
+   const travelType = travelAndStayData.travelType || enrollmentObj.tour?.travelType || TRAVEL_TYPE.LOCAL;
+   let initialTourStatus = TOUR_STATUS.NOT_REQUIRED;
+   if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+      initialTourStatus = tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : (tourOsdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED);
+   }
+
+   enrollmentObj.tour = {
+      travelType,
+      status: initialTourStatus,
+      details: {
+         placeOfTour: travelAndStayData.placeOfTour || enrollmentObj.tour?.details?.placeOfTour || "",
+         frequentFlyerNo: travelAndStayData.frequentFlyerNo || enrollmentObj.tour?.details?.frequentFlyerNo || "",
+         modeOfTravel: travelAndStayData.modeOfTravel || enrollmentObj.tour?.details?.modeOfTravel || "flight",
+         purpose: travelAndStayData.purpose || enrollmentObj.tour?.details?.purpose || "To Attend Training Program",
+         advancePaymentRequired: travelAndStayData.advancePaymentRequired || enrollmentObj.tour?.details?.advancePaymentRequired || 0,
+         bookingDetails: travelAndStayData.bookingDetails || enrollmentObj.tour?.details?.bookingDetails || [],
+      },
+      managerApproval: {
+         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
+      },
+      osdApproval: {
+         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && tourOsdApprovalRequired ? TOUR_OSD_ACTION.WAITING : TOUR_OSD_ACTION.APPROVE,
+      }
    };
 
    if (!enrollmentObj.timeline) {

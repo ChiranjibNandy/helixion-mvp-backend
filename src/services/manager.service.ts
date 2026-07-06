@@ -11,6 +11,7 @@ import {
    ACTOR_TYPE,
    TOUR_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAVEL_TYPE,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -129,6 +130,12 @@ export const takeManagerActionService = async (
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
          updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.REJECTED;
       }
+      if (tourManagerApprovalRequired && enrollment.tour) {
+         updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.REJECT;
+         updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+         updateOps.$set["tour.managerApproval.note"] = note;
+         updateOps.$set["tour.status"] = TOUR_STATUS.MANAGER_REJECTED;
+      }
    } else {
       // Check whether the minimum required level has approved
       const minLevel      = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
@@ -157,6 +164,18 @@ export const takeManagerActionService = async (
             updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
             updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
             updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
+         }
+         const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+         if (tourManagerApprovalRequired && enrollment.tour) {
+            updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
+            updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+            updateOps.$set["tour.managerApproval.note"] = note;
+            
+            if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+                updateOps.$set["tour.status"] = osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED;
+            } else {
+                updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+            }
          }
       }
    }

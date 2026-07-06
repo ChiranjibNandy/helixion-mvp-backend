@@ -10,6 +10,7 @@ import {
    getPendingEnrollments,
    takeOsdJuniorAction,
    takeOsdSeniorAction,
+   takeTourOsdAction,
 } from "../controllers/osd.controller.js";
 
 const router = express.Router();
@@ -60,6 +61,16 @@ router.patch(
    "/enrollments/:id/senior-action",
    authorizeOfficeRole("osd", 2),
    takeOsdSeniorAction
+);
+
+/**
+ * PATCH /api/osd/enrollments/:id/tour-action
+ * Body: { action: "approve" | "reject", note? }
+ */
+router.patch(
+   "/enrollments/:id/tour-action",
+   authorizeOfficeRole("osd", 1),
+   takeTourOsdAction
 );
 
 export default router;

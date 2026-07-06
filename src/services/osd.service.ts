@@ -9,6 +9,9 @@ import {
    OSD_SENIOR_ACTION,
    REIMBURSEMENT_STATUS,
    ACTOR_TYPE,
+   TOUR_OSD_ACTION,
+   TOUR_STATUS,
+   TRAVEL_TYPE,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -207,4 +210,90 @@ export const takeOsdSeniorActionService = async (
    );
 
    return { currentStage: nextStage };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tour OSD action (approve | reject)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const takeTourOsdActionService = async (
+   enrollmentId: string,
+   officerId: string,
+   orgId: string,
+   action: string,
+   note: string
+) => {
+   if (
+      !Object.values(TOUR_OSD_ACTION).includes(action as TOUR_OSD_ACTION) ||
+      action === TOUR_OSD_ACTION.WAITING
+   ) {
+      throw new AppError(
+         "Invalid action. Must be 'approve' or 'reject'.",
+         HTTP_STATUS.BAD_REQUEST
+      );
+   }
+
+   const existing = await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+   });
+
+   if (!existing) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const nextTourStatus =
+      action === TOUR_OSD_ACTION.APPROVE
+         ? TOUR_STATUS.OSD_APPROVED
+         : TOUR_STATUS.OSD_REJECTED;
+
+   const updateOps: any = {
+      $set: {
+         "tour.status": nextTourStatus,
+         "statusSummary.tourStatus": nextTourStatus,
+         "tour.osdApproval": {
+            officerId: toObjectId(officerId),
+            action:    action as TOUR_OSD_ACTION,
+            note,
+            actedAt:   new Date(),
+         },
+      },
+      $push: {
+         timeline: {
+            stage:     existing.currentStage,
+            actorId:   toObjectId(officerId),
+            actorType: ACTOR_TYPE.OSD,
+            action:    `tour_osd_${action}`,
+            note,
+            at:        new Date(),
+         },
+      },
+   };
+
+   // Fallback to self_travel if rejected
+   if (action === TOUR_OSD_ACTION.REJECT) {
+      updateOps.$set["tour.travelType"] = TRAVEL_TYPE.SELF_TRAVEL;
+      if (existing.travelAndStay) {
+         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
+      }
+      updateOps.$set.currentStage = ENROLLMENT_STAGE.ATTENDANCE_PENDING;
+      updateOps.$push.timeline.stage = ENROLLMENT_STAGE.ATTENDANCE_PENDING;
+   } else {
+      if (existing.travelAndStay) {
+         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
+      }
+   }
+
+   await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+      },
+      updateOps,
+      { new: true }
+   );
+
+   return { currentStage: updateOps.$set.currentStage || existing.currentStage };
 };
