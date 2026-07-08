@@ -1,10 +1,7 @@
-import { ORG_ROLE, ROLE } from "../constants/enum.js";
-import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { MESSAGES } from "../constants/messages.js";
+import { ORG_ROLE } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { findOrgById, hasApproveOsd, hasApproveTrainingDept, hasReportingTrainingDept, hasReviewOsd } from "../repositories/organization.repository.js";
 import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user.repository.js";
-import { AppError } from "./appError.js";
 
 export const canEnroll = (user: IUser): boolean => {
    if(!user.orgRole) return false

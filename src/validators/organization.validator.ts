@@ -16,6 +16,16 @@ const policyAssignmentSchema = z.object({
   level: z.number().min(1),
 });
 
+const tourApprovalPolicySchema = z.object({
+  managerApprovalRequired: z.boolean(),
+  osdApprovalRequired: z.boolean(),
+});
+
+const reimbursementApprovalPolicySchema = z.object({
+  managerApprovalRequired: z.boolean(),
+  osdApprovalRequired: z.boolean(),
+});
+
 export const createOrganizationSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
@@ -47,6 +57,18 @@ export const createOrganizationSchema = z.object({
 
     reimbursement:
       approvalPolicySchema,
+
+    tourApproval:
+      tourApprovalPolicySchema.default({
+        managerApprovalRequired: true,
+        osdApprovalRequired: true,
+      }),
+
+    reimbursementApproval:
+      reimbursementApprovalPolicySchema.default({
+        managerApprovalRequired: true,
+        osdApprovalRequired: true,
+      }),
   }),
 
   policyAssignments: z.object({
@@ -82,6 +104,12 @@ export const updatePolicySchema =
 
         reimbursement:
           approvalPolicySchema.optional(),
+
+        tourApproval:
+          tourApprovalPolicySchema.optional(),
+
+        reimbursementApproval:
+          reimbursementApprovalPolicySchema.optional(),
       })
       .optional(),
 

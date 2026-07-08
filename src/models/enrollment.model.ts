@@ -8,8 +8,7 @@ import {
    MANAGER_CHAIN_STATUS,
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
-   OSD_JUNIOR_ACTION,
-   OSD_SENIOR_ACTION,
+   REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
    ENROLLMENT_STATUS,
@@ -100,7 +99,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
        * Always updated atomically alongside currentStage in the same DB operation.
        * Not a driver of workflow logic — currentStage is authoritative.
        *
-       * Sub-document fields (attendance.status, reimbursement.osdJunior.action, etc.)
+       * Sub-document fields (attendance.status, reimbursement.osdApproval.action, etc.)
        * are granular action logs, not workflow state — they record WHO did WHAT
        * at each step; the workflow position is always currentStage.
        */
@@ -125,6 +124,14 @@ const enrollmentSchema = new Schema<IEnrollment>(
             enabled:           { type: Boolean },
             levels:            { type: Number },
             minLevelToApprove: { type: Number },
+         },
+         tourApproval: {
+            managerApprovalRequired: { type: Boolean },
+            osdApprovalRequired: { type: Boolean },
+         },
+         reimbursementApproval: {
+            managerApprovalRequired: { type: Boolean },
+            osdApprovalRequired: { type: Boolean },
          },
       },
 
@@ -189,7 +196,8 @@ const enrollmentSchema = new Schema<IEnrollment>(
       },
 
       reimbursement: {
-         submittedAt: { type: Date },
+         enabled: { type: Boolean, default: false },
+         status:  { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED },
          expenses: {
             travelCost:         { type: Number, default: 0 },
             accommodationCost:  { type: Number, default: 0 },
@@ -197,17 +205,15 @@ const enrollmentSchema = new Schema<IEnrollment>(
          },
          receipts:    [{ type: String }],
          totalAmount: { type: Number, default: 0 },
-         osdJunior: {
-            officerId: { type: Schema.Types.ObjectId, ref: "User" },
-            action:    { type: String, enum: Object.values(OSD_JUNIOR_ACTION), default: OSD_JUNIOR_ACTION.PENDING },
-            note:      { type: String, default: "" },
-            actedAt:   { type: Date },
+         managerApproval: {
+            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.PENDING },
+            note:    { type: String, default: "" },
+            actedAt: { type: Date },
          },
-         osdSenior: {
-            officerId: { type: Schema.Types.ObjectId, ref: "User" },
-            action:    { type: String, enum: Object.values(OSD_SENIOR_ACTION), default: OSD_SENIOR_ACTION.WAITING },
-            note:      { type: String, default: "" },
-            actedAt:   { type: Date },
+         osdApproval: {
+            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.WAITING },
+            note:    { type: String, default: "" },
+            actedAt: { type: Date },
          },
       },
 
@@ -233,5 +239,15 @@ enrollmentSchema.index({ orgId: 1, currentStage: 1 });
 // Provider-side queries
 enrollmentSchema.index({ providerOrgId: 1, currentStage: 1 });
 enrollmentSchema.index({ programId: 1, currentStage: 1 });
+
+// Attendance → enrollment sync — every attendance mark (single or bulk)
+// looks up by this exact pair; hot path, worth its own compound index
+// rather than relying on the single-field employeeId/programId indexes above.
+enrollmentSchema.index({ programId: 1, employeeId: 1 });
+
+// Reimbursement manager approval queue — mirrors the managerChain index
+// above, but keyed on the scalar assignedApproverId since reimbursement's
+// manager gate is single-tier (no chain).
+enrollmentSchema.index({ orgId: 1, "managerApproval.assignedApproverId": 1, currentStage: 1 });
 
 export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema);

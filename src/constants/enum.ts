@@ -56,6 +56,10 @@ export enum OSD_JUNIOR_ACTION {
 
 export enum OSD_SENIOR_ACTION {
   WAITING = "waiting",
+}
+export enum REIMBURSEMENT_ACTION {
+  PENDING = "pending",   // manager gate's "not yet acted" value
+  WAITING = "waiting",   // OSD gate's "not yet acted" value
   APPROVE = "approve",
   REJECT = "reject",
 }
@@ -122,6 +126,9 @@ export enum ENROLLMENT_STAGE {
   OSD_SENIOR_REVIEW = "osd_senior_review",
   REIMBURSEMENT_APPROVED = "reimbursement_approved",
   COMPLETED = "completed",
+  ABSENT = "absent",
+  REIMBURSEMENT_MANAGER_REVIEW = "reimbursement_manager_review",
+  REIMBURSEMENT_OSD_REVIEW = "reimbursement_osd_review",
 }
 
 // ─── Status summaries ─────────────────────────────────────────────────────────
@@ -155,7 +162,7 @@ export enum REIMBURSEMENT_STATUS {
 
 // ─── Legacy enums (kept for backward-compat during migration) ─────────────────
 /**
- * @deprecated Use stage-specific action enums (MANAGER_ACTION, OSD_JUNIOR_ACTION, etc.)
+ * @deprecated Use stage-specific action enums (MANAGER_ACTION, REIMBURSEMENT_ACTION, etc.)
  */
 export enum APPROVAL_STATUS {
   APPROVED = "approved",

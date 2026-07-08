@@ -7,10 +7,10 @@ import {
    MANAGER_CHAIN_STATUS,
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
-   OSD_JUNIOR_ACTION,
-   OSD_SENIOR_ACTION,
+   REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -45,8 +45,8 @@ export interface ITimelineEntry {
  *   enrollment creation time. This means approver identity never changes
  *   even if the org restructures after the fact.
  * - `policySnapshot` is similarly frozen from org.policy at creation time.
- * - Officer IDs (trainingDeptReview, osdJunior/Senior) are assigned at
- *   enrollment time (pool/assigned per policy), NOT stored on the User doc.
+ * - Officer IDs (trainingDeptReview) are assigned at enrollment time
+ *   (pool/assigned per policy), NOT stored on the User doc.
  * - `userId` is kept as an alias for `employeeId` for backward-compat with
  *   existing dashboard queries. Both point to the same user.
  */
@@ -61,7 +61,7 @@ export interface IEnrollment {
    currentStage: ENROLLMENT_STAGE;
 
    statusSummary: {
-      enrollmentStatus: string;         // submitted | recommended | approved | rejected
+      enrollmentStatus: ENROLLMENT_STATUS_SUMMARY;         // submitted | recommended | approved | rejected
       tourStatus: TOUR_STATUS;
       attendanceStatus: ATTENDANCE_RECORD_STATUS;
       reimbursementStatus: REIMBURSEMENT_STATUS;
@@ -71,6 +71,8 @@ export interface IEnrollment {
       managerApproval?: { levels: number; minLevelToApprove: number };
       trainingDeptApproval?: { enabled: boolean; levels: number; minLevelToApprove: number };
       osdReview?: { enabled: boolean; levels: number; minLevelToApprove: number };
+      tourApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
+      reimbursementApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
    };
 
    /** Frozen copy of the full manager chain at enrollment creation time */
@@ -114,7 +116,8 @@ export interface IEnrollment {
    };
 
    reimbursement?: {
-      submittedAt?: Date;
+      enabled?: boolean;
+      status?: REIMBURSEMENT_STATUS;
       expenses?: {
          travelCost: number;
          accommodationCost: number;
@@ -122,15 +125,13 @@ export interface IEnrollment {
       };
       receipts?: string[];
       totalAmount?: number;
-      osdJunior?: {
-         officerId?: Types.ObjectId;
-         action: OSD_JUNIOR_ACTION;
+      managerApproval?: {
+         action: REIMBURSEMENT_ACTION;
          note?: string;
          actedAt?: Date;
       };
-      osdSenior?: {
-         officerId?: Types.ObjectId;
-         action: OSD_SENIOR_ACTION;
+      osdApproval?: {
+         action: REIMBURSEMENT_ACTION;
          note?: string;
          actedAt?: Date;
       };
