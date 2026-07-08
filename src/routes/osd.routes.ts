@@ -5,12 +5,16 @@ import {
    authorizeOfficeRole,
    requirePasswordChange,
 } from "../middlewares/authorizeRole.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import {
    getPendingEnrollments,
-   takeOsdJuniorAction,
-   takeOsdSeniorAction,
+   takeReimbursementOsdAction,
 } from "../controllers/osd.controller.js";
+import {
+   reimbursementEnrollmentParamsSchema,
+   reimbursementOsdActionBodySchema,
+} from "../validators/osd.validator.js";
 
 const router = express.Router();
 
@@ -22,44 +26,34 @@ const router = express.Router();
  *  3. authorizeRole(EMPLOYEE) — ensures the caller is a corporate employee.
  *                               Deliberately excludes ADMIN and TRAINING_PROVIDER;
  *                               OSD officers are always employees of the corporate org.
- *  4. authorizeOfficeRole(osd, N) — further restricts to users who hold the OSD
- *                               office role at level >= N (1 = junior, 2 = senior).
+ *  4. authorizeOfficeRole(osd, 1) — further restricts to users who hold the OSD
+ *                               office role. Single-tier gate (ticket 0031) — no
+ *                               junior/senior level distinction, any OSD officer
+ *                               can act.
  *
  * Precedence rule: ORG_ROLE check (step 3) is a coarse gate; OFFICE_ROLE check
- * (step 4) is the fine-grained gate. Both must pass. There is no conflict —
- * the OFFICE_ROLE check is always layered on top of the ORG_ROLE check.
+ * (step 4) is the fine-grained gate. Both must pass.
  */
 router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
 
 /**
- * GET /api/osd/pending
- * Junior sees OSD_JUNIOR_REVIEW queue; senior sees OSD_SENIOR_REVIEW queue.
- * Level determined from JWT officeRoles.
+ * GET /api/osd/reimbursements/pending
  */
 router.get(
-   "/pending",
+   "/reimbursements/pending",
    authorizeOfficeRole("osd", 1),
    getPendingEnrollments
 );
 
 /**
- * PATCH /api/osd/enrollments/:id/junior-action
- * Body: { action: "return" | "recommend", note? }
- */
-router.patch(
-   "/enrollments/:id/junior-action",
-   authorizeOfficeRole("osd", 1),
-   takeOsdJuniorAction
-);
-
-/**
- * PATCH /api/osd/enrollments/:id/senior-action
+ * PATCH /api/osd/enrollments/:enrollmentId/reimbursement-action
  * Body: { action: "approve" | "reject", note? }
  */
 router.patch(
-   "/enrollments/:id/senior-action",
-   authorizeOfficeRole("osd", 2),
-   takeOsdSeniorAction
+   "/enrollments/:enrollmentId/reimbursement-action",
+   authorizeOfficeRole("osd", 1),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
+   takeReimbursementOsdAction
 );
 
 export default router;

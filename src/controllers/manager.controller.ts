@@ -3,6 +3,8 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import {
    getPendingEnrollmentsService,
    takeManagerActionService,
+   getPendingReimbursementsService,
+   takeReimbursementManagerActionService,
 } from "../services/manager.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,6 +55,62 @@ export const takeManagerAction = async (
       );
 
       res.status(HTTP_STATUS.OK).json({
+         success:      true,
+         message:      `Action '${action}' recorded`,
+         currentStage: result.currentStage,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/reimbursements/pending
+// ─────────────────────────────────────────────────────────────────────────────
+export const getPendingReimbursements = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const managerId = req.userId!;
+      const orgId     = req.orgId!;
+
+      const enrollments = await getPendingReimbursementsService(managerId, orgId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data:    enrollments,
+         count:   enrollments.length,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/manager/enrollments/:enrollmentId/reimbursement-action
+// ─────────────────────────────────────────────────────────────────────────────
+export const takeReimbursementManagerAction = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const enrollmentId     = String(req.params.enrollmentId);
+      const managerId        = req.userId!;
+      const orgId            = req.orgId!;
+      const { action, note } = req.body;
+
+      const result = await takeReimbursementManagerActionService(
+         enrollmentId,
+         managerId,
+         orgId,
+         action,
+         note || ""
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
          success:      true,
          message:      `Action '${action}' recorded`,
          currentStage: result.currentStage,
