@@ -78,6 +78,14 @@ const organizationSchema = new Schema<IOrganization>(
          osdReview: approvalPolicySchema,
          tourForm: approvalPolicySchema,
          reimbursement: approvalPolicySchema,
+         tourApproval: {
+            managerApprovalRequired: { type: Boolean, default: true },
+            osdApprovalRequired: { type: Boolean, default: true }
+         },
+         reimbursementApproval: {
+            managerApprovalRequired: { type: Boolean, default: true },
+            osdApprovalRequired: { type: Boolean, default: true }
+         }
       },
 
       policyAssignments: {

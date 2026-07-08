@@ -124,6 +124,14 @@ const enrollmentSchema = new Schema<IEnrollment>(
             levels:            { type: Number },
             minLevelToApprove: { type: Number },
          },
+         tourApproval: {
+            managerApprovalRequired: { type: Boolean },
+            osdApprovalRequired: { type: Boolean },
+         },
+         reimbursementApproval: {
+            managerApprovalRequired: { type: Boolean },
+            osdApprovalRequired: { type: Boolean },
+         },
       },
 
       /**

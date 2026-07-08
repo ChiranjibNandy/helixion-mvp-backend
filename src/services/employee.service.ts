@@ -22,6 +22,7 @@ import {
    MANAGER_CHAIN_STATUS,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
@@ -102,6 +103,7 @@ export const enrollInProgramService = async (
    const feeAmount = resolveEnrollmentFee(program, stayType);
 
    // 5. Structure travel and stay details
+   const managerApprovalRequired = organization.policy?.tourApproval?.managerApprovalRequired ?? true;
    const travelAndStay = {
       stayType,
       placeOfTour: travelAndStayInput?.placeOfTour || (program as any).city || program.venueName || "",
@@ -110,8 +112,8 @@ export const enrollInProgramService = async (
       purpose: travelAndStayInput?.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayInput?.bookingDetails || [],
       advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
-      status: TOUR_STATUS.SUBMITTED,
-      managerAction: MANAGER_ACTION.PENDING,
+      status: managerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
+      managerAction: managerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
    };
 
@@ -136,14 +138,16 @@ export const enrollInProgramService = async (
       currentStage: ENROLLMENT_STAGE.SUBMITTED,
       statusSummary: {
          enrollmentStatus: "submitted",
-         tourStatus: TOUR_STATUS.SUBMITTED,
+         tourStatus: managerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
          attendanceStatus: ATTENDANCE_RECORD_STATUS.PENDING,
          reimbursementStatus: REIMBURSEMENT_STATUS.NOT_STARTED
       },
       policySnapshot: {
          managerApproval: organization.policy?.managerApproval || { levels: 3, minLevelToApprove: 1 },
          trainingDeptApproval: organization.policy?.trainingDeptApproval || { enabled: true, levels: 2, minLevelToApprove: 2 },
-         osdReview: organization.policy?.osdReview || { enabled: true, levels: 2, minLevelToApprove: 2 }
+         osdReview: organization.policy?.osdReview || { enabled: true, levels: 2, minLevelToApprove: 2 },
+         tourApproval: organization.policy?.tourApproval || { managerApprovalRequired: true, osdApprovalRequired: true },
+         reimbursementApproval: organization.policy?.reimbursementApproval || { managerApprovalRequired: true, osdApprovalRequired: true }
       },
       managerChain,
       managerApproval: {
@@ -180,6 +184,7 @@ export const enrollInProgramService = async (
          endDate: program.endDate ? program.endDate.toISOString() : undefined,
          venueName: program.venueName,
          city: program.city,
+         training_providerId: created.providerOrgId?.toString(),
       }
    };
 
@@ -214,6 +219,7 @@ export const updateTravelDetailsService = async (
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
+   const tourManagerApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
    enrollmentObj.travelAndStay = {
       stayType: enrollmentObj.travelAndStay?.stayType || "twin_sharing",
       placeOfTour: travelAndStayData.placeOfTour,
@@ -222,8 +228,8 @@ export const updateTravelDetailsService = async (
       purpose: travelAndStayData.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayData.bookingDetails || [],
       advancePaymentRequired: travelAndStayData.advancePaymentRequired || 0,
-      status: TOUR_STATUS.SUBMITTED,
-      managerAction: MANAGER_ACTION.PENDING,
+      status: tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
+      managerAction: tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
    };
 
@@ -257,9 +263,10 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
+   const tourManagerApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
    enrollmentObj.currentStage = ENROLLMENT_STAGE.MANAGER_REVIEW;
-   enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STAGE.SUBMITTED;
-   enrollmentObj.statusSummary.tourStatus = TOUR_STATUS.SUBMITTED;
+   enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STATUS_SUMMARY.SUBMITTED;
+   enrollmentObj.statusSummary.tourStatus = tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED;
 
    if (!enrollmentObj.timeline) {
       enrollmentObj.timeline = [];

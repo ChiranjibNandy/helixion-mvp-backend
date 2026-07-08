@@ -5,6 +5,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
+import { ORG_ROLE } from "../constants/enum.js";
 
 /**
  * Register a new user account.
@@ -38,7 +39,6 @@ export const signup = async (
       success: true,
       message: MESSAGES.USER_CREATED_SUCCESSFULLY,
     });
-
   } catch (error) {
     next(error);
   }
@@ -70,7 +70,6 @@ export const login = async (
 
     const user = await loginService(email, password);
 
-    // Build full RBAC payload — stored in token so no DB hit on every request
     const payload: JwtPayloadType = {
       userId:             user._id!.toString(),
       name:               user.name,
