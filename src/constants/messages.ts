@@ -105,5 +105,6 @@ export const MESSAGES = {
   ORG_EXIST: "Organization already exists",
   DUP_SLUG_FOUND: "Duplicate slugs found in CSV",
   NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters",
-  INVALID_ORG_ID_: "Invalid organization Id"
+  INVALID_ORG_ID_: "Invalid organization Id",
+  USER_NOT_EXIST_ORG: "User does not belong to any organization."
 } as const;

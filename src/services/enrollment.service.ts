@@ -2,7 +2,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { getReleventEnrollRequestDto } from "../dtos/enrollment.dto.js";
 import { getEnrollmentByUserIdInManagerChain } from "../repositories/enrollment.repository.js";
-import { findOrganizationById } from "../repositories/organization.repository.js";
+import { findOrgById } from "../repositories/organization.repository.js";
 import { getUserByIdRepo } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 
@@ -13,12 +13,12 @@ export const getRelevantEnrollmentService = async (
 
   if (!user?.orgId) {
     throw new AppError(
-      MESSAGES.ORG_NOT_FOUND,
+      MESSAGES.USER_NOT_EXIST_ORG,
       HTTP_STATUS.NOT_FOUND
     );
   }
 
-  const organization = await findOrganizationById(user.orgId);
+  const organization = await findOrgById(user.orgId);
 
   if (!organization) {
     throw new AppError(

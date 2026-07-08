@@ -2,7 +2,7 @@ import { ORG_ROLE, ROLE } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { IUser } from "../interfaces/user.interface.js";
-import { findOrganizationById, hasApproveOsd, hasApproveTrainingDept, hasReportingTrainingDept, hasReviewOsd } from "../repositories/organization.repository.js";
+import { findOrgById, hasApproveOsd, hasApproveTrainingDept, hasReportingTrainingDept, hasReviewOsd } from "../repositories/organization.repository.js";
 import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user.repository.js";
 import { AppError } from "./appError.js";
 
@@ -13,10 +13,7 @@ export const canEnroll = (user: IUser): boolean => {
 
 export const canRecommend = async (user: IUser) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+     return false
    }
    const exists = await hasReportingEmployees(
       user.orgId,
@@ -28,17 +25,11 @@ export const canRecommend = async (user: IUser) => {
 
 export const canEnrollmentApproval = async (user: IUser) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
-   const organization = await findOrganizationById(user.orgId)
+   const organization = await findOrgById(user.orgId)
    if (!organization) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
    const exists = await hasApproveEmployees(
       user.orgId,
@@ -50,10 +41,7 @@ export const canEnrollmentApproval = async (user: IUser) => {
 
 export const canReviewTrainingDept = async (user: IUser) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
    const exists = await hasReportingTrainingDept(
       user.orgId,
@@ -67,19 +55,13 @@ export const canApproveTrainingDept = async (
    user: IUser
 ) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
 
-   const organization = await findOrganizationById(user.orgId);
+   const organization = await findOrgById(user.orgId);
 
    if (!organization) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
 
    const policy = organization.policy.trainingDeptApproval;
@@ -97,10 +79,7 @@ export const canApproveTrainingDept = async (
 
 export const canReviewOsd = async (user: IUser) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
 
    const exists = await hasReviewOsd(
@@ -113,19 +92,13 @@ export const canReviewOsd = async (user: IUser) => {
 
 export const canApproveOsd = async (user: IUser) => {
    if (!user.orgId) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
 
-   const organization = await findOrganizationById(user.orgId);
+   const organization = await findOrgById(user.orgId);
 
    if (!organization) {
-      throw new AppError(
-         MESSAGES.ORG_NOT_FOUND,
-         HTTP_STATUS.NOT_FOUND
-      );
+      return false
    }
 
    const policy = organization.policy.osdReview;

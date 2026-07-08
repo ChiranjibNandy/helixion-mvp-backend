@@ -64,7 +64,7 @@ export const bulkCreateOrganizations = async (
    }
 };
 
-export const findOrganizationsBySlugs = async (
+export const findOrganizationBySlugs = async (
    slugs: string[]
 ) => {
    return organizationModel
@@ -74,13 +74,13 @@ export const findOrganizationsBySlugs = async (
       .lean();
 };
 
-export const findOrganizationBySlug = async (
+export const findOneOrgBySlug = async (
    slug: string
 ) => {
    return organizationModel.findOne({ slug }).lean();
 };
 
-export const findOrganizationById = async (
+export const findOrgById = async (
    id: Types.ObjectId
 ): Promise<IOrganization | null> => {
    return organizationModel.findById(id)

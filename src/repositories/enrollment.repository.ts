@@ -5,6 +5,7 @@ import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
 import { ENROLLMENT_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -320,18 +321,20 @@ export const getEnrollmentByUserIdInManagerChain = async (
   ];
 
   if (search?.trim()) {
+    const escapedSearch = escapeRegex(search.trim());
+
     pipeline.push({
       $match: {
         $or: [
           {
             "employeeId.name": {
-              $regex: search,
+              $regex: escapedSearch,
               $options: "i",
             },
           },
           {
             "programSnapshot.title": {
-              $regex: search,
+              $regex: escapedSearch,
               $options: "i",
             },
           },
