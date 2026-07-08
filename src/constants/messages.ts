@@ -106,12 +106,8 @@ export const MESSAGES = {
   DUP_SLUG_FOUND: "Duplicate slugs found in CSV",
   NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters",
   INVALID_ORG_ID_: "Invalid organization Id",
-<<<<<<< HEAD
-  USER_NOT_EXIST_ORG: "User does not belong to any organization."
-=======
+  USER_NOT_EXIST_ORG: "User does not belong to any organization.",
   REIMBURSEMENT_NOT_ENABLED: "Reimbursement is not available until attendance is marked Present",
   REIMBURSEMENT_ALREADY_SUBMITTED: "Reimbursement has already been submitted for this enrollment",
   REIMBURSEMENT_SUBMITTED: "Reimbursement claim submitted successfully",
-  INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be 'approve' or 'reject'.",
->>>>>>> 6c47b793b621845e39e32d31aaa98658013ecf6d
 } as const;
