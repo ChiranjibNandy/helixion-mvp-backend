@@ -68,31 +68,33 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    const user = await loginService(email, password);
+    const { user, permissions } = await loginService(email, password);
 
     const payload: JwtPayloadType = {
-      userId:             user._id!.toString(),
-      name:               user.name,
-      email:              user.email,
-      orgId:              user.orgId?.toString(),
-      orgRole:            user.orgRole,
-      officeRoles:        user.officeRoles,
+      userId: user._id!.toString(),
+      name: user.name,
+      email: user.email,
+      orgId: user.orgId?.toString(),
+      orgRole: user.orgRole,
+      officeRoles: user.officeRoles,
       mustChangePassword: user.mustChangePassword,
+      permissions
     };
 
-    const accessToken  = generateAccessToken(payload);
+    const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
     setRefreshTokenCookie(res, refreshToken);
     setAccessTokenCookie(res, accessToken);
 
     res.status(HTTP_STATUS.OK).json({
-      success:            true,
-      message:            MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
+      success: true,
+      message: MESSAGES.USER_LOGGED_IN_SUCCESSFULLY,
       accessToken,
-      orgRole:            payload.orgRole,
-      officeRoles:        payload.officeRoles,
+      orgRole: payload.orgRole,
+      officeRoles: payload.officeRoles,
       mustChangePassword: payload.mustChangePassword,
+      permissions,
     });
 
   } catch (error) {

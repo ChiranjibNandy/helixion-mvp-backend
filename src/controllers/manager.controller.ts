@@ -6,6 +6,8 @@ import {
    getPendingReimbursementsService,
    takeReimbursementManagerActionService,
 } from "../services/manager.service.js";
+import { getRelevantEnrollmentService } from "../services/enrollment.service.js";
+import { MESSAGES } from "../constants/messages.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/pending
@@ -17,15 +19,15 @@ export const getPendingEnrollments = async (
 ) => {
    try {
       const managerId = req.userId!;
-      const orgId     = req.orgId!;
-      const level     = req.query.level !== "0" ? 1 : undefined;
+      const orgId = req.orgId!;
+      const level = req.query.level !== "0" ? 1 : undefined;
 
       const enrollments = await getPendingEnrollmentsService(managerId, orgId, level);
 
       res.status(HTTP_STATUS.OK).json({
          success: true,
-         data:    enrollments,
-         count:   enrollments.length,
+         data: enrollments,
+         count: enrollments.length,
       });
    } catch (error) {
       next(error);
@@ -41,9 +43,9 @@ export const takeManagerAction = async (
    next: NextFunction
 ) => {
    try {
-      const id             = String(req.params.id);
-      const managerId        = req.userId!;
-      const orgId            = req.orgId!;
+      const id = String(req.params.id);
+      const managerId = req.userId!;
+      const orgId = req.orgId!;
       const { action, note } = req.body;
 
       const result = await takeManagerActionService(
@@ -55,8 +57,8 @@ export const takeManagerAction = async (
       );
 
       res.status(HTTP_STATUS.OK).json({
-         success:      true,
-         message:      `Action '${action}' recorded`,
+         success: true,
+         message: `Action '${ action }' recorded`,
          currentStage: result.currentStage,
       });
    } catch (error) {
@@ -65,6 +67,27 @@ export const takeManagerAction = async (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/enrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getRelevantEnrollments = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const managerId = req.userId!;
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = String(req.query.search || "").trim();
+
+      const enrollments = await getRelevantEnrollmentService({ managerId, page, limit, search, });
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ENROLLMENT_DATA_FETCH,
+         data: enrollments,
+      })
+   } catch (error) {
+      next(error)
+   }
+}
 // GET /api/manager/reimbursements/pending
 // ─────────────────────────────────────────────────────────────────────────────
 export const getPendingReimbursements = async (
@@ -74,14 +97,14 @@ export const getPendingReimbursements = async (
 ) => {
    try {
       const managerId = req.userId!;
-      const orgId     = req.orgId!;
+      const orgId = req.orgId!;
 
       const enrollments = await getPendingReimbursementsService(managerId, orgId);
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
-         data:    enrollments,
-         count:   enrollments.length,
+         data: enrollments,
+         count: enrollments.length,
       });
    } catch (error) {
       next(error);
@@ -97,9 +120,9 @@ export const takeReimbursementManagerAction = async (
    next: NextFunction
 ) => {
    try {
-      const enrollmentId     = String(req.params.enrollmentId);
-      const managerId        = req.userId!;
-      const orgId            = req.orgId!;
+      const enrollmentId = String(req.params.enrollmentId);
+      const managerId = req.userId!;
+      const orgId = req.orgId!;
       const { action, note } = req.body;
 
       const result = await takeReimbursementManagerActionService(
@@ -111,8 +134,8 @@ export const takeReimbursementManagerAction = async (
       );
 
       return res.status(HTTP_STATUS.OK).json({
-         success:      true,
-         message:      `Action '${action}' recorded`,
+         success: true,
+         message: `Action '${ action }' recorded`,
          currentStage: result.currentStage,
       });
    } catch (error) {

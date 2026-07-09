@@ -1,8 +1,10 @@
+import { Types } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { organizationModel } from "../models/organization.model.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
+import { IOrganization } from "../interfaces/organization.interface.js";
 
 
 export const createOrganization = async (
@@ -62,7 +64,7 @@ export const bulkCreateOrganizations = async (
    }
 };
 
-export const findOrganizationsBySlugs = async (
+export const findOrganizationBySlugs = async (
    slugs: string[]
 ) => {
    return organizationModel
@@ -72,8 +74,66 @@ export const findOrganizationsBySlugs = async (
       .lean();
 };
 
-export const findOrganizationBySlug = async (
+export const findOneOrgBySlug = async (
    slug: string
 ) => {
    return organizationModel.findOne({ slug }).lean();
+};
+
+export const findOrgById = async (
+   id: Types.ObjectId
+): Promise<IOrganization | null> => {
+   return organizationModel.findById(id)
+}
+
+export const hasReportingTrainingDept = async (
+   id: Types.ObjectId,
+   userId: Types.ObjectId
+) => {
+   return organizationModel.exists({
+      _id: id,
+      "policyAssignments.trainingDeptChain.userId": userId
+   })
+}
+
+export const hasApproveTrainingDept = (
+   orgId: Types.ObjectId,
+   userId: Types.ObjectId,
+   minLevel: number
+) => {
+   return organizationModel.exists({
+      _id: orgId,
+      "policyAssignments.trainingDeptChain": {
+         $elemMatch: {
+            userId,
+            level: { $gte: minLevel }
+         }
+      }
+   });
+};
+
+export const hasReviewOsd = (
+   orgId: Types.ObjectId,
+   userId: Types.ObjectId
+) => {
+   return organizationModel.exists({
+      _id: orgId,
+      "policyAssignments.osdChain.userId": userId,
+   });
+};
+
+export const hasApproveOsd = (
+   orgId: Types.ObjectId,
+   userId: Types.ObjectId,
+   minLevel: number
+) => {
+   return organizationModel.exists({
+      _id: orgId,
+      "policyAssignments.osdChain": {
+         $elemMatch: {
+            userId,
+            level: { $gte: minLevel },
+         },
+      },
+   });
 };
