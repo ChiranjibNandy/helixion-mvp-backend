@@ -20,8 +20,16 @@ export interface IOrganization {
       managerApproval: ApprovalPolicy;
       trainingDeptApproval: ApprovalPolicy;
       osdReview: ApprovalPolicy;
-      tourForm: ApprovalPolicy,
-      reimbursement: ApprovalPolicy
+      tourForm: ApprovalPolicy;
+      reimbursement: ApprovalPolicy;
+      tourApproval?: {
+         managerApprovalRequired: boolean;
+         osdApprovalRequired: boolean;
+      };
+      reimbursementApproval?: {
+         managerApprovalRequired: boolean;
+         osdApprovalRequired: boolean;
+      };
    };
    policyAssignments: {
       trainingDeptChain: IPolicyAssignment[];

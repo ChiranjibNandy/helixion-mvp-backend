@@ -1,7 +1,7 @@
 // ─── Org-level roles (top-level role of the user in their org) ───────────────
 export enum ORG_ROLE {
-  ADMIN             = "admin",
-  EMPLOYEE          = "employee",
+  ADMIN = "admin",
+  EMPLOYEE = "employee",
   TRAINING_PROVIDER = "training_provider",
 }
 
@@ -9,10 +9,9 @@ export enum ORG_ROLE {
  * @deprecated Use ORG_ROLE instead. Kept for backward-compat during migration.
  */
 export enum ROLE {
-  ADMIN             = "admin",
-  EMPLOYEE          = "employee",
+  ADMIN = "admin",
+  EMPLOYEE = "employee",
   TRAINING_PROVIDER = "training-provider",
-  MANAGER           = "manager",
 }
 
 // ─── Office role levels (1 = junior / 2 = senior) ────────────────────────────
@@ -23,46 +22,56 @@ export enum OFFICE_ROLE_LEVEL {
 
 // ─── Manager approval chain ───────────────────────────────────────────────────
 export enum MANAGER_CHAIN_STATUS {
-  PENDING  = "pending",
-  WAITING  = "waiting",   // not yet their turn
+  PENDING = "pending",
+  WAITING = "waiting",   // not yet their turn
   APPROVED = "approved",
   REJECTED = "rejected",
 }
 
 export enum MANAGER_ACTION {
-  PENDING   = "pending",
+  PENDING = "pending",
   RECOMMEND = "recommend",
-  APPROVE   = "approve",
-  REJECT    = "reject",
+  APPROVE = "approve",
+  REJECT = "reject",
 }
 
 // ─── Training dept actions ────────────────────────────────────────────────────
 export enum TRAINING_DEPT_JUNIOR_ACTION {
-  PENDING  = "pending",
+  PENDING = "pending",
   REVIEWED = "reviewed",
 }
 
 export enum TRAINING_DEPT_SENIOR_ACTION {
-  WAITING  = "waiting",
-  APPROVE  = "approve",
-  REJECT   = "reject",
+  WAITING = "waiting",
+  APPROVE = "approve",
+  REJECT = "reject",
 }
 
+// ─── OSD actions ──────────────────────────────────────────────────────────────
+export enum OSD_JUNIOR_ACTION {
+  PENDING = "pending",
+  RETURN = "return",
+  RECOMMEND = "recommend",
+}
+
+export enum OSD_SENIOR_ACTION {
+  WAITING = "waiting",
+}
 export enum REIMBURSEMENT_ACTION {
   PENDING = "pending",   // manager gate's "not yet acted" value
   WAITING = "waiting",   // OSD gate's "not yet acted" value
   APPROVE = "approve",
-  REJECT  = "reject",
+  REJECT = "reject",
 }
 
 // ─── Actor types (for timeline entries) ──────────────────────────────────────
 export enum ACTOR_TYPE {
-  EMPLOYEE      = "employee",
-  MANAGER       = "manager",
+  EMPLOYEE = "employee",
+  MANAGER = "manager",
   TRAINING_DEPT = "training_dept",
-  OSD           = "osd",
-  PROVIDER      = "provider",
-  SYSTEM        = "system",
+  OSD = "osd",
+  PROVIDER = "provider",
+  SYSTEM = "system",
 }
 
 // ─── Employee-actor timeline actions ──────────────────────────────────────────
@@ -75,29 +84,29 @@ export enum EMPLOYEE_TIMELINE_ACTION {
 // ─── Stay types ───────────────────────────────────────────────────────────────
 export enum STAY_TYPE {
   SINGLE_OCCUPANCY = "single_occupancy",
-  TWIN_SHARING     = "twin_sharing",
-  NON_RESIDENTIAL  = "non_residential",
+  TWIN_SHARING = "twin_sharing",
+  NON_RESIDENTIAL = "non_residential",
 }
 
 /**
  * @deprecated Use STAY_TYPE. Kept for backward-compat during migration.
  */
 export enum STAY_TYPE_LEGACY {
-  SINGLE  = "single",
-  TWIN    = "twin",
+  SINGLE = "single",
+  TWIN = "twin",
   NON_RES = "non-res",
 }
 
 // ─── Program ──────────────────────────────────────────────────────────────────
 export enum PROGRAM_SAVED_STATUS {
-  DRAFT     = "draft",
+  DRAFT = "draft",
   PUBLISHED = "published",
   COMPLETED = "completed",
 }
 
 // ─── User status ──────────────────────────────────────────────────────────────
 export enum USER_STATUS {
-  ACTIVE   = "active",
+  ACTIVE = "active",
   INACTIVE = "inactive",
   /**
    * @deprecated Use INACTIVE. Kept for backward-compat during migration.
@@ -108,7 +117,7 @@ export enum USER_STATUS {
 // ─── Attendance ───────────────────────────────────────────────────────────────
 export enum ATTENDANCE_STATUS {
   PRESENT = "present",
-  ABSENT  = "absent",
+  ABSENT = "absent",
 }
 
 // ─── Enrollment lifecycle stage ───────────────────────────────────────────────
@@ -121,9 +130,13 @@ export enum ENROLLMENT_STAGE {
   REJECTED                     = "rejected",
   ATTENDED                     = "attended",
   ABSENT                       = "absent",
+  REIMBURSEMENT_SUBMITTED      = "reimbursement_submitted",
+  OSD_JUNIOR_REVIEW            = "osd_junior_review",
+  OSD_SENIOR_REVIEW            = "osd_senior_review",
+  REIMBURSEMENT_APPROVED       = "reimbursement_approved",
+  COMPLETED                    = "completed",
   REIMBURSEMENT_MANAGER_REVIEW = "reimbursement_manager_review",
   REIMBURSEMENT_OSD_REVIEW     = "reimbursement_osd_review",
-  COMPLETED                    = "completed",
 }
 
 /**
@@ -143,29 +156,31 @@ export const TP_NOT_YET_VISIBLE_STAGES: ENROLLMENT_STAGE[] = [
 
 // ─── Status summaries ─────────────────────────────────────────────────────────
 export enum ENROLLMENT_STATUS_SUMMARY {
-  SUBMITTED    = "submitted",
-  RECOMMENDED  = "recommended",
-  APPROVED     = "approved",
-  REJECTED     = "rejected",
+  SUBMITTED = "submitted",
+  RECOMMENDED = "recommended",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 export enum TOUR_STATUS {
   SUBMITTED = "submitted",
-  APPROVED  = "approved",
-  REJECTED  = "rejected",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 export enum ATTENDANCE_RECORD_STATUS {
-  PENDING  = "pending",
+  PENDING = "pending",
   ATTENDED = "attended",
-  ABSENT   = "absent",
+  ABSENT = "absent",
 }
 
 export enum REIMBURSEMENT_STATUS {
   NOT_STARTED = "not_started",
-  SUBMITTED   = "submitted",
-  APPROVED    = "approved",
-  REJECTED    = "rejected",
+  SUBMITTED = "submitted",
+  RETURNED = "returned",
+  RECOMMENDED = "recommended",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 // ─── Legacy enums (kept for backward-compat during migration) ─────────────────
@@ -173,33 +188,34 @@ export enum REIMBURSEMENT_STATUS {
  * @deprecated Use stage-specific action enums (MANAGER_ACTION, REIMBURSEMENT_ACTION, etc.)
  */
 export enum APPROVAL_STATUS {
-  APPROVED  = "approved",
+  APPROVED = "approved",
   DISMISSED = "dismissed",
-  PENDING   = "pending",
+  PENDING = "pending",
 }
 
 /**
  * @deprecated Use ENROLLMENT_STAGE as the single source of truth for stage.
  */
 export enum ENROLLMENT_STATUS {
-  ACTIVE    = "active",
+  SUBMITTED = "submitted",
+  ACTIVE = "active",
   COMPLETED = "completed",
   CANCELLED = "cancelled",
-  PENDING   = "pending",
+  PENDING = "pending",
 }
 
 export enum ENROLLMENT_APPROVAL_STATUS {
   PENDING_APPROVAL = "pending_approval",
-  APPROVED         = "approved",
-  REJECTED         = "rejected",
-  NOT_REQUIRED     = "not_required",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  NOT_REQUIRED = "not_required",
 }
 
 export enum ENROLLMENT_SOURCE {
-  WEB    = "web",
+  WEB = "web",
   MOBILE = "mobile",
-  API    = "api",
-  ADMIN  = "admin",
+  API = "api",
+  ADMIN = "admin",
 }
 
 export enum CURRENCY {
@@ -211,17 +227,17 @@ export enum REVIEW_MODE {
 }
 
 export enum OrganizationType {
-   CORPORATE = "corporate",
-   TRAINING_PROVIDER = "training_provider",
-   OSD_INTERNAL = "osd_internal",
+  CORPORATE = "corporate",
+  TRAINING_PROVIDER = "training_provider",
+  OSD_INTERNAL = "osd_internal",
 }
 
 export enum OrganizationStatus {
-   ACTIVE = "active",
-   INACTIVE = "inactive",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
 }
 
 export enum AssignmentMode {
-   ASSIGNED = "assigned",
-   POOL = "pool",
+  ASSIGNED = "assigned",
+  POOL = "pool",
 }

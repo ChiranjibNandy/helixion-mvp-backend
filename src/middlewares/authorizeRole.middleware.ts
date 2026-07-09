@@ -51,7 +51,6 @@ export const authenticate = (
 export const authorizeRole = (...allowedRoles: ORG_ROLE[]) => {
    return (req: Request, res: Response, next: NextFunction) => {
       const role = req.orgRole;
-
       if (!role || !allowedRoles.includes(role as ORG_ROLE)) {
          return res.status(HTTP_STATUS.FORBIDDEN).json({
             success: false,

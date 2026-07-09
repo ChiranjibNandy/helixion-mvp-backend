@@ -93,6 +93,7 @@ export const MESSAGES = {
   PROGRAMS_FETCHED: "Programs fetched successfully",
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
+  ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
   PROGRAM_FULL: "This program has reached its maximum capacity",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
 
@@ -105,8 +106,9 @@ export const MESSAGES = {
   DUP_SLUG_FOUND: "Duplicate slugs found in CSV",
   NOTES_MAX_LENGTH: "Notes cannot exceed 500 characters",
   INVALID_ORG_ID_: "Invalid organization Id",
+  USER_NOT_EXIST_ORG: "User does not belong to any organization.",
   REIMBURSEMENT_NOT_ENABLED: "Reimbursement is not available until attendance is marked Present",
   REIMBURSEMENT_ALREADY_SUBMITTED: "Reimbursement has already been submitted for this enrollment",
   REIMBURSEMENT_SUBMITTED: "Reimbursement claim submitted successfully",
-  INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be 'approve' or 'reject'.",
+  INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be approve or reject.",
 } as const;

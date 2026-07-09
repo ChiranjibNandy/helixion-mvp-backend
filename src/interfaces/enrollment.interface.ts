@@ -10,6 +10,7 @@ import {
    REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -60,7 +61,7 @@ export interface IEnrollment {
    currentStage: ENROLLMENT_STAGE;
 
    statusSummary: {
-      enrollmentStatus: string;         // submitted | recommended | approved | rejected
+      enrollmentStatus: ENROLLMENT_STATUS_SUMMARY;         // submitted | recommended | approved | rejected
       tourStatus: TOUR_STATUS;
       attendanceStatus: ATTENDANCE_RECORD_STATUS;
       reimbursementStatus: REIMBURSEMENT_STATUS;
@@ -70,6 +71,8 @@ export interface IEnrollment {
       managerApproval?: { levels: number; minLevelToApprove: number };
       trainingDeptApproval?: { enabled: boolean; levels: number; minLevelToApprove: number };
       osdReview?: { enabled: boolean; levels: number; minLevelToApprove: number };
+      tourApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
+      reimbursementApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
    };
 
    /** Frozen copy of the full manager chain at enrollment creation time */
