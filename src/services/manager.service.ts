@@ -5,6 +5,9 @@ import {
    getPendingEnrollmentsForManagerRepo,
    getPendingReimbursementsForManagerRepo,
    takeReimbursementManagerActionRepo,
+   getManagerOwnDashboardSummaryRepo,
+   getManagerTeamEnrollmentCountRepo,
+   getManagerApprovalStatsRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -19,6 +22,8 @@ import {
    REIMBURSEMENT_STATUS,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail } from "../utils/sendMail.js";
+import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -34,6 +39,42 @@ export const getPendingEnrollmentsService = async (
       orgId,
       level !== undefined ? { level } : {}
    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager dashboard summary — mirrors the employee dashboard's shape
+// (summary/approvalStats/listed-rows), extended with team-level aggregates
+// since a manager also has their own personal enrollments as an employee.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getManagerDashboardService = async (managerId: string, orgId: string) => {
+   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments] = await Promise.all([
+      getManagerOwnDashboardSummaryRepo(managerId),
+      getManagerTeamEnrollmentCountRepo(managerId),
+      getManagerApprovalStatsRepo(managerId),
+      getPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
+   ]);
+
+   const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
+      const employee = enrollment.employeeId;
+      const program   = enrollment.programId;
+
+      return {
+         _id:          enrollment._id.toString(),
+         employeeName: employee?.name ?? "Unknown",
+         programTitle: program?.title ?? "Untitled Program",
+         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue:        program?.venueName || program?.city || "",
+         status:       "Pending Approval",
+      };
+   });
+
+   return {
+      summary:                 { ...ownSummary, teamEnrollments },
+      approvalStats,
+      pendingTeamEnrollments,
+   };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +235,15 @@ export const takeManagerActionService = async (
       { arrayFilters, new: true }
    );
 
+   if (action === MANAGER_ACTION.REJECT) {
+      loadNotificationContext(String(enrollment.employeeId), String(enrollment.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendEnrollmentRejectedMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("enrollment-rejected"));
+   }
+
    return { currentStage: nextStage };
 };
 
@@ -254,7 +304,7 @@ export const takeReimbursementManagerActionService = async (
          stage:     nextStage,
          actorId:   toObjectId(managerId),
          actorType: ACTOR_TYPE.MANAGER,
-         action,
+         action:    reimbursementTimelineAction("manager", action),
          note,
          at:        new Date(),
       }
@@ -262,6 +312,15 @@ export const takeReimbursementManagerActionService = async (
 
    if (!updated) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   if (action === REIMBURSEMENT_ACTION.REJECT) {
+      loadNotificationContext(String(updated.employeeId), String(updated.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendReimbursementRejectedByManagerMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("reimbursement-rejected-by-manager"));
    }
 
    return { currentStage: nextStage };

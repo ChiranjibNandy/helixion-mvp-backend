@@ -3,7 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -282,6 +282,59 @@ export const getPendingEnrollmentsForManagerRepo = async (
     .sort({ createdAt: -1 });
 };
 
+// ─── Manager dashboard ─────────────────────────────────────────────────────────
+// A manager is also an employee (they can enroll in trainings themselves), so
+// these mirror employee.repository.ts's summary shape but keyed on the
+// current employeeId/currentStage schema — NOT the legacy userId/status/
+// approvalStatus fields employee.repository.ts's own dashboard queries still
+// use, which don't exist on the current Enrollment schema at all.
+
+export const getManagerOwnDashboardSummaryRepo = async (managerId: string) => {
+   const objectId = toObjectId(managerId);
+   const [completed, enrolled, pendingApprovals] = await Promise.all([
+      enrollmentModel.countDocuments({ employeeId: objectId, currentStage: ENROLLMENT_STAGE.COMPLETED }),
+      enrollmentModel.countDocuments({
+         employeeId:   objectId,
+         currentStage: { $nin: [ENROLLMENT_STAGE.REJECTED, ENROLLMENT_STAGE.COMPLETED] },
+      }),
+      enrollmentModel.countDocuments({ employeeId: objectId, currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW }),
+   ]);
+
+   return { programsCompleted: completed, programsEnrolled: enrolled, pendingApprovals };
+};
+
+// Total enrollments across the manager's team (anyone with this manager
+// anywhere in their managerChain), all-time — not just currently pending.
+export const getManagerTeamEnrollmentCountRepo = async (managerId: string) => {
+   return await enrollmentModel.countDocuments({ "managerChain.userId": toObjectId(managerId) });
+};
+
+// Distribution of this manager's own chain-entry decisions across their
+// team's enrollments: approved / pending (their turn, not yet acted) /
+// dismissed (rejected) / null (waiting — not yet their turn in the chain).
+export const getManagerApprovalStatsRepo = async (managerId: string) => {
+   const objectId = toObjectId(managerId);
+   const stats = await enrollmentModel.aggregate([
+      { $match: { "managerChain.userId": objectId } },
+      { $unwind: "$managerChain" },
+      { $match: { "managerChain.userId": objectId } },
+      { $group: { _id: "$managerChain.status", count: { $sum: 1 } } },
+   ]);
+
+   const result: Record<"approved" | "pending" | "dismissed" | "null", number> = {
+      approved: 0, pending: 0, dismissed: 0, null: 0,
+   };
+
+   stats.forEach((item) => {
+      if (item._id === MANAGER_CHAIN_STATUS.APPROVED) result.approved = item.count;
+      else if (item._id === MANAGER_CHAIN_STATUS.PENDING) result.pending = item.count;
+      else if (item._id === MANAGER_CHAIN_STATUS.REJECTED) result.dismissed = item.count;
+      else if (item._id === MANAGER_CHAIN_STATUS.WAITING) result.null = item.count;
+   });
+
+   return result;
+};
+
 // ─── Training dept / OSD queues ───────────────────────────────────────────────
 
 export const getPendingEnrollmentsForStageRepo = async (
@@ -476,38 +529,95 @@ export const submitReimbursementRepo = async (
   );
 };
 
+// ─── Notifications (ticket 0033 — derived from timeline, no persistence) ──────
+
+// $or:[{employeeId},{userId}] matches the same legacy-schema fallback used by
+// getEmployeeEnrollmentsRepo/getEnrollmentDetailsRepo — enrollments created
+// before the employeeId migration only have `userId` populated, and would
+// otherwise silently produce zero notifications for their workflow history.
+//
+// Deliberately NOT capped with .limit(): a resolved enrollment's timeline
+// can't produce a NEW notification, but capping by enrollment count (rather
+// than by time or by whether a notification was already seen) would exclude
+// arbitrary older enrollments whenever an employee has many, not just the
+// ones that are actually irrelevant — silently and permanently, since the
+// caller has no way to know an enrollment was dropped from consideration.
+// Sort is kept (cheap, supported by the employeeId+updatedAt index below) so
+// the derived notification list in employee.service.ts sees the most
+// recently active enrollments first even before its own 50-item cap.
+export const getEmployeeNotificationTimelineRepo = async (employeeId: string) => {
+   return await enrollmentModel
+      .find({
+         $or: [
+            { employeeId: toObjectId(employeeId) },
+            { userId: toObjectId(employeeId) },
+         ],
+      })
+      .select("timeline programId")
+      .populate("programId", "title city")
+      .sort({ updatedAt: -1 });
+};
+
 // ─── Attendance → Enrollment sync ──────────────────────────────────────────────
 
 export const syncEnrollmentAttendanceRepo = async (
-  programId: string,
-  employeeId: string,
-  excludedStages: ENROLLMENT_STAGE[],
-  updateFields: Record<string, unknown>
+   programId: string,
+   employeeId: string,
+   excludedStages: ENROLLMENT_STAGE[],
+   updateFields: Record<string, unknown>,
+   timelineEntry?: Record<string, unknown>
 ) => {
-  return await enrollmentModel.updateOne(
-    {
-      programId: toObjectId(programId),
-      employeeId: toObjectId(employeeId),
-      currentStage: { $nin: excludedStages },
-    },
-    { $set: updateFields }
-  );
+   return await enrollmentModel.updateOne(
+      {
+         programId:    toObjectId(programId),
+         employeeId:   toObjectId(employeeId),
+         currentStage: { $nin: excludedStages },
+      },
+      timelineEntry
+         ? { $set: updateFields, $push: { timeline: timelineEntry } }
+         : { $set: updateFields }
+   );
 };
 
 export const bulkSyncEnrollmentAttendanceRepo = async (
-  programId: string,
-  employeeIds: string[],
-  excludedStages: ENROLLMENT_STAGE[],
-  updateFields: Record<string, unknown>
+   programId: string,
+   employeeIds: string[],
+   excludedStages: ENROLLMENT_STAGE[],
+   updateFields: Record<string, unknown>,
+   timelineEntry?: Record<string, unknown>
 ) => {
-  if (employeeIds.length === 0) return;
-  return await enrollmentModel.updateMany(
-    {
-      programId: toObjectId(programId),
-      employeeId: { $in: employeeIds.map((id) => toObjectId(id)) },
-      currentStage: { $nin: excludedStages },
-    },
-    { $set: updateFields }
-  );
+   if (employeeIds.length === 0) return;
+   return await enrollmentModel.updateMany(
+      {
+         programId:    toObjectId(programId),
+         employeeId:   { $in: employeeIds.map((id) => toObjectId(id)) },
+         currentStage: { $nin: excludedStages },
+      },
+      timelineEntry
+         ? { $set: updateFields, $push: { timeline: timelineEntry } }
+         : { $set: updateFields }
+   );
+};
+
+// updateMany only reports an aggregate matchedCount, not which specific ids
+// matched — so a bulk sync can't tell the caller which participants' emails
+// are actually warranted. This runs the SAME filter as a plain find (before
+// the write) to get the precise eligible subset, so notification dispatch
+// only reaches employees whose attendance sync actually took effect, not
+// everyone the caller asked to mark.
+export const findEligibleAttendanceEmployeeIdsRepo = async (
+   programId: string,
+   employeeIds: string[],
+   excludedStages: ENROLLMENT_STAGE[]
+): Promise<string[]> => {
+   if (employeeIds.length === 0) return [];
+   const docs = await enrollmentModel
+      .find({
+         programId:    toObjectId(programId),
+         employeeId:   { $in: employeeIds.map((id) => toObjectId(id)) },
+         currentStage: { $nin: excludedStages },
+      })
+      .select("employeeId");
+   return docs.map((doc) => doc.employeeId.toString());
 };
 

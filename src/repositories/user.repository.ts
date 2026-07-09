@@ -17,6 +17,11 @@ export const getUsersByEmailsRepo = async (emails: string[]): Promise<IUser[]> =
    return await User.find({ email: { $in: emails } });
 };
 
+export const getUsersByIdsRepo = async (userIds: string[]): Promise<IUser[]> => {
+   if (userIds.length === 0) return [];
+   return await User.find({ _id: { $in: userIds } });
+};
+
 // ─── Create / Update ──────────────────────────────────────────────────────────
 
 export const createUserRepo = async (userData: Partial<IUser>): Promise<IUser> => {

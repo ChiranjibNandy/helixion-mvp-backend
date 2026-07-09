@@ -10,6 +10,11 @@ import {
    ACTOR_TYPE,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+import {
+   sendEnrollmentApprovedLocalMail,
+   sendEnrollmentApprovedOutstationMail,
+} from "../utils/sendMail.js";
+import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for Training Dept queue
@@ -77,6 +82,17 @@ export const takeJuniorActionService = async (
 
    // 3. Atomic update — single round-trip, no race condition
    //    Stage does NOT advance here; it stays TRAINING_DEPT_REVIEW until senior acts.
+   //
+   // Timeline note: junior and senior actions both write actorType
+   // TRAINING_DEPT with a bare action string from two DIFFERENT enums
+   // (TRAINING_DEPT_JUNIOR_ACTION here, TRAINING_DEPT_SENIOR_ACTION below).
+   // This is safe today only because TRAINING_DEPT_JUNIOR_ACTION's sole
+   // writable value ("reviewed") never collides with the senior's
+   // ("approve"/"reject") — the same actorType-sharing pattern that caused
+   // a real notification-misclassification bug between manager/reimbursement
+   // actions (see TIMELINE_ACTION in enum.ts). If a junior action ever gains
+   // an "approve"/"reject"-shaped value, give it a distinct TIMELINE_ACTION
+   // member the same way, instead of reusing the enum's raw value.
    await enrollmentModel.findOneAndUpdate(
       {
          _id:          toObjectId(String(enrollmentId)),
@@ -205,6 +221,17 @@ export const takeSeniorActionService = async (
       },
       { new: true }
    );
+
+   if (action === TRAINING_DEPT_SENIOR_ACTION.APPROVE) {
+      loadNotificationContext(String(existing.employeeId), String(existing.programId))
+         .then(({ employee, program, programTitle }) => {
+            if (!employee) return;
+            return isLocalTraining(employee.placeOfPosting, program?.city)
+               ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
+               : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("enrollment-approved"));
+   }
 
    return { currentStage: nextStage };
 };

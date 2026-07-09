@@ -92,6 +92,7 @@ export const MESSAGES = {
   ENROLLMENT_ALREADY_EXISTS: "You are already enrolled in this program",
   PROGRAMS_FETCHED: "Programs fetched successfully",
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
+  NOTIFICATIONS_FETCHED: "Notifications fetched successfully",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
   ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
   PROGRAM_FULL: "This program has reached its maximum capacity",

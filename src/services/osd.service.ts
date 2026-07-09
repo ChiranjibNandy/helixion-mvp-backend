@@ -9,6 +9,8 @@ import {
    ACTOR_TYPE,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+import { sendReimbursementApprovedMail, sendReimbursementRejectedByOsdMail } from "../utils/sendMail.js";
+import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending reimbursement claims awaiting OSD approval
@@ -67,7 +69,7 @@ export const takeReimbursementOsdActionService = async (
          stage:     nextStage,
          actorId:   toObjectId(officerId),
          actorType: ACTOR_TYPE.OSD,
-         action,
+         action:    reimbursementTimelineAction("osd", action),
          note,
          at:        new Date(),
       }
@@ -75,6 +77,22 @@ export const takeReimbursementOsdActionService = async (
 
    if (!updated) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   if (action === REIMBURSEMENT_ACTION.APPROVE) {
+      loadNotificationContext(String(updated.employeeId), String(updated.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendReimbursementApprovedMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("reimbursement-approved"));
+   } else {
+      loadNotificationContext(String(updated.employeeId), String(updated.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendReimbursementRejectedByOsdMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("reimbursement-rejected-by-osd"));
    }
 
    return { currentStage: nextStage };

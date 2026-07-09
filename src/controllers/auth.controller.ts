@@ -77,6 +77,7 @@ export const login = async (
       orgId: user.orgId?.toString(),
       orgRole: user.orgRole,
       officeRoles: user.officeRoles,
+      hierarchyLevel: user.hierarchy?.level ?? 0,
       mustChangePassword: user.mustChangePassword,
       permissions
     };
@@ -93,6 +94,7 @@ export const login = async (
       accessToken,
       orgRole: payload.orgRole,
       officeRoles: payload.officeRoles,
+      hierarchyLevel: payload.hierarchyLevel,
       mustChangePassword: payload.mustChangePassword,
       permissions,
     });

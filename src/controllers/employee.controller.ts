@@ -11,7 +11,8 @@ import {
    getEnrollmentDetailsService,
    updateTravelDetailsService,
    submitEnrollmentService,
-   submitReimbursementService
+   submitReimbursementService,
+   getEmployeeNotificationsService
 } from "../services/employee.service.js";
 
 
@@ -206,6 +207,25 @@ export const submitEnrollment = async (req: Request, res: Response, next: NextFu
          success: true,
          message: MESSAGES.ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM,
          data: result
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getEmployeeNotifications = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const userId = req.userId;
+      if (!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const notifications = await getEmployeeNotificationsService(userId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.NOTIFICATIONS_FETCHED,
+         data: notifications
       });
    } catch (error) {
       next(error);

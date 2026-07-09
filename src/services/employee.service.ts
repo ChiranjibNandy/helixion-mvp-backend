@@ -7,6 +7,7 @@ import {
    getEnrollmentDetailsRepo,
    findEnrollmentForReimbursementSubmitRepo,
    submitReimbursementRepo,
+   getEmployeeNotificationTimelineRepo,
 } from "../repositories/enrollment.repository.js";
 import userModel from "../models/user.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
@@ -24,9 +25,14 @@ import {
    ATTENDANCE_RECORD_STATUS,
    EMPLOYEE_TIMELINE_ACTION,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAINING_DEPT_SENIOR_ACTION,
+   TIMELINE_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
+import { isLocalTraining, resolveProgramTitle } from "../utils/notification.util.js";
+import { ITimelineEntry } from "../interfaces/enrollment.interface.js";
+import { IUser } from "../interfaces/user.interface.js";
 
 
 export const getEmployeeDashboardService = async (userId: string) => {
@@ -341,4 +347,134 @@ export const submitReimbursementService = async (
    }
 
    return updated;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Employee notifications (ticket 0033) — derived on read from each of the
+// employee's enrollments' timeline[] entries, filtered to the workflow events
+// that have real triggers today. No persistence, no schema changes: the
+// timeline sub-schema already exists and is populated by the manager /
+// trainingDept / attendance / osd services.
+//
+// NOTIFICATION_RULES is the single source of truth for "which timeline
+// entries count as a notification, and what do they say" — adding a new
+// event (e.g. once ticket 0030's tour workflow lands) is a new entry in this
+// array, not a change to the matching/derivation loop below. `isLocalTraining`
+// is shared with trainingDept.service.ts's email-selection logic so the
+// local/outstation DECISION LOGIC can't diverge between the two call sites —
+// it does NOT guarantee an already-sent email will forever match this live
+// re-computation, since this runs against the employee/program's CURRENT
+// data on every read. If placeOfPosting or program.city is edited after
+// approval, a historical email can end up disagreeing with the bell; that's
+// an accepted tradeoff of deriving from live state rather than snapshotting
+// at approval time.
+//
+// Matching below is first-match-wins (Array.find, not filter) — each rule's
+// `matches` predicate must stay mutually exclusive from the others. When
+// adding a new rule, check it can't also match an entry an existing rule
+// already claims (this is exactly how the reimbursement/enrollment-reject
+// collision bug happened — same actorType, same bare action string).
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface NotificationContext {
+   programTitle: string;
+   program:      any;
+   employee:     IUser | null;
+}
+
+interface NotificationRule {
+   type:         string;
+   matches:      (entry: ITimelineEntry) => boolean;
+   buildMessage: (ctx: NotificationContext) => string;
+}
+
+const NOTIFICATION_RULES: NotificationRule[] = [
+   {
+      type:    "enrollment_rejected",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.REJECT,
+      buildMessage: ({ programTitle }) =>
+         `Your enrollment request for ${programTitle} has been rejected by your manager.`,
+   },
+   {
+      type:    "enrollment_approved",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TRAINING_DEPT_SENIOR_ACTION.APPROVE,
+      buildMessage: ({ programTitle, program, employee }) =>
+         isLocalTraining(employee?.placeOfPosting, program?.city)
+            ? `Your enrollment for ${programTitle} has been approved. No travel action is required.`
+            : `Your enrollment for ${programTitle} has been approved. Please coordinate travel arrangements with the Training Department.`,
+   },
+   {
+      type:    "attendance_present",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.ATTENDANCE_PRESENT,
+      buildMessage: ({ programTitle }) =>
+         `Your attendance for ${programTitle} has been marked as Present. You may now submit your reimbursement claim.`,
+   },
+   {
+      type:    "attendance_absent",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.ATTENDANCE_ABSENT,
+      buildMessage: ({ programTitle }) =>
+         `You have been marked as absent for ${programTitle}. Reimbursement submission is not available.`,
+   },
+   {
+      type:    "reimbursement_approved",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.REIMBURSEMENT_OSD_APPROVE,
+      buildMessage: ({ programTitle }) =>
+         `Your reimbursement claim for ${programTitle} has been approved.`,
+   },
+   // Not one of the ticket's 12 named events, but its approval counterpart
+   // is — a rejected reimbursement claim producing zero notification at all
+   // (found in code review) was a gap, not a deliberate scope decision.
+   {
+      type:    "reimbursement_rejected",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === TIMELINE_ACTION.REIMBURSEMENT_MANAGER_REJECT,
+      buildMessage: ({ programTitle }) =>
+         `Your reimbursement claim for ${programTitle} was not approved by your manager.`,
+   },
+   {
+      type:    "reimbursement_rejected",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.REIMBURSEMENT_OSD_REJECT,
+      buildMessage: ({ programTitle }) =>
+         `Your reimbursement claim for ${programTitle} was not approved by OSD.`,
+   },
+];
+
+const NOTIFICATION_LIMIT = 50;
+
+export const getEmployeeNotificationsService = async (userId: string) => {
+   const [enrollments, employee] = await Promise.all([
+      getEmployeeNotificationTimelineRepo(userId),
+      userModel.findById(userId),
+   ]);
+
+   const notifications: {
+      id: string;
+      type: string;
+      message: string;
+      enrollmentId: string;
+      at: Date;
+   }[] = [];
+
+   for (const enrollment of enrollments) {
+      const program = enrollment.programId as any;
+      const programTitle = resolveProgramTitle(program);
+      const enrollmentId = enrollment._id.toString();
+      const ctx: NotificationContext = { programTitle, program, employee };
+
+      for (const entry of enrollment.timeline || []) {
+         const rule = NOTIFICATION_RULES.find((r) => r.matches(entry));
+         if (!rule) continue;
+
+         notifications.push({
+            id:           `${enrollmentId}-${new Date(entry.at).getTime()}`,
+            type:         rule.type,
+            message:      rule.buildMessage(ctx),
+            enrollmentId,
+            at:           entry.at,
+         });
+      }
+   }
+
+   notifications.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+   return notifications.slice(0, NOTIFICATION_LIMIT);
 };
