@@ -65,6 +65,13 @@ export enum ACTOR_TYPE {
   SYSTEM        = "system",
 }
 
+// ─── Employee-actor timeline actions ──────────────────────────────────────────
+export enum EMPLOYEE_TIMELINE_ACTION {
+  CREATED        = "created",
+  UPDATED_TRAVEL = "updated_travel",
+  SUBMITTED      = "submitted",
+}
+
 // ─── Stay types ───────────────────────────────────────────────────────────────
 export enum STAY_TYPE {
   SINGLE_OCCUPANCY = "single_occupancy",

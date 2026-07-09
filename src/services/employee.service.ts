@@ -22,6 +22,7 @@ import {
    MANAGER_CHAIN_STATUS,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   EMPLOYEE_TIMELINE_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
@@ -158,7 +159,7 @@ export const enrollInProgramService = async (
             stage: ENROLLMENT_STAGE.SUBMITTED,
             actorId: toObjectId(userId),
             actorType: ACTOR_TYPE.EMPLOYEE,
-            action: "created",
+            action: EMPLOYEE_TIMELINE_ACTION.CREATED,
             note: "Enrollment request submitted",
             at: new Date()
          }
@@ -234,7 +235,7 @@ export const updateTravelDetailsService = async (
       stage: enrollmentObj.currentStage,
       actorId: toObjectId(userId),
       actorType: ACTOR_TYPE.EMPLOYEE,
-      action: "updated_travel",
+      action: EMPLOYEE_TIMELINE_ACTION.UPDATED_TRAVEL,
       note: "Updated travel and stay details",
       at: new Date()
    });
@@ -269,7 +270,7 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
       actorId: toObjectId(userId),
       actorType: ACTOR_TYPE.EMPLOYEE,
 
-      action: "submitted",
+      action: EMPLOYEE_TIMELINE_ACTION.SUBMITTED,
       note: "Submitted for manager approval",
       at: new Date()
    });
@@ -322,7 +323,7 @@ export const submitReimbursementService = async (
          stage:     ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
          actorId:   toObjectId(userId),
          actorType: ACTOR_TYPE.EMPLOYEE,
-         action:    "submitted",
+         action:    EMPLOYEE_TIMELINE_ACTION.SUBMITTED,
          note:      "Reimbursement claim submitted",
          at:        new Date(),
       }
