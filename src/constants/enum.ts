@@ -74,6 +74,13 @@ export enum ACTOR_TYPE {
   SYSTEM = "system",
 }
 
+// ─── Employee-actor timeline actions ──────────────────────────────────────────
+export enum EMPLOYEE_TIMELINE_ACTION {
+  CREATED        = "created",
+  UPDATED_TRAVEL = "updated_travel",
+  SUBMITTED      = "submitted",
+}
+
 // ─── Stay types ───────────────────────────────────────────────────────────────
 export enum STAY_TYPE {
   SINGLE_OCCUPANCY = "single_occupancy",
@@ -115,21 +122,37 @@ export enum ATTENDANCE_STATUS {
 
 // ─── Enrollment lifecycle stage ───────────────────────────────────────────────
 export enum ENROLLMENT_STAGE {
-  SUBMITTED = "submitted",
-  MANAGER_REVIEW = "manager_review",
-  TRAINING_DEPT_REVIEW = "training_dept_review",
-  APPROVED = "approved",
-  REJECTED = "rejected",
-  ATTENDED = "attended",
-  REIMBURSEMENT_SUBMITTED = "reimbursement_submitted",
-  OSD_JUNIOR_REVIEW = "osd_junior_review",
-  OSD_SENIOR_REVIEW = "osd_senior_review",
-  REIMBURSEMENT_APPROVED = "reimbursement_approved",
-  COMPLETED = "completed",
-  ABSENT = "absent",
+  SUBMITTED                    = "submitted",
+  MANAGER_REVIEW               = "manager_review",
+  TRAINING_DEPT_REVIEW         = "training_dept_review",
+  APPROVED                     = "approved",
+  TOUR_PENDING_EMPLOYEE        = "tour_pending_employee",
+  REJECTED                     = "rejected",
+  ATTENDED                     = "attended",
+  ABSENT                       = "absent",
+  REIMBURSEMENT_SUBMITTED      = "reimbursement_submitted",
+  OSD_JUNIOR_REVIEW            = "osd_junior_review",
+  OSD_SENIOR_REVIEW            = "osd_senior_review",
+  REIMBURSEMENT_APPROVED       = "reimbursement_approved",
+  COMPLETED                    = "completed",
   REIMBURSEMENT_MANAGER_REVIEW = "reimbursement_manager_review",
-  REIMBURSEMENT_OSD_REVIEW = "reimbursement_osd_review",
+  REIMBURSEMENT_OSD_REVIEW     = "reimbursement_osd_review",
 }
+
+/**
+ * Stages at which a Training Provider must NOT yet see a participant or be
+ * able to act on their attendance — the enrollment hasn't cleared CTD
+ * (Training Dept senior) approval yet. Once currentStage advances past these
+ * (i.e. reaches TOUR_PENDING_EMPLOYEE or later), the TP who owns the program
+ * gains visibility. Expressed as an exclusion list (not an allow-list) so
+ * later stages remain visible automatically without editing this constant.
+ */
+export const TP_NOT_YET_VISIBLE_STAGES: ENROLLMENT_STAGE[] = [
+  ENROLLMENT_STAGE.SUBMITTED,
+  ENROLLMENT_STAGE.MANAGER_REVIEW,
+  ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+  ENROLLMENT_STAGE.REJECTED,
+];
 
 // ─── Status summaries ─────────────────────────────────────────────────────────
 export enum ENROLLMENT_STATUS_SUMMARY {

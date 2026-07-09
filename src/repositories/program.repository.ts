@@ -9,7 +9,7 @@ import { toObjectId } from '../utils/mongo.js';
 /** Reusable filter for owner-scoped program queries */
 const buildOwnerFilter = (id: string, providerId: string) => ({
   _id: id,
-  training_providerId: providerId,
+  createdBy: providerId,
 });
 
 // Retrieve all active programs
@@ -43,7 +43,7 @@ export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterPar
 
   const [programs, total] = await Promise.all([
     Program.find(filter)
-      .populate("training_providerId", "username description")
+      .populate("createdBy", "name email")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit)
@@ -87,7 +87,7 @@ export const getPublishedProgramsRepo = async ({
   const skip = (page - 1) * limit;
 
   const filter = {
-    training_providerId: trainingProviderId,
+    createdBy: trainingProviderId,
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
   };
 
@@ -118,7 +118,7 @@ export const getDraftProgramsRepo = async (
   search?: string
 ) => {
   const query: any = {
-    training_providerId: providerId,
+    createdBy: providerId,
     status: PROGRAM_SAVED_STATUS.DRAFT,
   };
 
@@ -157,7 +157,7 @@ export const getLiveProgramsCount = async (
 ) => {
 
   return await Program.countDocuments({
-    training_providerId: toObjectId(trainingProviderId),
+    createdBy: toObjectId(trainingProviderId),
     status: PROGRAM_SAVED_STATUS.PUBLISHED
   });
 };
@@ -168,7 +168,7 @@ export const getDraftProgramsCount = async (
 ) => {
 
   return await Program.countDocuments({
-    training_providerId: toObjectId(trainingProviderId),
+    createdBy: toObjectId(trainingProviderId),
     status: PROGRAM_SAVED_STATUS.DRAFT
   });
 };
@@ -183,7 +183,7 @@ export const getAverageFillRate = async (
 
     {
       $match: {
-        training_providerId: toObjectId(trainingProviderId),
+        createdBy: toObjectId(trainingProviderId),
         status: PROGRAM_SAVED_STATUS.PUBLISHED
       }
     },
@@ -251,7 +251,7 @@ export const getTopPrograms = async (
 
     {
       $match: {
-        training_providerId: toObjectId(trainingProviderId),
+        createdBy: toObjectId(trainingProviderId),
         status: PROGRAM_SAVED_STATUS.PUBLISHED
       }
     },
@@ -329,7 +329,7 @@ export const getPublishedActivities = async (
 
   const programs = await Program.find({
 
-    training_providerId: trainingProviderId,
+    createdBy: trainingProviderId,
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
 
     updatedAt: {
@@ -355,7 +355,7 @@ export const getDraftActivities = async (
 
   const programs = await Program.find({
 
-    training_providerId: trainingProviderId,
+    createdBy: trainingProviderId,
     status: PROGRAM_SAVED_STATUS.DRAFT,
     updatedAt: {
       $gte: todayStart
@@ -384,7 +384,7 @@ export const getBulkUploadActivities = async (
     {
       $match: {
 
-        training_providerId: trainingProviderId,
+        createdBy: trainingProviderId,
         batchId: {
           $exists: true,
           $ne: null

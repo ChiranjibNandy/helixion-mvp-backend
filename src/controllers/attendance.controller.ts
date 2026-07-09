@@ -35,7 +35,7 @@ export const takeAttendanceController = async (
    }
 };
 
-//controller for fetching attendance data based on attendanceId 
+//controller for fetching attendance data based on attendanceId
 
 export const getProgramAttendanceController = async (
    req: Request,
@@ -43,9 +43,13 @@ export const getProgramAttendanceController = async (
    next: NextFunction
 ) => {
    try {
+      const requestingUserId = req.userId;
+      if (!requestingUserId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
       const { id } = req.params;
 
-      const attendanceData = await getProgramAttendanceService(String(id));
+      const attendanceData = await getProgramAttendanceService(String(id), requestingUserId);
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
@@ -66,6 +70,10 @@ export const updateParticipantAttendanceController =
       next: NextFunction
    ) => {
       try {
+         const training_providerId = req.userId;
+         if (!training_providerId) {
+            throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+         }
          const { id, pid } = req.params;
 
          const { date, present_status } = req.body;
@@ -74,7 +82,8 @@ export const updateParticipantAttendanceController =
             programId: String(id),
             participantId: String(pid),
             date,
-            present_status
+            present_status,
+            training_providerId
          });
 
          return res.status(HTTP_STATUS.OK).json({

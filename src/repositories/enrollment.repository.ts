@@ -3,11 +3,9 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STAGE, ENROLLMENT_STATUS, REIMBURSEMENT_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
-
-
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -64,23 +62,29 @@ export const getActiveEnrollmentsRepo = async (userId: string) => {
   ]);
 };
 
+// Only surfaces participants whose enrollment has cleared CTD (Training
+// Dept senior) approval — see TP_NOT_YET_VISIBLE_STAGES (ticket 0032).
 export const getProgramParticipantsRepo = async (programId: string) => {
   return await enrollmentModel
     .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
+      programId:    new mongoose.Types.ObjectId(programId),
+      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
     })
-    .populate({ path: "userId", select: "_id username email" });
+    .populate({ path: "employeeId", select: "_id name email employeeCode" });
 };
 
+// Same visibility gate as getProgramParticipantsRepo — a participant not
+// yet past CTD approval isn't "enrolled" from the Training Provider's
+// point of view, so attendance can't be taken for them yet either.
 export const validateParticipantsEnrollmentRepo = async (
   programId: string,
   participantIds: string[]
 ) => {
   return await enrollmentModel
     .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      employeeId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      programId:    new mongoose.Types.ObjectId(programId),
+      employeeId:   { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
     })
     .select("employeeId");
 };
@@ -97,7 +101,7 @@ export const getTotalEnrollments = async (trainingProviderId: string) => {
               $expr: {
                 $and: [
                   { $eq: ["$_id", "$$programId"] },
-                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                  { $eq: ["$createdBy", new mongoose.Types.ObjectId(trainingProviderId)] },
                 ],
               },
             },
@@ -129,7 +133,7 @@ export const getTodayEnrollmentCount = async (trainingProviderId: string) => {
               $expr: {
                 $and: [
                   { $eq: ["$_id", "$$programId"] },
-                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                  { $eq: ["$createdBy", new mongoose.Types.ObjectId(trainingProviderId)] },
                 ],
               },
             },

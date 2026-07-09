@@ -170,7 +170,7 @@ export const takeSeniorActionService = async (
    // 3. Determine next stage
    const nextStage =
       action === TRAINING_DEPT_SENIOR_ACTION.APPROVE
-         ? ENROLLMENT_STAGE.APPROVED
+         ? ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE
          : ENROLLMENT_STAGE.REJECTED;
 
    const nextEnrollmentStatus =

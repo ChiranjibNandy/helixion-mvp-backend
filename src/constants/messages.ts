@@ -110,4 +110,5 @@ export const MESSAGES = {
   REIMBURSEMENT_NOT_ENABLED: "Reimbursement is not available until attendance is marked Present",
   REIMBURSEMENT_ALREADY_SUBMITTED: "Reimbursement has already been submitted for this enrollment",
   REIMBURSEMENT_SUBMITTED: "Reimbursement claim submitted successfully",
+  INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be approve or reject.",
 } as const;

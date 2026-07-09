@@ -1,7 +1,7 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { getAttendanceByProgramIdRepo, updateParticipantAttendanceRepository, upsertAttendanceRepo } from "../repositories/attendance.repository.js";
-import { findProgramById } from "../repositories/program.repository.js";
+import { assertProgramOwnershipService } from "./program.service.js";
 import { syncEnrollmentAttendanceRepo, bulkSyncEnrollmentAttendanceRepo } from "../repositories/enrollment.repository.js";
 import { TakeAttendancePayload, UpdateParticipantAttendancePayload } from "../types/attendance.js";
 import { AppError } from "../utils/appError.js";
@@ -93,19 +93,23 @@ export const syncEnrollmentsOnAttendanceService = async (
 export const takeAttendanceService = async (
    payload: TakeAttendancePayload
 ) => {
+   // Ownership check (ticket 0032): only the TP who created this program
+   // may take attendance for it. Also gets programData.title in one call.
+   const programData = await assertProgramOwnershipService(
+      payload.programId,
+      payload.training_providerId
+   );
+
    const participantIds = payload.participants.map(
       (participant) => participant.participantId
    );
 
-   // validate participants
+   // validate participants (also enforces the CTD-approval visibility gate)
    await validateParticipantsEnrollmentService(
       payload.programId,
       participantIds
    );
-   const programData = await findProgramById(payload.programId)
-   if (!programData) {
-      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
-   }
+
    const result = await upsertAttendanceRepo(payload, programData.title);
 
    await syncEnrollmentsOnAttendanceService(payload.programId, payload.participants);
@@ -113,7 +117,11 @@ export const takeAttendanceService = async (
    return result;
 };
 
-export const getProgramAttendanceService = async (programId: string) => {
+export const getProgramAttendanceService = async (
+   programId: string,
+   requestingUserId: string
+) => {
+   await assertProgramOwnershipService(programId, requestingUserId);
    return await getAttendanceByProgramIdRepo(programId);
 };
 
@@ -123,6 +131,14 @@ export const updateParticipantAttendanceService =
    async (
       payload: UpdateParticipantAttendancePayload
    ) => {
+      // Ownership check (ticket 0032): only the TP who created this program
+      // may mark attendance for it.
+      await assertProgramOwnershipService(payload.programId, payload.training_providerId);
+
+      // Same CTD-approval visibility gate the bulk path enforces via
+      // validateParticipantsEnrollmentService — the single-participant path
+      // previously had no enrollment validation at all.
+      await validateParticipantsEnrollmentService(payload.programId, [payload.participantId]);
 
       const updatedAttendance =
          await updateParticipantAttendanceRepository(
