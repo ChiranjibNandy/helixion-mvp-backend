@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, TOUR_STATUS } from "../constants/enum.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -278,4 +278,44 @@ export const getPendingEnrollmentsForStageRepo = async (
       .populate("employeeId", "name email employeeCode placeOfPosting")
       .populate("programId", "title startDate endDate city venueName")
       .sort({ createdAt: -1 });
+};
+
+export const getEnrollmentForStageOsdRepo = async (enrollmentId: string, orgId: string, stage: string) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      currentStage: stage,
+   });
+};
+
+export const updateEnrollmentForStageOsdRepo = async (enrollmentId: string, orgId: string, stage: string, updateOps: any) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         currentStage: stage,
+      },
+      updateOps,
+      { new: true }
+   );
+};
+
+export const getEnrollmentForTourOsdActionRepo = async (enrollmentId: string, orgId: string) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+   });
+};
+
+export const updateEnrollmentForTourOsdActionRepo = async (enrollmentId: string, orgId: string, updateOps: any) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+      },
+      updateOps,
+      { new: true }
+   );
 };

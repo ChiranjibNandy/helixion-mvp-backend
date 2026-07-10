@@ -1,6 +1,12 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getPendingEnrollmentsForStageRepo } from "../repositories/enrollment.repository.js";
+import {
+   getPendingEnrollmentsForStageRepo,
+   getEnrollmentForStageOsdRepo,
+   updateEnrollmentForStageOsdRepo,
+   getEnrollmentForTourOsdActionRepo,
+   updateEnrollmentForTourOsdActionRepo,
+} from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -60,11 +66,11 @@ export const takeOsdJuniorActionService = async (
    }
 
    // 2. Verify enrollment exists in junior-review stage (idempotency guard)
-   const existing = await enrollmentModel.findOne({
-      _id:          toObjectId(String(enrollmentId)),
-      orgId:        toObjectId(orgId),
-      currentStage: ENROLLMENT_STAGE.OSD_JUNIOR_REVIEW,
-   });
+   const existing = await getEnrollmentForStageOsdRepo(
+      enrollmentId,
+      orgId,
+      ENROLLMENT_STAGE.OSD_JUNIOR_REVIEW
+   );
 
    if (!existing) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -86,12 +92,10 @@ export const takeOsdJuniorActionService = async (
          : REIMBURSEMENT_STATUS.RECOMMENDED;
 
    // 4. Atomic update — single round-trip, no race condition
-   await enrollmentModel.findOneAndUpdate(
-      {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.OSD_JUNIOR_REVIEW,
-      },
+   await updateEnrollmentForStageOsdRepo(
+      enrollmentId,
+      orgId,
+      ENROLLMENT_STAGE.OSD_JUNIOR_REVIEW,
       {
          $set: {
             currentStage:                        nextStage,
@@ -113,8 +117,7 @@ export const takeOsdJuniorActionService = async (
                at:        new Date(),
             },
          },
-      },
-      { new: true }
+      }
    );
 
    return { currentStage: nextStage };
@@ -150,11 +153,11 @@ export const takeOsdSeniorActionService = async (
    }
 
    // 2. Verify enrollment exists in senior-review stage (idempotency guard)
-   const existing = await enrollmentModel.findOne({
-      _id:          toObjectId(String(enrollmentId)),
-      orgId:        toObjectId(orgId),
-      currentStage: ENROLLMENT_STAGE.OSD_SENIOR_REVIEW,
-   });
+   const existing = await getEnrollmentForStageOsdRepo(
+      enrollmentId,
+      orgId,
+      ENROLLMENT_STAGE.OSD_SENIOR_REVIEW
+   );
 
    if (!existing) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -178,12 +181,10 @@ export const takeOsdSeniorActionService = async (
          : REIMBURSEMENT_STATUS.REJECTED;
 
    // 4. Atomic update — single round-trip, no race condition
-   await enrollmentModel.findOneAndUpdate(
-      {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.OSD_SENIOR_REVIEW,
-      },
+   await updateEnrollmentForStageOsdRepo(
+      enrollmentId,
+      orgId,
+      ENROLLMENT_STAGE.OSD_SENIOR_REVIEW,
       {
          $set: {
             currentStage:                        nextStage,
@@ -205,8 +206,7 @@ export const takeOsdSeniorActionService = async (
                at:        new Date(),
             },
          },
-      },
-      { new: true }
+      }
    );
 
    return { currentStage: nextStage };
@@ -220,7 +220,7 @@ export const takeTourOsdActionService = async (
    enrollmentId: string,
    officerId: string,
    orgId: string,
-   action: string,
+   action: TOUR_OSD_ACTION,
    note: string
 ) => {
    if (
@@ -233,11 +233,7 @@ export const takeTourOsdActionService = async (
       );
    }
 
-   const existing = await enrollmentModel.findOne({
-      _id:          toObjectId(String(enrollmentId)),
-      orgId:        toObjectId(orgId),
-      "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
-   });
+   const existing = await getEnrollmentForTourOsdActionRepo(enrollmentId, orgId);
 
    if (!existing) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -285,15 +281,7 @@ export const takeTourOsdActionService = async (
       }
    }
 
-   await enrollmentModel.findOneAndUpdate(
-      {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
-         "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
-      },
-      updateOps,
-      { new: true }
-   );
+   await updateEnrollmentForTourOsdActionRepo(enrollmentId, orgId, updateOps);
 
    return { currentStage: updateOps.$set.currentStage || existing.currentStage };
 };
