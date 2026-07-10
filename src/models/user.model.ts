@@ -52,6 +52,16 @@ const userSchema = new Schema<IUser>(
          trim: true,
       },
 
+      designation: {
+         type: String,
+         trim: true,
+      },
+
+      department: {
+         type: String,
+         trim: true,
+      },
+
       passwordHash: {
          type: String,
          required: true,
