@@ -120,7 +120,7 @@ export const enrollInProgramService = async (
       modeOfTravel: travelAndStayInput?.modeOfTravel || "flight",
       purpose: travelAndStayInput?.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayInput?.bookingDetails || [],
-      advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
+      advancePaymentRequired: travelAndStayInput?.advancePaymentRequired ?? 0,
       status: managerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
       managerAction: managerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
@@ -134,7 +134,7 @@ export const enrollInProgramService = async (
          frequentFlyerNo: travelAndStayInput?.frequentFlyerNo || "",
          modeOfTravel: travelAndStayInput?.modeOfTravel || "flight",
          purpose: travelAndStayInput?.purpose || "To Attend Training Program",
-         advancePaymentRequired: travelAndStayInput?.advancePaymentRequired || 0,
+         advancePaymentRequired: travelAndStayInput?.advancePaymentRequired ?? 0,
          bookingDetails: travelAndStayInput?.bookingDetails || [],
       },
       managerApproval: {
@@ -258,7 +258,7 @@ export const updateTravelDetailsService = async (
       modeOfTravel: travelAndStayData.modeOfTravel,
       purpose: travelAndStayData.purpose || "To Attend Training Program",
       bookingDetails: travelAndStayData.bookingDetails || [],
-      advancePaymentRequired: travelAndStayData.advancePaymentRequired || 0,
+      advancePaymentRequired: travelAndStayData.advancePaymentRequired ?? 0,
       status: tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
       managerAction: tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       managerReason: ""
@@ -278,7 +278,7 @@ export const updateTravelDetailsService = async (
          frequentFlyerNo: travelAndStayData.frequentFlyerNo || enrollmentObj.tour?.details?.frequentFlyerNo || "",
          modeOfTravel: travelAndStayData.modeOfTravel || enrollmentObj.tour?.details?.modeOfTravel || "flight",
          purpose: travelAndStayData.purpose || enrollmentObj.tour?.details?.purpose || "To Attend Training Program",
-         advancePaymentRequired: travelAndStayData.advancePaymentRequired || enrollmentObj.tour?.details?.advancePaymentRequired || 0,
+         advancePaymentRequired: travelAndStayData.advancePaymentRequired ?? enrollmentObj.tour?.details?.advancePaymentRequired ?? 0,
          bookingDetails: travelAndStayData.bookingDetails || enrollmentObj.tour?.details?.bookingDetails || [],
       },
       managerApproval: {

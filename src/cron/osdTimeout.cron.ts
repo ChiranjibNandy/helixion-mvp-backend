@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import enrollmentModel from "../models/enrollment.model.js";
-import { TOUR_STATUS, TRAVEL_TYPE, ENROLLMENT_STAGE, ACTOR_TYPE } from "../constants/enum.js";
+import { TOUR_STATUS, TRAVEL_TYPE, ACTOR_TYPE } from "../constants/enum.js";
 
 // Run every hour to check for timed-out OSD approvals
 // "0 * * * *" means at minute 0 past every hour
@@ -14,32 +14,46 @@ export const startOsdTimeoutCron = () => {
 
          const timedOutEnrollments = await enrollmentModel.find({
             "tour.travelType": TRAVEL_TYPE.COMPANY_ASSISTED,
-            "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
-            "tour.managerApproval.actedAt": { $lt: timeoutThreshold },
+            $or: [
+               {
+                  "tour.status": TOUR_STATUS.SUBMITTED,
+                  createdAt: { $lt: timeoutThreshold },
+               },
+               {
+                  "tour.status": TOUR_STATUS.MANAGER_APPROVED,
+                  "tour.managerApproval.actedAt": { $lt: timeoutThreshold },
+               },
+            ],
          });
 
          for (const enrollment of timedOutEnrollments) {
-            enrollment.tour = {
-               ...enrollment.tour,
-               travelType: TRAVEL_TYPE.SELF_TRAVEL,
-               status: TOUR_STATUS.OSD_TIMEOUT,
-            } as any;
+            const updateOps: Record<string, any> = {
+               $set: {
+                  "tour.travelType": TRAVEL_TYPE.SELF_TRAVEL,
+                  "tour.status": TOUR_STATUS.OSD_TIMEOUT,
+               },
+               $push: {
+                  timeline: {
+                     stage: enrollment.currentStage,
+                     actorType: ACTOR_TYPE.SYSTEM,
+                     action: "osd_timeout",
+                     note: "OSD approval timed out. Downgraded to self travel.",
+                     at: new Date(),
+                  },
+               },
+            };
 
             if (enrollment.travelAndStay) {
-               enrollment.travelAndStay.status = TOUR_STATUS.REJECTED;
+               updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
             }
 
-            enrollment.currentStage = ENROLLMENT_STAGE.ATTENDANCE_PENDING;
-
-            enrollment.timeline.push({
-               stage: ENROLLMENT_STAGE.ATTENDANCE_PENDING,
-               actorType: ACTOR_TYPE.SYSTEM,
-               action: "osd_timeout",
-               note: "OSD approval timed out. Downgraded to self travel.",
-               at: new Date(),
-            });
-
-            await enrollment.save();
+            await enrollmentModel.findOneAndUpdate(
+               {
+                  _id: enrollment._id,
+                  "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+               },
+               updateOps
+            );
             console.log(`[CRON] OSD Timeout applied for enrollment ${enrollment._id}`);
          }
       } catch (error) {
@@ -47,3 +61,4 @@ export const startOsdTimeoutCron = () => {
       }
    });
 };
+

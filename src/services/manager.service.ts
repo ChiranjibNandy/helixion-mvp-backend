@@ -125,12 +125,12 @@ export const takeManagerActionService = async (
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
-      if (tourManagerApprovalRequired && enrollment.travelAndStay) {
+      if (enrollment.travelAndStay) {
          updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.REJECT;
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
          updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.REJECTED;
       }
-      if (tourManagerApprovalRequired && enrollment.tour) {
+      if (enrollment.tour) {
          updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.REJECT;
          updateOps.$set["tour.managerApproval.actedAt"] = new Date();
          updateOps.$set["tour.managerApproval.note"] = note;

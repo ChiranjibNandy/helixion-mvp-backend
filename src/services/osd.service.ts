@@ -273,8 +273,6 @@ export const takeTourOsdActionService = async (
       if (existing.travelAndStay) {
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
       }
-      updateOps.$set.currentStage = ENROLLMENT_STAGE.ATTENDANCE_PENDING;
-      updateOps.$push.timeline.stage = ENROLLMENT_STAGE.ATTENDANCE_PENDING;
    } else {
       if (existing.travelAndStay) {
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
