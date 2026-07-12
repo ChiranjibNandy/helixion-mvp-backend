@@ -88,6 +88,8 @@ export const getRelevantEnrollments = async (req: Request, res: Response, next: 
       next(error)
    }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/enrollments/:enrollmentId/training-history
 // ─────────────────────────────────────────────────────────────────────────────
 export const getEmployeeTrainingHistory = async (req: Request, res: Response, next: NextFunction) => {
