@@ -139,6 +139,8 @@ export interface IEnrollment {
 
    timeline: ITimelineEntry[];
 
+   notes?: string;
+
    createdAt: Date;
    updatedAt: Date;
 }

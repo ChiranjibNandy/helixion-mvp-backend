@@ -6,7 +6,7 @@ import {
    getPendingReimbursementsService,
    takeReimbursementManagerActionService,
 } from "../services/manager.service.js";
-import { getRelevantEnrollmentService } from "../services/enrollment.service.js";
+import { getRelevantEnrollmentService, getEmployeeTrainingHistoryService } from "../services/enrollment.service.js";
 import { MESSAGES } from "../constants/messages.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,6 +88,28 @@ export const getRelevantEnrollments = async (req: Request, res: Response, next: 
       next(error)
    }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/enrollments/:enrollmentId/training-history
+// ─────────────────────────────────────────────────────────────────────────────
+export const getEmployeeTrainingHistory = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const enrollmentId = String(req.params.enrollmentId);
+      const managerId    = req.userId!;
+      const orgId        = req.orgId!;
+
+      const history = await getEmployeeTrainingHistoryService(enrollmentId, managerId, orgId);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data:    history,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/reimbursements/pending
 // ─────────────────────────────────────────────────────────────────────────────
 export const getPendingReimbursements = async (

@@ -218,6 +218,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
       },
 
       timeline: { type: [timelineSchema], default: [] },
+
+      // Employee's free-text justification entered at enrollment time.
+      // Previously accepted by enrollInProgramService's payload but silently
+      // dropped by Mongoose (strict mode, no matching schema field) — never
+      // actually persisted until this field existed.
+      notes: { type: String, default: "" },
    },
    {
       timestamps: true,

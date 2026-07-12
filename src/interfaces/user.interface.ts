@@ -47,6 +47,8 @@ export interface IUser {
    email: string;
    mobile?: string;
    placeOfPosting?: string;      // was: location
+   designation?: string;
+   department?: string;
 
    passwordHash: string;         // was: password
    mustChangePassword: boolean;

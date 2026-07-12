@@ -3,7 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -263,9 +263,16 @@ export const getPendingEnrollmentsForManagerRepo = async (
   orgId: string,
   options: { level?: number } = {}
 ) => {
+  // Was previously filtering on "statusSummary.enrollmentStatus" — a
+  // top-level document field, not a property of managerChain array items
+  // (which only ever have {userId, level, status}). That made this
+  // $elemMatch impossible to satisfy, so this query always returned zero
+  // results. The correct per-entry field is `status` against
+  // MANAGER_CHAIN_STATUS, matching the pattern used in
+  // takeManagerActionService's own query.
   const chainFilter: Record<string, unknown> = {
     userId: toObjectId(userId),
-    "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.PENDING,
+    status: MANAGER_CHAIN_STATUS.PENDING,
   };
 
   if (options.level !== undefined) {
@@ -306,10 +313,20 @@ export const getEnrollmentByUserIdInManagerChain = async (
 ) => {
   const skip = (page - 1) * limit;
 
+  // Scoped to enrollments where this manager actually sits in the
+  // managerChain — previously this only filtered by orgId, so every manager
+  // saw every enrollment in the company regardless of whether it was theirs
+  // to approve. Not narrowed to "pending" only: the page also needs to show
+  // enrollments this manager has already acted on (for the status column),
+  // so `approve` (computed in the service layer) tells the frontend when
+  // Approve/Reject should actually be enabled for the caller.
   const pipeline: any[] = [
     {
       $match: {
         orgId: user.orgId,
+        managerChain: {
+          $elemMatch: { userId: user._id },
+        },
       },
     },
     {
@@ -322,6 +339,20 @@ export const getEnrollmentByUserIdInManagerChain = async (
     },
     {
       $unwind: "$employeeId",
+    },
+    // The Enrollment document has no `programSnapshot` field — that key only
+    // ever existed as a one-time response DTO returned by enrollInProgramService
+    // at creation time, never persisted. Program details must be joined here.
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programId",
+      },
+    },
+    {
+      $unwind: "$programId",
     },
   ];
 
@@ -338,7 +369,7 @@ export const getEnrollmentByUserIdInManagerChain = async (
             },
           },
           {
-            "programSnapshot.title": {
+            "programId.title": {
               $regex: escapedSearch,
               $options: "i",
             },
@@ -509,5 +540,38 @@ export const bulkSyncEnrollmentAttendanceRepo = async (
     },
     { $set: updateFields }
   );
+};
+
+// ─── Employee training history (approvals detail view) ─────────────────────────
+// Authorization check for the training-history endpoint: rather than a
+// separate direct-report lookup, this piggybacks on the same
+// managerChain-membership proof the approvals list itself is scoped by — if
+// the manager is anywhere in this enrollment's managerChain, they're
+// authorized to view this employee's other training history too.
+export const findEnrollmentForManagerRepo = async (
+   enrollmentId: string,
+   managerId: string,
+   orgId: string
+) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(enrollmentId),
+      orgId:        toObjectId(orgId),
+      managerChain: { $elemMatch: { userId: toObjectId(managerId) } },
+   });
+};
+
+export const getEmployeeTrainingHistoryRepo = async (
+   employeeId: string,
+   excludeEnrollmentId: string
+) => {
+   return await enrollmentModel
+      .find({
+         employeeId:   toObjectId(employeeId),
+         _id:          { $ne: toObjectId(excludeEnrollmentId) },
+         currentStage: ENROLLMENT_STAGE.COMPLETED,
+      })
+      .populate("programId", "title startDate endDate venueName city brochureUrl trainingInstitute")
+      .sort({ updatedAt: -1 })
+      .limit(10);
 };
 
