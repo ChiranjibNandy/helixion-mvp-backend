@@ -15,6 +15,7 @@ import {
    ACTOR_TYPE,
    TOUR_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAVEL_TYPE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
 } from "../constants/enum.js";
@@ -130,10 +131,16 @@ export const takeManagerActionService = async (
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
-      if (tourManagerApprovalRequired && enrollment.travelAndStay) {
+      if (enrollment.travelAndStay) {
          updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.REJECT;
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
          updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.REJECTED;
+      }
+      if (enrollment.tour) {
+         updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.REJECT;
+         updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+         updateOps.$set["tour.managerApproval.note"] = note;
+         updateOps.$set["tour.status"] = TOUR_STATUS.MANAGER_REJECTED;
       }
    } else {
       // Check whether the minimum required level has approved
@@ -163,6 +170,18 @@ export const takeManagerActionService = async (
             updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
             updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
             updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
+         }
+         const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+         if (tourManagerApprovalRequired && enrollment.tour) {
+            updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
+            updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+            updateOps.$set["tour.managerApproval.note"] = note;
+            
+            if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+                updateOps.$set["tour.status"] = osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED;
+            } else {
+                updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+            }
          }
       }
    }

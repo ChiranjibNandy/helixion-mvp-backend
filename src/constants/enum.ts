@@ -162,10 +162,29 @@ export enum ENROLLMENT_STATUS_SUMMARY {
   REJECTED = "rejected",
 }
 
+export enum TRAVEL_TYPE {
+  LOCAL            = "local",
+  SELF_TRAVEL      = "self_travel",
+  COMPANY_ASSISTED = "company_assisted",
+}
+
+export enum TOUR_OSD_ACTION {
+  WAITING = "waiting",
+  APPROVE = "approve",
+  REJECT  = "reject",
+}
+
 export enum TOUR_STATUS {
-  SUBMITTED = "submitted",
-  APPROVED = "approved",
-  REJECTED = "rejected",
+  NOT_REQUIRED            = "not_required",
+  PENDING_EMPLOYEE_CHOICE = "pending_employee_choice",
+  SUBMITTED               = "submitted",
+  MANAGER_APPROVED        = "manager_approved",
+  MANAGER_REJECTED        = "manager_rejected",
+  OSD_APPROVED            = "osd_approved",
+  OSD_REJECTED            = "osd_rejected",
+  OSD_TIMEOUT             = "osd_timeout",
+  APPROVED                = "approved",
+  REJECTED                = "rejected",
 }
 
 export enum ATTENDANCE_RECORD_STATUS {

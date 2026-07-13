@@ -575,3 +575,42 @@ export const getEmployeeTrainingHistoryRepo = async (
       .limit(10);
 };
 
+export const getEnrollmentForStageOsdRepo = async (enrollmentId: string, orgId: string, stage: string) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      currentStage: stage,
+   });
+};
+
+export const updateEnrollmentForStageOsdRepo = async (enrollmentId: string, orgId: string, stage: string, updateOps: any) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         currentStage: stage,
+      },
+      updateOps,
+      { new: true }
+   );
+};
+
+export const getEnrollmentForTourOsdActionRepo = async (enrollmentId: string, orgId: string) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+   });
+};
+
+export const updateEnrollmentForTourOsdActionRepo = async (enrollmentId: string, orgId: string, updateOps: any) => {
+   return await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
+      },
+      updateOps,
+      { new: true }
+   );
+};

@@ -11,6 +11,8 @@ import {
    REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   TRAVEL_TYPE,
+   TOUR_OSD_ACTION,
    ENROLLMENT_STATUS,
 } from "../constants/enum.js";
 
@@ -187,6 +189,30 @@ const enrollmentSchema = new Schema<IEnrollment>(
          status:                 { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
          managerAction:          { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },
          managerReason:          { type: String, default: "" },
+      },
+
+      tour: {
+         travelType: { type: String, enum: Object.values(TRAVEL_TYPE) },
+         status:     { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.NOT_REQUIRED },
+         details: {
+            placeOfTour:            { type: String },
+            frequentFlyerNo:        { type: String, default: "" },
+            modeOfTravel:           { type: String },
+            purpose:                { type: String },
+            advancePaymentRequired: { type: Number, default: 0 },
+            bookingDetails:         { type: [bookingDetailSchema], default: [] },
+         },
+         managerApproval: {
+            action:  { type: String, enum: Object.values(MANAGER_ACTION) },
+            note:    { type: String, default: "" },
+            actedAt: { type: Date },
+         },
+         osdApproval: {
+            officerId: { type: Schema.Types.ObjectId, ref: "User" },
+            action:    { type: String, enum: Object.values(TOUR_OSD_ACTION) },
+            note:      { type: String, default: "" },
+            actedAt:   { type: Date },
+         },
       },
 
       attendance: {

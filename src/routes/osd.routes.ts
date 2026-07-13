@@ -9,7 +9,9 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import {
    getPendingEnrollments,
-   takeReimbursementOsdAction,
+   takeOsdJuniorAction,
+   takeOsdSeniorAction,
+   takeTourOsdAction,
 } from "../controllers/osd.controller.js";
 import {
    reimbursementEnrollmentParamsSchema,
@@ -54,6 +56,16 @@ router.patch(
    authorizeOfficeRole("osd", 1),
    validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
    takeReimbursementOsdAction
+);
+
+/**
+ * PATCH /api/osd/enrollments/:id/tour-action
+ * Body: { action: "approve" | "reject", note? }
+ */
+router.patch(
+   "/enrollments/:id/tour-action",
+   authorizeOfficeRole("osd", 1),
+   takeTourOsdAction
 );
 
 export default router;
