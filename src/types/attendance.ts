@@ -15,4 +15,5 @@ export type UpdateParticipantAttendancePayload = {
    participantId: string;
    date: Date;
    present_status: string;
+   training_providerId: string;
 }

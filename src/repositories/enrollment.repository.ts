@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, TOUR_STATUS } from "../constants/enum.js";
+import { Types } from "mongoose";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
+import { IUser } from "../interfaces/user.interface.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 export const checkExistingEnrollmentRepo = async (
   userId: mongoose.Types.ObjectId,
@@ -11,7 +14,7 @@ export const checkExistingEnrollmentRepo = async (
   return await enrollmentModel.findOne({
     userId,
     programId,
-    status: { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] },
+    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING, ENROLLMENT_STATUS.SUBMITTED] },
   });
 };
 
@@ -20,7 +23,7 @@ export const getEnrollmentCountForProgramRepo = async (
 ) => {
   return await enrollmentModel.countDocuments({
     programId,
-    status: ENROLLMENT_STATUS.ACTIVE,
+    "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
   });
 };
 
@@ -29,7 +32,7 @@ export const getEnrollmentByIdAndUserRepo = async (
   userId: string
 ) => {
   return await enrollmentModel.findOne({
-    _id:    new mongoose.Types.ObjectId(enrollmentId),
+    _id: new mongoose.Types.ObjectId(enrollmentId),
     userId: new mongoose.Types.ObjectId(userId),
   });
 };
@@ -39,15 +42,15 @@ export const getActiveEnrollmentsRepo = async (userId: string) => {
     {
       $match: {
         userId: new mongoose.Types.ObjectId(userId),
-        status: ENROLLMENT_STATUS.ACTIVE,
+        "statusSummary.enrollmentStatus": ENROLLMENT_STATUS.ACTIVE,
       },
     },
     {
       $lookup: {
-        from:         "programs",
-        localField:   "programId",
+        from: "programs",
+        localField: "programId",
         foreignField: "_id",
-        as:           "programDetails",
+        as: "programDetails",
       },
     },
     {
@@ -59,26 +62,31 @@ export const getActiveEnrollmentsRepo = async (userId: string) => {
   ]);
 };
 
+// Only surfaces participants whose enrollment has cleared CTD (Training
+// Dept senior) approval — see TP_NOT_YET_VISIBLE_STAGES (ticket 0032).
 export const getProgramParticipantsRepo = async (programId: string) => {
   return await enrollmentModel
     .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      status:    ENROLLMENT_STATUS.ACTIVE,
+      programId:    new mongoose.Types.ObjectId(programId),
+      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
     })
-    .populate({ path: "userId", select: "_id username email" });
+    .populate({ path: "employeeId", select: "_id name email employeeCode" });
 };
 
+// Same visibility gate as getProgramParticipantsRepo — a participant not
+// yet past CTD approval isn't "enrolled" from the Training Provider's
+// point of view, so attendance can't be taken for them yet either.
 export const validateParticipantsEnrollmentRepo = async (
   programId: string,
   participantIds: string[]
 ) => {
   return await enrollmentModel
     .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      userId:    { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      status:    ENROLLMENT_STATUS.ACTIVE,
+      programId:    new mongoose.Types.ObjectId(programId),
+      employeeId:   { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
     })
-    .select("userId");
+    .select("employeeId");
 };
 
 export const getTotalEnrollments = async (trainingProviderId: string) => {
@@ -86,14 +94,14 @@ export const getTotalEnrollments = async (trainingProviderId: string) => {
     {
       $lookup: {
         from: "programs",
-        let:  { programId: "$programId" },
+        let: { programId: "$programId" },
         pipeline: [
           {
             $match: {
               $expr: {
                 $and: [
                   { $eq: ["$_id", "$$programId"] },
-                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                  { $eq: ["$createdBy", new mongoose.Types.ObjectId(trainingProviderId)] },
                 ],
               },
             },
@@ -118,14 +126,14 @@ export const getTodayEnrollmentCount = async (trainingProviderId: string) => {
     {
       $lookup: {
         from: "programs",
-        let:  { programId: "$programId" },
+        let: { programId: "$programId" },
         pipeline: [
           {
             $match: {
               $expr: {
                 $and: [
                   { $eq: ["$_id", "$$programId"] },
-                  { $eq: ["$training_providerId", new mongoose.Types.ObjectId(trainingProviderId)] },
+                  { $eq: ["$createdBy", new mongoose.Types.ObjectId(trainingProviderId)] },
                 ],
               },
             },
@@ -147,137 +155,424 @@ export const getEnrollmentActivities = async (trainingProviderId: string) => {
 
   return [
     {
-      type:    "enrollment",
-      message: `${count} new enrollments received today`,
-      time:    new Date(),
+      type: "enrollment",
+      message: `${ count } new enrollments received today`,
+      time: new Date(),
     },
   ];
 };
 
 export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
-   return await enrollmentModel.create(data);
+  return await enrollmentModel.create(data);
 };
 
 export const getEmployeeEnrollmentsRepo = async (userId: string) => {
-   return await enrollmentModel.aggregate([
-      {
-         $match: {
-            $or: [
-               { employeeId: toObjectId(userId) },
-               { userId: toObjectId(userId) }
-            ]
-         }
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
-      },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            },
-            programId: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
-      },
-      {
-         $sort: {
-            createdAt: -1
-         }
+  return await enrollmentModel.aggregate([
+    {
+      $match: {
+        $or: [
+          { employeeId: toObjectId(userId) },
+          { userId: toObjectId(userId) }
+        ]
       }
-   ]);
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programDetails"
+      }
+    },
+    {
+      $addFields: {
+        programDetails: {
+          $arrayElemAt: ["$programDetails", 0]
+        },
+        programId: {
+          $arrayElemAt: ["$programDetails", 0]
+        }
+      }
+    },
+    {
+      $sort: {
+        createdAt: -1
+      }
+    }
+  ]);
 };
 
 export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
-   const results = await enrollmentModel.aggregate([
-      {
-         $match: {
-            _id: toObjectId(id),
-            $or: [
-               { employeeId: toObjectId(userId) },
-               { userId: toObjectId(userId) }
-            ]
-         }
-      },
-      {
-         $lookup: {
-            from: "programs",
-            localField: "programId",
-            foreignField: "_id",
-            as: "programDetails"
-         }
-      },
-      {
-         $addFields: {
-            programDetails: {
-               $arrayElemAt: ["$programDetails", 0]
-            },
-            programId: {
-               $arrayElemAt: ["$programDetails", 0]
-            }
-         }
+  const results = await enrollmentModel.aggregate([
+    {
+      $match: {
+        _id: toObjectId(id),
+        $or: [
+          { employeeId: toObjectId(userId) },
+          { userId: toObjectId(userId) }
+        ]
       }
-   ]);
-   return results[0] || null;
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programDetails"
+      }
+    },
+    {
+      $addFields: {
+        programDetails: {
+          $arrayElemAt: ["$programDetails", 0]
+        },
+        programId: {
+          $arrayElemAt: ["$programDetails", 0]
+        }
+      }
+    }
+  ]);
+  return results[0] || null;
 };
 
 
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
-   return await enrollmentModel.findOne({
-      $or: [
-         { employeeId: toObjectId(userId) },
-      ],
-      programId: toObjectId(programId),
-      currentStage: { $nin: ["rejected", "completed"] },
-   });
+  return await enrollmentModel.findOne({
+    $or: [
+      { employeeId: toObjectId(userId) },
+      { userId: toObjectId(userId) }
+    ],
+    programId: toObjectId(programId),
+    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+  });
 };
+
+export const findEnrollmentByEmployeeIds = async (employeeIds: Types.ObjectId[]) => {
+  return enrollmentModel.find({
+    employeeId: { $in: employeeIds },
+  })
+    .populate("employeeId", "username email")
+    .populate("programId", "name")
+    .sort({ createdAt: -1 });
+}
 
 // ─── Manager approval queue ───────────────────────────────────────────────────
 
 export const getPendingEnrollmentsForManagerRepo = async (
-   userId: string,
-   orgId: string,
-   options: { level?: number } = {}
+  userId: string,
+  orgId: string,
+  options: { level?: number } = {}
 ) => {
-   const chainFilter: Record<string, unknown> = {
-      userId:  toObjectId(userId),
-      status:  "pending",
-   };
+  // Was previously filtering on "statusSummary.enrollmentStatus" — a
+  // top-level document field, not a property of managerChain array items
+  // (which only ever have {userId, level, status}). That made this
+  // $elemMatch impossible to satisfy, so this query always returned zero
+  // results. The correct per-entry field is `status` against
+  // MANAGER_CHAIN_STATUS, matching the pattern used in
+  // takeManagerActionService's own query.
+  const chainFilter: Record<string, unknown> = {
+    userId: toObjectId(userId),
+    status: MANAGER_CHAIN_STATUS.PENDING,
+  };
 
-   if (options.level !== undefined) {
-      chainFilter.level = options.level;
-   }
+  if (options.level !== undefined) {
+    chainFilter.level = options.level;
+  }
 
-   return await enrollmentModel
-      .find({
-         orgId:        toObjectId(orgId),
-         managerChain: { $elemMatch: chainFilter },
-      })
-      .populate("employeeId", "name email employeeCode placeOfPosting")
-      .populate("programId", "title startDate endDate city venueName")
-      .sort({ createdAt: -1 });
+  return await enrollmentModel
+    .find({
+      orgId: toObjectId(orgId),
+      managerChain: { $elemMatch: chainFilter },
+    })
+    .populate("employeeId", "name email employeeCode placeOfPosting")
+    .populate("programId", "title startDate endDate city venueName")
+    .sort({ createdAt: -1 });
 };
 
 // ─── Training dept / OSD queues ───────────────────────────────────────────────
 
 export const getPendingEnrollmentsForStageRepo = async (
-   orgId: string,
-   stage: string
+  orgId: string,
+  stage: string
+) => {
+  return await enrollmentModel
+    .find({
+      orgId: toObjectId(orgId),
+      currentStage: stage,
+    })
+    .populate("employeeId", "name email employeeCode placeOfPosting")
+    .populate("programId", "title startDate endDate city venueName")
+    .sort({ createdAt: -1 });
+};
+
+export const getEnrollmentByUserIdInManagerChain = async (
+  user: IUser,
+  page: number,
+  limit: number,
+  search: string
+) => {
+  const skip = (page - 1) * limit;
+
+  // Scoped to enrollments where this manager actually sits in the
+  // managerChain — previously this only filtered by orgId, so every manager
+  // saw every enrollment in the company regardless of whether it was theirs
+  // to approve. Not narrowed to "pending" only: the page also needs to show
+  // enrollments this manager has already acted on (for the status column),
+  // so `approve` (computed in the service layer) tells the frontend when
+  // Approve/Reject should actually be enabled for the caller.
+  const pipeline: any[] = [
+    {
+      $match: {
+        orgId: user.orgId,
+        managerChain: {
+          $elemMatch: { userId: user._id },
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "employeeId",
+        foreignField: "_id",
+        as: "employeeId",
+      },
+    },
+    {
+      $unwind: "$employeeId",
+    },
+    // The Enrollment document has no `programSnapshot` field — that key only
+    // ever existed as a one-time response DTO returned by enrollInProgramService
+    // at creation time, never persisted. Program details must be joined here.
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "programId",
+      },
+    },
+    {
+      $unwind: "$programId",
+    },
+  ];
+
+  if (search?.trim()) {
+    const escapedSearch = escapeRegex(search.trim());
+
+    pipeline.push({
+      $match: {
+        $or: [
+          {
+            "employeeId.name": {
+              $regex: escapedSearch,
+              $options: "i",
+            },
+          },
+          {
+            "programId.title": {
+              $regex: escapedSearch,
+              $options: "i",
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  // Total Count
+  const totalResult = await enrollmentModel.aggregate([
+    ...pipeline,
+    {
+      $count: "total",
+    },
+  ]);
+
+  const total = totalResult[0]?.total || 0;
+
+  // Data
+  const enrollments = await enrollmentModel.aggregate([
+    ...pipeline,
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    {
+      $skip: skip,
+    },
+    {
+      $limit: limit,
+    },
+  ]);
+
+  return {
+    enrollments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+// ─── Reimbursement manager queue ───────────────────────────────────────────────
+
+export const getPendingReimbursementsForManagerRepo = async (
+  managerId: string,
+  orgId: string
+) => {
+  return await enrollmentModel
+    .find({
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+      "managerApproval.assignedApproverId": toObjectId(managerId),
+    })
+    .populate("employeeId", "name email employeeCode placeOfPosting")
+    .populate("programId", "title startDate endDate city venueName")
+    .sort({ createdAt: -1 });
+};
+
+export const takeReimbursementManagerActionRepo = async (
+  enrollmentId: string,
+  orgId: string,
+  managerId: string,
+  updateSet: Record<string, unknown>,
+  timelineEntry: Record<string, unknown>
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+      "managerApproval.assignedApproverId": toObjectId(managerId),
+    },
+    { $set: updateSet, $push: { timeline: timelineEntry } },
+    { new: true }
+  );
+};
+
+export const takeReimbursementOsdActionRepo = async (
+  enrollmentId: string,
+  orgId: string,
+  updateSet: Record<string, unknown>,
+  timelineEntry: Record<string, unknown>
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW,
+    },
+    { $set: updateSet, $push: { timeline: timelineEntry } },
+    { new: true }
+  );
+};
+
+// ─── Reimbursement submission (employee) ───────────────────────────────────────
+
+// Pre-check used only to produce a specific error message (not enabled vs.
+// already submitted vs. not found) before the atomic write below.
+export const findEnrollmentForReimbursementSubmitRepo = async (
+  enrollmentId: string,
+  userId: string
+) => {
+  return await enrollmentModel.findOne({
+    _id: toObjectId(enrollmentId),
+    $or: [
+      { employeeId: toObjectId(userId) },
+      { userId: toObjectId(userId) },
+    ],
+  });
+};
+
+export const submitReimbursementRepo = async (
+  enrollmentId: string,
+  userId: string,
+  updateSet: Record<string, unknown>,
+  timelineEntry: Record<string, unknown>
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      $or: [
+        { employeeId: toObjectId(userId) },
+        { userId: toObjectId(userId) },
+      ],
+      "reimbursement.enabled": true,
+      "reimbursement.status": REIMBURSEMENT_STATUS.NOT_STARTED,
+    },
+    { $set: updateSet, $push: { timeline: timelineEntry } },
+    { new: true }
+  );
+};
+
+// ─── Attendance → Enrollment sync ──────────────────────────────────────────────
+
+export const syncEnrollmentAttendanceRepo = async (
+  programId: string,
+  employeeId: string,
+  excludedStages: ENROLLMENT_STAGE[],
+  updateFields: Record<string, unknown>
+) => {
+  return await enrollmentModel.updateOne(
+    {
+      programId: toObjectId(programId),
+      employeeId: toObjectId(employeeId),
+      currentStage: { $nin: excludedStages },
+    },
+    { $set: updateFields }
+  );
+};
+
+export const bulkSyncEnrollmentAttendanceRepo = async (
+  programId: string,
+  employeeIds: string[],
+  excludedStages: ENROLLMENT_STAGE[],
+  updateFields: Record<string, unknown>
+) => {
+  if (employeeIds.length === 0) return;
+  return await enrollmentModel.updateMany(
+    {
+      programId: toObjectId(programId),
+      employeeId: { $in: employeeIds.map((id) => toObjectId(id)) },
+      currentStage: { $nin: excludedStages },
+    },
+    { $set: updateFields }
+  );
+};
+
+// ─── Employee training history (approvals detail view) ─────────────────────────
+// Authorization check for the training-history endpoint: rather than a
+// separate direct-report lookup, this piggybacks on the same
+// managerChain-membership proof the approvals list itself is scoped by — if
+// the manager is anywhere in this enrollment's managerChain, they're
+// authorized to view this employee's other training history too.
+export const findEnrollmentForManagerRepo = async (
+   enrollmentId: string,
+   managerId: string,
+   orgId: string
+) => {
+   return await enrollmentModel.findOne({
+      _id:          toObjectId(enrollmentId),
+      orgId:        toObjectId(orgId),
+      managerChain: { $elemMatch: { userId: toObjectId(managerId) } },
+   });
+};
+
+export const getEmployeeTrainingHistoryRepo = async (
+   employeeId: string,
+   excludeEnrollmentId: string
 ) => {
    return await enrollmentModel
       .find({
-         orgId:        toObjectId(orgId),
-         currentStage: stage,
+         employeeId:   toObjectId(employeeId),
+         _id:          { $ne: toObjectId(excludeEnrollmentId) },
+         currentStage: ENROLLMENT_STAGE.COMPLETED,
       })
-      .populate("employeeId", "name email employeeCode placeOfPosting")
-      .populate("programId", "title startDate endDate city venueName")
-      .sort({ createdAt: -1 });
+      .populate("programId", "title startDate endDate venueName city brochureUrl trainingInstitute")
+      .sort({ updatedAt: -1 })
+      .limit(10);
 };
 
 export const getEnrollmentForStageOsdRepo = async (enrollmentId: string, orgId: string, stage: string) => {

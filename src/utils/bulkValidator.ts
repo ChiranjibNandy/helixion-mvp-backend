@@ -40,7 +40,7 @@ export const validateBulkRows = (
     } else {
       validPrograms.push({
         ...parsed.data,
-        training_providerId: providerId,
+        createdBy: providerId,
         batchId,
       });
     }

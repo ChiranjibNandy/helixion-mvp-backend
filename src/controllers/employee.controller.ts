@@ -10,8 +10,10 @@ import {
    getEmployeeEnrollmentsService,
    getEnrollmentDetailsService,
    updateTravelDetailsService,
-   submitEnrollmentService
+   submitEnrollmentService,
+   submitReimbursementService
 } from "../services/employee.service.js";
+
 
 /**
  * Fetch employee dashboard enrollments and available active programs.
@@ -203,6 +205,33 @@ export const submitEnrollment = async (req: Request, res: Response, next: NextFu
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM,
+         data: result
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const submitReimbursement = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const userId = req.userId;
+      if (!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { enrollmentId } = req.params;
+      const { expenses, receipts } = req.body;
+
+      const result = await submitReimbursementService(
+         userId,
+         String(enrollmentId),
+         expenses,
+         receipts
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.REIMBURSEMENT_SUBMITTED,
          data: result
       });
    } catch (error) {

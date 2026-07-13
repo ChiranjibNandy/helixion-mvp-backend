@@ -1,11 +1,11 @@
 import mongoose, { Schema } from "mongoose";
 import { IUser } from "../interfaces/user.interface.js";
-import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, ROLE, USER_STATUS } from "../constants/enum.js";
 
 const managerChainEntrySchema = new Schema(
    {
       userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-      level:  { type: Number, required: true },   // 1 = direct manager, 2 = skip-level, …
+      level: { type: Number, required: true },   // 1 = direct manager, 2 = skip-level, …
    },
    { _id: false }
 );
@@ -13,7 +13,7 @@ const managerChainEntrySchema = new Schema(
 const userSchema = new Schema<IUser>(
    {
       orgId: {
-         type:  Schema.Types.ObjectId,
+         type: Schema.Types.ObjectId,
          index: true,
          // optional — training_provider users don't belong to a corporate org
       },
@@ -22,25 +22,24 @@ const userSchema = new Schema<IUser>(
          type: String,
          enum: ["corporate"],
       },
-
       employeeCode: {
-         type:  String,
-         trim:  true,
+         type: String,
+         trim: true,
          sparse: true,   // unique within org but not globally required
       },
 
       name: {
-         type:     String,
+         type: String,
          required: true,
-         trim:     true,
+         trim: true,
       },
 
       email: {
-         type:     String,
+         type: String,
          required: true,
-         unique:   true,
+         unique: true,
          lowercase: true,
-         trim:     true,
+         trim: true,
       },
 
       mobile: {
@@ -53,27 +52,37 @@ const userSchema = new Schema<IUser>(
          trim: true,
       },
 
+      designation: {
+         type: String,
+         trim: true,
+      },
+
+      department: {
+         type: String,
+         trim: true,
+      },
+
       passwordHash: {
-         type:     String,
+         type: String,
          required: true,
       },
 
       mustChangePassword: {
-         type:    Boolean,
+         type: Boolean,
          default: false,
       },
 
       orgRole: {
-         type:    String,
-         enum:    [...Object.values(ORG_ROLE), "training-provider"], // keep legacy hyphenated value during migration
-         index:   true,
+         type: String,
+         enum: [...Object.values(ORG_ROLE), "training-provider"], // keep legacy hyphenated value during migration
+         index: true,
       },
 
       status: {
-         type:    String,
-         enum:    Object.values(USER_STATUS),
+         type: String,
+         enum: Object.values(USER_STATUS),
          default: USER_STATUS.ACTIVE,
-         index:   true,
+         index: true,
       },
 
       hierarchy: {
@@ -89,7 +98,7 @@ const userSchema = new Schema<IUser>(
           * queries; always update via a dedicated "reassign manager" service method.
           */
          managerChain: {
-            type:    [managerChainEntrySchema],
+            type: [managerChainEntrySchema],
             default: [],
          },
       },
@@ -97,11 +106,11 @@ const userSchema = new Schema<IUser>(
       officeRoles: {
          trainingDept: {
             enabled: { type: Boolean, default: false },
-            level:   { type: Number, default: null },  // 1 = junior, 2 = senior
+            level: { type: Number, default: null },  // 1 = junior, 2 = senior
          },
          osd: {
             enabled: { type: Boolean, default: false },
-            level:   { type: Number, default: null },
+            level: { type: Number, default: null },
          },
       },
    },

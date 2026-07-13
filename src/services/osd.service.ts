@@ -8,11 +8,11 @@ import {
    updateEnrollmentForTourOsdActionRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
+import { getPendingEnrollmentsForStageRepo, takeReimbursementOsdActionRepo } from "../repositories/enrollment.repository.js";
 import { AppError } from "../utils/appError.js";
 import {
    ENROLLMENT_STAGE,
-   OSD_JUNIOR_ACTION,
-   OSD_SENIOR_ACTION,
+   REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
    ACTOR_TYPE,
    TOUR_OSD_ACTION,
@@ -22,42 +22,36 @@ import {
 import { toObjectId } from "../utils/mongo.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get pending enrollments for OSD queue
+// Get pending reimbursement claims awaiting OSD approval
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getPendingEnrollmentsService = async (
-   orgId: string,
-   osdLevel: number
-) => {
-   const stage =
-      osdLevel >= 2
-         ? ENROLLMENT_STAGE.OSD_SENIOR_REVIEW
-         : ENROLLMENT_STAGE.OSD_JUNIOR_REVIEW;
-
-   return await getPendingEnrollmentsForStageRepo(orgId, stage);
+export const getPendingEnrollmentsService = async (orgId: string) => {
+   return await getPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OSD Junior action (return | recommend)
+// OSD approve/reject a reimbursement claim (approve | reject)
 //
-// Idempotency: query filters on currentStage === OSD_JUNIOR_REVIEW. Once the
-// junior acts and moves the stage, a repeat call gets a 404, preventing
-// double-processing.
+// Single-tier gate (per ticket 0031 — no junior/senior split). Reject is
+// terminal (no rework loop, matches the manager gate's behavior); approve
+// completes the enrollment.
 //
-// Atomicity: single findOneAndUpdate — no read-modify-write race.
+// Idempotency: query filters on currentStage === REIMBURSEMENT_OSD_REVIEW.
+// Atomicity: single findOneAndUpdate (in the repository layer) — no read-
+// modify-write race.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const takeOsdJuniorActionService = async (
+export const takeReimbursementOsdActionService = async (
    enrollmentId: string,
    officerId: string,
    orgId: string,
-   action: string,
+   action: REIMBURSEMENT_ACTION,
    note: string
 ) => {
-   // 1. Validate action
    if (
-      !Object.values(OSD_JUNIOR_ACTION).includes(action as OSD_JUNIOR_ACTION) ||
-      action === OSD_JUNIOR_ACTION.PENDING
+      !Object.values(REIMBURSEMENT_ACTION).includes(action) ||
+      action === REIMBURSEMENT_ACTION.WAITING ||
+      action === REIMBURSEMENT_ACTION.PENDING
    ) {
       throw new AppError(
          "Invalid action. Must be 'return' or 'recommend'.",
@@ -170,13 +164,16 @@ export const takeOsdSeniorActionService = async (
    // 3. Determine next stage and status
    //    approve → REIMBURSEMENT_APPROVED
    //    reject  → REJECTED (final — no revision loop)
+      throw new AppError(MESSAGES.INVALID_REIMBURSEMENT_ACTION, HTTP_STATUS.BAD_REQUEST);
+   }
+
    const nextStage =
-      action === OSD_SENIOR_ACTION.APPROVE
-         ? ENROLLMENT_STAGE.REIMBURSEMENT_APPROVED
+      action === REIMBURSEMENT_ACTION.APPROVE
+         ? ENROLLMENT_STAGE.COMPLETED
          : ENROLLMENT_STAGE.REJECTED;
 
    const nextReimbursementStatus =
-      action === OSD_SENIOR_ACTION.APPROVE
+      action === REIMBURSEMENT_ACTION.APPROVE
          ? REIMBURSEMENT_STATUS.APPROVED
          : REIMBURSEMENT_STATUS.REJECTED;
 
@@ -206,8 +203,27 @@ export const takeOsdSeniorActionService = async (
                at:        new Date(),
             },
          },
+   const updated = await takeReimbursementOsdActionRepo(
+      enrollmentId,
+      orgId,
+      {
+         currentStage:               nextStage,
+         "reimbursement.status":     nextReimbursementStatus,
+         "reimbursement.osdApproval": { action, note, actedAt: new Date() },
+      },
+      {
+         stage:     nextStage,
+         actorId:   toObjectId(officerId),
+         actorType: ACTOR_TYPE.OSD,
+         action,
+         note,
+         at:        new Date(),
       }
    );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
 
    return { currentStage: nextStage };
 };

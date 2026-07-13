@@ -233,7 +233,7 @@ export const getAttendanceActivities = async (
 
     {
       $match: {
-        "program.training_providerId":
+        "program.createdBy":
           new mongoose.Types.ObjectId(
             trainingProviderId
           )

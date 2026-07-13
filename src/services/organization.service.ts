@@ -1,7 +1,7 @@
 import { OrganizationStatus } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { bulkCreateOrganizations, createOrganization, findOrganizationBySlug, findOrganizationsBySlugs, updateOrganizationPolicy } from "../repositories/organization.repository.js";
+import { bulkCreateOrganizations, createOrganization, findOneOrgBySlug, updateOrganizationPolicy } from "../repositories/organization.repository.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
@@ -13,7 +13,7 @@ export const createOrganizationService = async (
   data: CreateOrganization
 ) => {
   const existingOrganization =
-    await findOrganizationBySlug(data.slug);
+    await findOneOrgBySlug(data.slug);
 
   if (existingOrganization) {
     throw new AppError(

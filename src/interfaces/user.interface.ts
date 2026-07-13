@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { USER_STATUS, ORG_ROLE } from "../constants/enum.js";
+import { USER_STATUS, ORG_ROLE, ROLE } from "../constants/enum.js";
 import { IOrganization } from "./organization.interface.js";
 
 export interface IManagerChainEntry {
@@ -47,6 +47,8 @@ export interface IUser {
    email: string;
    mobile?: string;
    placeOfPosting?: string;      // was: location
+   designation?: string;
+   department?: string;
 
    passwordHash: string;         // was: password
    mustChangePassword: boolean;
