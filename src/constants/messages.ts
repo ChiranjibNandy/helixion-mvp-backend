@@ -111,4 +111,7 @@ export const MESSAGES = {
   REIMBURSEMENT_ALREADY_SUBMITTED: "Reimbursement has already been submitted for this enrollment",
   REIMBURSEMENT_SUBMITTED: "Reimbursement claim submitted successfully",
   INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be approve or reject.",
+  TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
+  INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
+  TOUR_NOT_PENDING: "Tour form is not pending submission",
 } as const;

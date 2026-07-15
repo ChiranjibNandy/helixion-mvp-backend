@@ -400,3 +400,121 @@ export const submitReimbursementService = async (
 
    return updated;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submit tour form (post-CTD approval)
+//
+// Called when the enrollment is at TOUR_PENDING_EMPLOYEE stage.
+// Employee chooses between self_travel (no approval needed) or
+// company_assisted (requires manager and/or OSD approval).
+//
+// Atomicity: single findOneAndUpdate with stage filter — prevents
+// double-processing if two requests race on the same enrollment.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const submitTourFormService = async (
+   userId: string,
+   enrollmentId: string,
+   tourFormData: {
+      travelType: string;
+      placeOfTour?: string;
+      frequentFlyerNo?: string;
+      modeOfTravel?: string;
+      purpose?: string;
+      bookingDetails?: any[];
+      advancePaymentRequired?: number;
+   }
+) => {
+   const enrollment = await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      employeeId: toObjectId(userId),
+      currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+   });
+
+   if (!enrollment) {
+      throw new AppError(MESSAGES.TOUR_NOT_PENDING, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const travelType = tourFormData.travelType as TRAVEL_TYPE;
+   const managerApprovalRequired = enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
+   const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+
+   let nextStage: ENROLLMENT_STAGE;
+   let tourStatus: TOUR_STATUS;
+
+   if (travelType === TRAVEL_TYPE.SELF_TRAVEL || travelType === TRAVEL_TYPE.LOCAL) {
+      // Self-travel / local — no approval needed
+      nextStage = ENROLLMENT_STAGE.APPROVED;
+      tourStatus = TOUR_STATUS.NOT_REQUIRED;
+   } else if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+      if (managerApprovalRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW;
+         tourStatus = TOUR_STATUS.SUBMITTED;
+      } else if (osdApprovalRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+         tourStatus = TOUR_STATUS.MANAGER_APPROVED;
+      } else {
+         nextStage = ENROLLMENT_STAGE.APPROVED;
+         tourStatus = TOUR_STATUS.APPROVED;
+      }
+   } else {
+      throw new AppError("Invalid travel type", HTTP_STATUS.BAD_REQUEST);
+   }
+
+   const updateOps: Record<string, any> = {
+      $set: {
+         currentStage: nextStage,
+         "tour.travelType": travelType,
+         "tour.status": tourStatus,
+         "tour.details": {
+            placeOfTour: tourFormData.placeOfTour || "",
+            frequentFlyerNo: tourFormData.frequentFlyerNo || "",
+            modeOfTravel: tourFormData.modeOfTravel || "flight",
+            purpose: tourFormData.purpose || "To Attend Training Program",
+            advancePaymentRequired: tourFormData.advancePaymentRequired ?? 0,
+            bookingDetails: tourFormData.bookingDetails || [],
+         },
+         "tour.managerApproval": {
+            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && managerApprovalRequired
+               ? MANAGER_ACTION.PENDING
+               : MANAGER_ACTION.APPROVE,
+         },
+         "tour.osdApproval": {
+            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && osdApprovalRequired
+               ? TOUR_OSD_ACTION.WAITING
+               : TOUR_OSD_ACTION.APPROVE,
+         },
+         "statusSummary.tourStatus": tourStatus,
+      },
+      $push: {
+         timeline: {
+            stage: nextStage,
+            actorId: toObjectId(userId),
+            actorType: ACTOR_TYPE.EMPLOYEE,
+            action: EMPLOYEE_TIMELINE_ACTION.TOUR_FORM_SUBMITTED,
+            note: `Tour form submitted — ${travelType}`,
+            at: new Date(),
+         },
+      },
+   };
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         employeeId: toObjectId(userId),
+         currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+      },
+      updateOps,
+      { new: true }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.TOUR_NOT_PENDING, HTTP_STATUS.CONFLICT);
+   }
+
+   return {
+      enrollmentId: updated._id.toString(),
+      currentStage: updated.currentStage,
+      tourStatus: updated.tour?.status,
+   };
+};

@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import {
    getPendingEnrollmentsService,
-   takeOsdJuniorActionService,
    takeOsdSeniorActionService,
+   takeReimbursementOsdActionService,
    takeTourOsdActionService,
+   getPendingTourOsdApprovalsService,
 } from "../services/osd.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +57,29 @@ export const takeReimbursementOsdAction = async (
          success:      true,
          message:      `OSD action '${action}' recorded`,
          currentStage: result.currentStage,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/osd/tour-approvals/pending
+// ─────────────────────────────────────────────────────────────────────────────
+export const getPendingTourOsdApprovals = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const orgId = req.orgId!;
+
+      const enrollments = await getPendingTourOsdApprovalsService(orgId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data: enrollments,
+         count: enrollments.length,
       });
    } catch (error) {
       next(error);

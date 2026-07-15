@@ -6,9 +6,10 @@ import {
    updateEnrollmentForStageOsdRepo,
    getEnrollmentForTourOsdActionRepo,
    updateEnrollmentForTourOsdActionRepo,
+   getPendingTourApprovalsForOsdRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
-import { getPendingEnrollmentsForStageRepo, takeReimbursementOsdActionRepo } from "../repositories/enrollment.repository.js";
+import { takeReimbursementOsdActionRepo } from "../repositories/enrollment.repository.js";
 import { AppError } from "../utils/appError.js";
 import {
    ENROLLMENT_STAGE,
@@ -117,92 +118,6 @@ export const takeReimbursementOsdActionService = async (
    return { currentStage: nextStage };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OSD Senior action (approve | reject)
-//
-// Per design decision: senior "reject" is FINAL — enrollment moves to
-// ENROLLMENT_STAGE.REJECTED with reimbursementStatus = REJECTED.
-// There is no revision loop back to junior.
-//
-// Idempotency: query filters on currentStage === OSD_SENIOR_REVIEW.
-// Atomicity: single findOneAndUpdate.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const takeOsdSeniorActionService = async (
-   enrollmentId: string,
-   officerId: string,
-   orgId: string,
-   action: string,
-   note: string
-) => {
-   // 1. Validate action
-   if (
-      !Object.values(OSD_SENIOR_ACTION).includes(action as OSD_SENIOR_ACTION) ||
-      action === OSD_SENIOR_ACTION.WAITING
-   ) {
-      throw new AppError(
-         "Invalid action. Must be 'approve' or 'reject'.",
-         HTTP_STATUS.BAD_REQUEST
-      );
-   }
-
-   // 2. Verify enrollment exists in senior-review stage (idempotency guard)
-   const existing = await getEnrollmentForStageOsdRepo(
-      enrollmentId,
-      orgId,
-      ENROLLMENT_STAGE.OSD_SENIOR_REVIEW
-   );
-
-   if (!existing) {
-      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-   }
-
-   if (!existing.reimbursement) {
-      throw new AppError("No reimbursement data found.", HTTP_STATUS.CONFLICT);
-   }
-
-   // 3. Determine next stage and status
-   //    approve → REIMBURSEMENT_APPROVED
-   //    reject  → REJECTED (final — no revision loop)
-      throw new AppError(MESSAGES.INVALID_REIMBURSEMENT_ACTION, HTTP_STATUS.BAD_REQUEST);
-   }
-
-   const nextStage =
-      action === REIMBURSEMENT_ACTION.APPROVE
-         ? ENROLLMENT_STAGE.COMPLETED
-         : ENROLLMENT_STAGE.REJECTED;
-
-   const nextReimbursementStatus =
-      action === REIMBURSEMENT_ACTION.APPROVE
-         ? REIMBURSEMENT_STATUS.APPROVED
-         : REIMBURSEMENT_STATUS.REJECTED;
-
-   // 4. Atomic update — single round-trip, no race condition
-   await updateEnrollmentForStageOsdRepo(
-      enrollmentId,
-      orgId,
-      ENROLLMENT_STAGE.OSD_SENIOR_REVIEW,
-      {
-         $set: {
-            currentStage:                        nextStage,
-            "statusSummary.reimbursementStatus": nextReimbursementStatus,
-            "reimbursement.osdSenior": {
-               officerId: toObjectId(officerId),
-               action:    action as OSD_SENIOR_ACTION,
-               note,
-               actedAt:   new Date(),
-            },
-         },
-         $push: {
-            timeline: {
-               stage:     nextStage,
-               actorId:   toObjectId(officerId),
-               actorType: ACTOR_TYPE.OSD,
-               action,
-               note,
-               at:        new Date(),
-            },
-         },
    const updated = await takeReimbursementOsdActionRepo(
       enrollmentId,
       orgId,
@@ -232,6 +147,10 @@ export const takeOsdSeniorActionService = async (
 // Tour OSD action (approve | reject)
 // ─────────────────────────────────────────────────────────────────────────────
 
+export const getPendingTourOsdApprovalsService = async (orgId: string) => {
+   return await getPendingTourApprovalsForOsdRepo(orgId);
+};
+
 export const takeTourOsdActionService = async (
    enrollmentId: string,
    officerId: string,
@@ -249,12 +168,17 @@ export const takeTourOsdActionService = async (
       );
    }
 
-   const existing = await getEnrollmentForTourOsdActionRepo(enrollmentId, orgId);
+   const existing = await enrollmentModel.findOne({
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
+   });
 
    if (!existing) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
+   const nextStage = ENROLLMENT_STAGE.APPROVED;
    const nextTourStatus =
       action === TOUR_OSD_ACTION.APPROVE
          ? TOUR_STATUS.OSD_APPROVED
@@ -262,6 +186,7 @@ export const takeTourOsdActionService = async (
 
    const updateOps: any = {
       $set: {
+         currentStage: nextStage,
          "tour.status": nextTourStatus,
          "statusSummary.tourStatus": nextTourStatus,
          "tour.osdApproval": {
@@ -273,7 +198,7 @@ export const takeTourOsdActionService = async (
       },
       $push: {
          timeline: {
-            stage:     existing.currentStage,
+            stage:     nextStage,
             actorId:   toObjectId(officerId),
             actorType: ACTOR_TYPE.OSD,
             action:    `tour_osd_${action}`,
@@ -295,7 +220,19 @@ export const takeTourOsdActionService = async (
       }
    }
 
-   await updateEnrollmentForTourOsdActionRepo(enrollmentId, orgId, updateOps);
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id:          toObjectId(String(enrollmentId)),
+         orgId:        toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
+      },
+      updateOps,
+      { new: true }
+   );
 
-   return { currentStage: updateOps.$set.currentStage || existing.currentStage };
+   if (!updated) {
+       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   return { currentStage: nextStage };
 };

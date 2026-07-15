@@ -8,7 +8,8 @@ import {
    getEnrollmentDetails,
    updateTravelDetails,
    submitEnrollment,
-   submitReimbursement
+   submitReimbursement,
+   submitTourForm
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -18,7 +19,9 @@ import {
    programParamsSchema,
    enrollProgramBodySchema,
    submitReimbursementBodySchema,
-   submitReimbursementParamsSchema
+   submitReimbursementParamsSchema,
+   submitTourFormParamsSchema,
+   submitTourFormBodySchema
 } from "../validators/employee.validator.js";
 
 const router = express.Router();
@@ -54,6 +57,12 @@ router.post(
    "/enrollments/:enrollmentId/reimbursement/submit",
    validate({ params: submitReimbursementParamsSchema, body: submitReimbursementBodySchema }),
    submitReimbursement
+);
+
+router.post(
+   "/enrollments/:enrollmentId/tour/submit",
+   validate({ params: submitTourFormParamsSchema, body: submitTourFormBodySchema }),
+   submitTourForm
 );
 
 export default router;

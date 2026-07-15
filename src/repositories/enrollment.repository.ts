@@ -614,3 +614,31 @@ export const updateEnrollmentForTourOsdActionRepo = async (enrollmentId: string,
       { new: true }
    );
 };
+
+// ─── Tour approval queues ──────────────────────────────────────────────────────
+
+export const getPendingTourApprovalsForManagerRepo = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await enrollmentModel
+      .find({
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId": toObjectId(managerId),
+      })
+      .populate("employeeId", "name email employeeCode designation department placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
+
+export const getPendingTourApprovalsForOsdRepo = async (orgId: string) => {
+   return await enrollmentModel
+      .find({
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
+      })
+      .populate("employeeId", "name email employeeCode designation department placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
