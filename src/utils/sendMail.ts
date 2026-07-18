@@ -214,15 +214,16 @@ export const sendEnrollmentApprovedLocalMail = notificationMail(
 );
 
 export const sendEnrollmentApprovedOutstationMail = notificationMail(
-  "Enrollment Approved — Outstation Training",
+  "Select Travel Option",
   "Enrollment Approved",
   ({ username, programTitle }) => `
     <p>Hello, ${username}</p>
-    <p>
-      Your enrollment for <strong>${programTitle}</strong> has been approved.
-      This training is outside your place of posting.
-    </p>
-    <p>Please coordinate your travel arrangements with the Training Department.</p>
+    <p>Your enrollment for <strong>${programTitle}</strong> has been approved.</p>
+    <p>Please select your travel option:</p>
+    <ul>
+      <li>Self Travel</li>
+      <li>Company Assisted Travel</li>
+    </ul>
   `
 );
 
@@ -291,10 +292,10 @@ export const sendReimbursementRejectedByOsdMail = notificationMail(
   `
 );
 
-// ── Not yet wired: tour/travel-workflow events (4-9 + OSD timeout). The ─────
-// underlying Tour Form / travel-selection feature is ticket 0030, which
-// hasn't been built, so nothing calls these yet — they exist so the trigger
-// only needs to be added once 0030 lands, not also new templates.
+// ── Tour/travel-workflow events (4-9 + OSD timeout) — wired into ────────────
+// employee.service.ts (submitTourFormService), manager.service.ts
+// (takeTourManagerActionService), osd.service.ts (takeTourOsdActionService),
+// and src/cron/osdTimeout.cron.ts.
 
 export const sendSelfTravelSelectedMail = notificationMail(
   "Self Travel Selected",
@@ -375,9 +376,8 @@ export const sendTravelRequestNotApprovedByOsdMail = notificationMail(
       was not approved by OSD.
     </p>
     <p>
-      The request has been converted to Self Travel. You may proceed with
-      your own travel arrangements and submit reimbursement after training
-      completion.
+      You may proceed with self-arranged travel and submit reimbursement
+      after training completion.
     </p>
   `
 );

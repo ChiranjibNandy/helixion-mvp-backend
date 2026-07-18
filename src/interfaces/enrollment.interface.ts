@@ -11,6 +11,8 @@ import {
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAVEL_TYPE,
+   TOUR_OSD_ACTION,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -109,6 +111,30 @@ export interface IEnrollment {
       managerReason?: string;
    };
 
+   tour?: {
+      travelType: TRAVEL_TYPE;
+      status: TOUR_STATUS;
+      details?: {
+         placeOfTour?: string;
+         frequentFlyerNo?: string;
+         modeOfTravel?: string;
+         purpose?: string;
+         advancePaymentRequired?: number;
+         bookingDetails?: IBookingDetail[];
+      };
+      managerApproval?: {
+         action: MANAGER_ACTION;
+         note?: string;
+         actedAt?: Date;
+      };
+      osdApproval?: {
+         officerId?: Types.ObjectId;
+         action: TOUR_OSD_ACTION;
+         note?: string;
+         actedAt?: Date;
+      };
+   };
+
    attendance?: {
       uploadedByProvider?: boolean;
       uploadedAt?: Date;
@@ -138,6 +164,8 @@ export interface IEnrollment {
    };
 
    timeline: ITimelineEntry[];
+
+   notes?: string;
 
    createdAt: Date;
    updatedAt: Date;

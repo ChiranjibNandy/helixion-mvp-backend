@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { SubmitTourFormDto } from "../dtos/enrollment.dto.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -12,7 +13,8 @@ import {
    updateTravelDetailsService,
    submitEnrollmentService,
    submitReimbursementService,
-   getEmployeeNotificationsService
+   getEmployeeNotificationsService,
+   submitTourFormService
 } from "../services/employee.service.js";
 
 
@@ -171,12 +173,12 @@ export const updateTravelDetails = async (req: Request, res: Response, next: Nex
       }
 
       const { id: enrollmentId } = req.params;
-      const travelAndStay = req.body;
+      const tourFormData: SubmitTourFormDto = req.body;
 
       const result = await updateTravelDetailsService(
          userId,
          String(enrollmentId),
-         travelAndStay
+         tourFormData
       );
 
       return res.status(HTTP_STATUS.OK).json({
@@ -252,6 +254,32 @@ export const submitReimbursement = async (req: Request, res: Response, next: Nex
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.REIMBURSEMENT_SUBMITTED,
+         data: result
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const submitTourForm = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const userId = req.userId;
+      if (!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { enrollmentId } = req.params;
+      const tourFormData = req.body;
+
+      const result = await submitTourFormService(
+         userId,
+         String(enrollmentId),
+         tourFormData
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.TOUR_FORM_SUBMITTED,
          data: result
       });
    } catch (error) {

@@ -1,6 +1,6 @@
 import z from "zod";
 import { searchUsersQuerySchema, objectIdSchema } from "./common.validator.js";
-import { STAY_TYPE } from "../constants/enum.js";
+import { STAY_TYPE, TRAVEL_TYPE } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 
 export const getProgramsQuerySchema = searchUsersQuerySchema.extend({
@@ -32,4 +32,30 @@ export const submitReimbursementBodySchema = z.object({
 
 export const submitReimbursementParamsSchema = z.object({
   enrollmentId: objectIdSchema,
+});
+
+export const submitTourFormParamsSchema = z.object({
+  enrollmentId: objectIdSchema,
+});
+
+const bookingDetailSchema = z.object({
+  from:          z.string().trim().min(1),
+  to:            z.string().trim().min(1),
+  refNo:         z.string().trim().optional().default(""),
+  departureTime: z.string().trim().optional().default(""),
+  travelDate:    z.string().optional().default(""),
+  travelClass:   z.string().trim().optional().default("Economy"),
+});
+
+export const submitTourFormBodySchema = z.object({
+  travelType: z.enum(
+    [TRAVEL_TYPE.SELF_TRAVEL, TRAVEL_TYPE.COMPANY_ASSISTED, TRAVEL_TYPE.LOCAL],
+    { message: "Travel type must be self_travel, company_assisted, or local" }
+  ),
+  placeOfTour:            z.string().trim().optional(),
+  frequentFlyerNo:        z.string().trim().optional(),
+  modeOfTravel:           z.string().trim().optional(),
+  purpose:                z.string().trim().max(500).optional(),
+  bookingDetails:         z.array(bookingDetailSchema).optional().default([]),
+  advancePaymentRequired: z.number().min(0).optional().default(0),
 });

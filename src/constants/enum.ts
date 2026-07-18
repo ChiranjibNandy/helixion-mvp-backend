@@ -76,9 +76,10 @@ export enum ACTOR_TYPE {
 
 // ─── Employee-actor timeline actions ──────────────────────────────────────────
 export enum EMPLOYEE_TIMELINE_ACTION {
-  CREATED        = "created",
-  UPDATED_TRAVEL = "updated_travel",
-  SUBMITTED      = "submitted",
+  CREATED             = "created",
+  UPDATED_TRAVEL      = "updated_travel",
+  SUBMITTED           = "submitted",
+  TOUR_FORM_SUBMITTED = "tour_form_submitted",
 }
 
 // ─── Timeline-only action values ───────────────────────────────────────────────
@@ -98,6 +99,11 @@ export enum TIMELINE_ACTION {
   REIMBURSEMENT_MANAGER_REJECT   = "reimbursement_manager_reject",
   REIMBURSEMENT_OSD_APPROVE      = "reimbursement_osd_approve",
   REIMBURSEMENT_OSD_REJECT       = "reimbursement_osd_reject",
+  TOUR_MANAGER_APPROVE           = "tour_manager_approve",
+  TOUR_MANAGER_REJECT            = "tour_manager_reject",
+  TOUR_OSD_APPROVE               = "tour_osd_approve",
+  TOUR_OSD_REJECT                = "tour_osd_reject",
+  TOUR_OSD_TIMEOUT               = "osd_timeout",
 }
 
 // ─── Stay types ───────────────────────────────────────────────────────────────
@@ -146,6 +152,8 @@ export enum ENROLLMENT_STAGE {
   TRAINING_DEPT_REVIEW         = "training_dept_review",
   APPROVED                     = "approved",
   TOUR_PENDING_EMPLOYEE        = "tour_pending_employee",
+  TOUR_MANAGER_REVIEW          = "tour_manager_review",
+  TOUR_OSD_REVIEW              = "tour_osd_review",
   REJECTED                     = "rejected",
   ATTENDED                     = "attended",
   ABSENT                       = "absent",
@@ -181,10 +189,29 @@ export enum ENROLLMENT_STATUS_SUMMARY {
   REJECTED = "rejected",
 }
 
+export enum TRAVEL_TYPE {
+  LOCAL            = "local",
+  SELF_TRAVEL      = "self_travel",
+  COMPANY_ASSISTED = "company_assisted",
+}
+
+export enum TOUR_OSD_ACTION {
+  WAITING = "waiting",
+  APPROVE = "approve",
+  REJECT  = "reject",
+}
+
 export enum TOUR_STATUS {
-  SUBMITTED = "submitted",
-  APPROVED = "approved",
-  REJECTED = "rejected",
+  NOT_REQUIRED            = "not_required",
+  PENDING_EMPLOYEE_CHOICE = "pending_employee_choice",
+  SUBMITTED               = "submitted",
+  MANAGER_APPROVED        = "manager_approved",
+  MANAGER_REJECTED        = "manager_rejected",
+  OSD_APPROVED            = "osd_approved",
+  OSD_REJECTED            = "osd_rejected",
+  OSD_TIMEOUT             = "osd_timeout",
+  APPROVED                = "approved",
+  REJECTED                = "rejected",
 }
 
 export enum ATTENDANCE_RECORD_STATUS {

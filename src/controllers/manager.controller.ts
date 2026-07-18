@@ -6,8 +6,10 @@ import {
    getPendingReimbursementsService,
    takeReimbursementManagerActionService,
    getManagerDashboardService,
+   getPendingTourApprovalsService,
+   takeTourManagerActionService,
 } from "../services/manager.service.js";
-import { getRelevantEnrollmentService } from "../services/enrollment.service.js";
+import { getRelevantEnrollmentService, getEmployeeTrainingHistoryService } from "../services/enrollment.service.js";
 import { MESSAGES } from "../constants/messages.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,6 +53,7 @@ export const getPendingEnrollments = async (
 
       res.status(HTTP_STATUS.OK).json({
          success: true,
+         message: MESSAGES.PENDING_TOUR_APPROVALS_FETCHED,
          data: enrollments,
          count: enrollments.length,
       });
@@ -113,6 +116,28 @@ export const getRelevantEnrollments = async (req: Request, res: Response, next: 
       next(error)
    }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/enrollments/:enrollmentId/training-history
+// ─────────────────────────────────────────────────────────────────────────────
+export const getEmployeeTrainingHistory = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const enrollmentId = String(req.params.enrollmentId);
+      const managerId    = req.userId!;
+      const orgId        = req.orgId!;
+
+      const history = await getEmployeeTrainingHistoryService(enrollmentId, managerId, orgId);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data:    history,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/reimbursements/pending
 // ─────────────────────────────────────────────────────────────────────────────
 export const getPendingReimbursements = async (
@@ -161,6 +186,62 @@ export const takeReimbursementManagerAction = async (
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: `Action '${ action }' recorded`,
+         currentStage: result.currentStage,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/tour-approvals/pending
+// ─────────────────────────────────────────────────────────────────────────────
+export const getPendingTourApprovals = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const managerId = req.userId!;
+      const orgId = req.orgId!;
+
+      const enrollments = await getPendingTourApprovalsService(managerId, orgId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data: enrollments,
+         count: enrollments.length,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/manager/enrollments/:enrollmentId/tour-action
+// ─────────────────────────────────────────────────────────────────────────────
+export const takeTourManagerAction = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const enrollmentId = String(req.params.enrollmentId);
+      const managerId = req.userId!;
+      const orgId = req.orgId!;
+      const { action, note } = req.body;
+
+      const result = await takeTourManagerActionService(
+         enrollmentId,
+         managerId,
+         orgId,
+         action,
+         note || ""
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: `Tour action '${action}' recorded`,
          currentStage: result.currentStage,
       });
    } catch (error) {

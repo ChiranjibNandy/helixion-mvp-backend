@@ -11,6 +11,8 @@ import {
    REIMBURSEMENT_ACTION,
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
+   TRAVEL_TYPE,
+   TOUR_OSD_ACTION,
    ENROLLMENT_STATUS,
 } from "../constants/enum.js";
 
@@ -189,6 +191,30 @@ const enrollmentSchema = new Schema<IEnrollment>(
          managerReason:          { type: String, default: "" },
       },
 
+      tour: {
+         travelType: { type: String, enum: Object.values(TRAVEL_TYPE) },
+         status:     { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.NOT_REQUIRED },
+         details: {
+            placeOfTour:            { type: String },
+            frequentFlyerNo:        { type: String, default: "" },
+            modeOfTravel:           { type: String },
+            purpose:                { type: String },
+            advancePaymentRequired: { type: Number, default: 0 },
+            bookingDetails:         { type: [bookingDetailSchema], default: [] },
+         },
+         managerApproval: {
+            action:  { type: String, enum: Object.values(MANAGER_ACTION) },
+            note:    { type: String, default: "" },
+            actedAt: { type: Date },
+         },
+         osdApproval: {
+            officerId: { type: Schema.Types.ObjectId, ref: "User" },
+            action:    { type: String, enum: Object.values(TOUR_OSD_ACTION) },
+            note:      { type: String, default: "" },
+            actedAt:   { type: Date },
+         },
+      },
+
       attendance: {
          uploadedByProvider: { type: Boolean, default: false },
          uploadedAt:         { type: Date },
@@ -218,6 +244,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
       },
 
       timeline: { type: [timelineSchema], default: [] },
+
+      // Employee's free-text justification entered at enrollment time.
+      // Previously accepted by enrollInProgramService's payload but silently
+      // dropped by Mongoose (strict mode, no matching schema field) — never
+      // actually persisted until this field existed.
+      notes: { type: String, default: "" },
    },
    {
       timestamps: true,

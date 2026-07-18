@@ -8,6 +8,7 @@ import {
    getManagerOwnDashboardSummaryRepo,
    getManagerTeamEnrollmentCountRepo,
    getManagerApprovalStatsRepo,
+   getPendingTourApprovalsForManagerRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -18,11 +19,13 @@ import {
    ACTOR_TYPE,
    TOUR_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
+   TRAVEL_TYPE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
+   TOUR_OSD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail } from "../utils/sendMail.js";
+import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderOsdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,10 +174,16 @@ export const takeManagerActionService = async (
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
-      if (tourManagerApprovalRequired && enrollment.travelAndStay) {
+      if (enrollment.travelAndStay) {
          updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.REJECT;
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
          updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.REJECTED;
+      }
+      if (enrollment.tour) {
+         updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.REJECT;
+         updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+         updateOps.$set["tour.managerApproval.note"] = note;
+         updateOps.$set["tour.status"] = TOUR_STATUS.MANAGER_REJECTED;
       }
    } else {
       // Check whether the minimum required level has approved
@@ -204,6 +213,18 @@ export const takeManagerActionService = async (
             updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
             updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
             updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
+         }
+         const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+         if (tourManagerApprovalRequired && enrollment.tour) {
+            updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
+            updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+            updateOps.$set["tour.managerApproval.note"] = note;
+            
+            if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+                updateOps.$set["tour.status"] = osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED;
+            } else {
+                updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+            }
          }
       }
    }
@@ -322,6 +343,123 @@ export const takeReimbursementManagerActionService = async (
          })
          .catch(logMailFailure("reimbursement-rejected-by-manager"));
    }
+
+   return { currentStage: nextStage };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get pending tour approvals awaiting this manager's action
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getPendingTourApprovalsService = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await getPendingTourApprovalsForManagerRepo(managerId, orgId);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager approve/reject a tour (company-assisted travel)
+//
+// Single-tier gate keyed on the same assignedApproverId.
+// Approve → advance to TOUR_OSD_REVIEW (if OSD required) or APPROVED.
+// Reject → fallback to self_travel, enrollment continues at APPROVED stage.
+//
+// Idempotency: query filters on currentStage === TOUR_MANAGER_REVIEW.
+// Atomicity: single findOneAndUpdate.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const takeTourManagerActionService = async (
+   enrollmentId: string,
+   managerId: string,
+   orgId: string,
+   action: MANAGER_ACTION,
+   note: string
+) => {
+   if (
+      action !== MANAGER_ACTION.APPROVE &&
+      action !== MANAGER_ACTION.REJECT
+   ) {
+      throw new AppError(MESSAGES.INVALID_TOUR_ACTION, HTTP_STATUS.BAD_REQUEST);
+   }
+
+   const enrollment = await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+      "managerApproval.assignedApproverId": toObjectId(managerId),
+   });
+
+   if (!enrollment) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const osdRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+
+   let nextStage: ENROLLMENT_STAGE;
+   let nextTourStatus: TOUR_STATUS;
+
+   if (action === MANAGER_ACTION.REJECT) {
+      // Rejection: fallback to self_travel, enrollment continues
+      nextStage = ENROLLMENT_STAGE.APPROVED;
+      nextTourStatus = TOUR_STATUS.MANAGER_REJECTED;
+   } else {
+      // Approval: route to OSD if required, otherwise mark approved
+      if (osdRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+         nextTourStatus = TOUR_STATUS.MANAGER_APPROVED;
+      } else {
+         nextStage = ENROLLMENT_STAGE.APPROVED;
+         nextTourStatus = TOUR_STATUS.APPROVED;
+      }
+   }
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId": toObjectId(managerId),
+      },
+      {
+         $set: {
+            currentStage: nextStage,
+            "tour.status": nextTourStatus,
+            "tour.managerApproval.action": action,
+            "tour.managerApproval.note": note,
+            "tour.managerApproval.actedAt": new Date(),
+            "statusSummary.tourStatus": nextTourStatus,
+            ...(action === MANAGER_ACTION.REJECT ? { "tour.travelType": TRAVEL_TYPE.SELF_TRAVEL } : {}),
+         },
+         $push: {
+            timeline: {
+               stage: nextStage,
+               actorId: toObjectId(managerId),
+               actorType: ACTOR_TYPE.MANAGER,
+               action: `tour_manager_${action}`,
+               note,
+               at: new Date(),
+            },
+         },
+      },
+      { new: true }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   loadNotificationContext(String(updated.employeeId), String(updated.programId))
+      .then(({ employee, programTitle }) => {
+         if (!employee) return;
+         if (nextTourStatus === TOUR_STATUS.MANAGER_REJECTED) {
+            return sendTravelRequestRejectedByManagerMail(employee.email, employee.name, programTitle);
+         }
+         return nextTourStatus === TOUR_STATUS.MANAGER_APPROVED
+            ? sendTravelRequestUnderOsdReviewMail(employee.email, employee.name, programTitle)
+            : sendTravelRequestApprovedMail(employee.email, employee.name, programTitle);
+      })
+      .catch(logMailFailure("tour-manager-action"));
 
    return { currentStage: nextStage };
 };
