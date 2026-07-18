@@ -14,5 +14,6 @@
     "types": ["node","express"],
 
     "sourceMap": true
-  }
+  },
+  "exclude": ["node_modules", "dist"]
 }

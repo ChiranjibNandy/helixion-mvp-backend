@@ -28,6 +28,7 @@ export const getPendingEnrollments = async (
 
       res.status(HTTP_STATUS.OK).json({
          success: true,
+         message: MESSAGES.PENDING_TOUR_APPROVALS_FETCHED,
          data: enrollments,
          count: enrollments.length,
       });

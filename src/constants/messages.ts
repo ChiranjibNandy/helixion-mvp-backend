@@ -25,6 +25,7 @@ export const MESSAGES = {
   LIMIT_CANNOT_EXCEED_100: "Limit cannot exceed 100",
 
   PENDING_REGISTRATIONS_FETCHED: "Pending user registrations fetched successfully",
+  PENDING_TOUR_APPROVALS_FETCHED: "Pending tour approvals fetched successfully",
 
   TOKEN_REQUIRED: "Access token is required",
   INVALID_TOKEN: "Invalid token",

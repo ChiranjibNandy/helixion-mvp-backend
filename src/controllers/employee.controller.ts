@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { SubmitTourFormDto } from "../dtos/enrollment.dto.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -171,12 +172,12 @@ export const updateTravelDetails = async (req: Request, res: Response, next: Nex
       }
 
       const { id: enrollmentId } = req.params;
-      const travelAndStay = req.body;
+      const tourFormData: SubmitTourFormDto = req.body;
 
       const result = await updateTravelDetailsService(
          userId,
          String(enrollmentId),
-         travelAndStay
+         tourFormData
       );
 
       return res.status(HTTP_STATUS.OK).json({

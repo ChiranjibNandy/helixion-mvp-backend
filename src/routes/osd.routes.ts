@@ -16,8 +16,8 @@ import {
 } from "../controllers/osd.controller.js";
 import {
    reimbursementEnrollmentParamsSchema,
-   reimbursementOsdActionBodySchema,
-   tourOsdActionBodySchema,
+   reimbursementOsdJuniorActionBodySchema,
+   reimbursementOsdSeniorActionBodySchema,
 } from "../validators/osd.validator.js";
 
 const router = express.Router();
@@ -50,14 +50,36 @@ router.get(
 );
 
 /**
- * PATCH /api/osd/enrollments/:enrollmentId/reimbursement-action
+ * PATCH /api/osd/enrollments/:enrollmentId/junior-action
+ * Body: { action: "return" | "recommend", note? }
+ */
+router.patch(
+   "/enrollments/:enrollmentId/junior-action",
+   authorizeOfficeRole("osd", 1),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdJuniorActionBodySchema }),
+   takeOsdJuniorAction
+);
+
+/**
+ * PATCH /api/osd/enrollments/:enrollmentId/senior-action
  * Body: { action: "approve" | "reject", note? }
  */
 router.patch(
-   "/enrollments/:enrollmentId/reimbursement-action",
-   authorizeOfficeRole("osd", 1),
-   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
-   takeReimbursementOsdAction
+   "/enrollments/:enrollmentId/senior-action",
+   authorizeOfficeRole("osd", 2),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdSeniorActionBodySchema }),
+   takeOsdSeniorAction
+);
+
+/**
+ * PATCH /api/osd/enrollments/:id/tour-action
+ * Body: { action: "approve" | "reject", note? }
+ */
+router.patch(
+   "/enrollments/:enrollmentId/senior-action",
+   authorizeOfficeRole("osd", 2),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdSeniorActionBodySchema }),
+   takeOsdSeniorAction
 );
 
 router.patch(
