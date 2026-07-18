@@ -4,7 +4,7 @@ import { MESSAGES } from "../constants/messages.js";
 import {
    getPendingEnrollmentsService,
    takeOsdSeniorActionService,
-   takeReimbursementOsdActionService,
+   takeOsdJuniorActionService,
    takeTourOsdActionService,
    getPendingTourOsdApprovalsService,
 } from "../services/osd.service.js";

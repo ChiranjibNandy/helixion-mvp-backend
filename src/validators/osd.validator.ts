@@ -1,6 +1,6 @@
 import z from "zod";
 import { objectIdSchema } from "./common.validator.js";
-import { REIMBURSEMENT_ACTION, OSD_JUNIOR_ACTION } from "../constants/enum.js";
+import { REIMBURSEMENT_ACTION, OSD_JUNIOR_ACTION, TOUR_OSD_ACTION } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 
 export const reimbursementEnrollmentParamsSchema = z.object({

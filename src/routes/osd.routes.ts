@@ -10,7 +10,7 @@ import { ORG_ROLE } from "../constants/enum.js";
 import {
    getPendingEnrollments,
    takeOsdSeniorAction,
-   takeReimbursementOsdAction,
+   takeOsdJuniorAction,
    takeTourOsdAction,
    getPendingTourOsdApprovals,
 } from "../controllers/osd.controller.js";
@@ -18,6 +18,7 @@ import {
    reimbursementEnrollmentParamsSchema,
    reimbursementOsdJuniorActionBodySchema,
    reimbursementOsdSeniorActionBodySchema,
+   tourOsdActionBodySchema,
 } from "../validators/osd.validator.js";
 
 const router = express.Router();
@@ -71,22 +72,7 @@ router.patch(
    takeOsdSeniorAction
 );
 
-/**
- * PATCH /api/osd/enrollments/:id/tour-action
- * Body: { action: "approve" | "reject", note? }
- */
-router.patch(
-   "/enrollments/:enrollmentId/senior-action",
-   authorizeOfficeRole("osd", 2),
-   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdSeniorActionBodySchema }),
-   takeOsdSeniorAction
-);
 
-router.patch(
-   "/enrollments/:id/senior-action",
-   validate({ params: reimbursementEnrollmentParamsSchema }),
-   takeOsdSeniorAction
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOUR APPROVALS

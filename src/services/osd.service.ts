@@ -7,6 +7,7 @@ import {
    getEnrollmentForTourOsdActionRepo,
    updateEnrollmentForTourOsdActionRepo,
    takeReimbursementOsdActionRepo,
+   getPendingTourApprovalsForOsdRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
