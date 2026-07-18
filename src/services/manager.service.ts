@@ -5,6 +5,7 @@ import {
    getPendingEnrollmentsForManagerRepo,
    getPendingReimbursementsForManagerRepo,
    takeReimbursementManagerActionRepo,
+   getPendingTourApprovalsForManagerRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -18,6 +19,7 @@ import {
    TRAVEL_TYPE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
+   TOUR_OSD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -277,6 +279,111 @@ export const takeReimbursementManagerActionService = async (
          note,
          at:        new Date(),
       }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   return { currentStage: nextStage };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get pending tour approvals awaiting this manager's action
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getPendingTourApprovalsService = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await getPendingTourApprovalsForManagerRepo(managerId, orgId);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager approve/reject a tour (company-assisted travel)
+//
+// Single-tier gate keyed on the same assignedApproverId.
+// Approve → advance to TOUR_OSD_REVIEW (if OSD required) or APPROVED.
+// Reject → fallback to self_travel, enrollment continues at APPROVED stage.
+//
+// Idempotency: query filters on currentStage === TOUR_MANAGER_REVIEW.
+// Atomicity: single findOneAndUpdate.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const takeTourManagerActionService = async (
+   enrollmentId: string,
+   managerId: string,
+   orgId: string,
+   action: MANAGER_ACTION,
+   note: string
+) => {
+   if (
+      action !== MANAGER_ACTION.APPROVE &&
+      action !== MANAGER_ACTION.REJECT
+   ) {
+      throw new AppError(MESSAGES.INVALID_TOUR_ACTION, HTTP_STATUS.BAD_REQUEST);
+   }
+
+   const enrollment = await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+      "managerApproval.assignedApproverId": toObjectId(managerId),
+   });
+
+   if (!enrollment) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const osdRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+
+   let nextStage: ENROLLMENT_STAGE;
+   let nextTourStatus: TOUR_STATUS;
+
+   if (action === MANAGER_ACTION.REJECT) {
+      // Rejection: fallback to self_travel, enrollment continues
+      nextStage = ENROLLMENT_STAGE.APPROVED;
+      nextTourStatus = TOUR_STATUS.MANAGER_REJECTED;
+   } else {
+      // Approval: route to OSD if required, otherwise mark approved
+      if (osdRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+         nextTourStatus = TOUR_STATUS.MANAGER_APPROVED;
+      } else {
+         nextStage = ENROLLMENT_STAGE.APPROVED;
+         nextTourStatus = TOUR_STATUS.APPROVED;
+      }
+   }
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId": toObjectId(managerId),
+      },
+      {
+         $set: {
+            currentStage: nextStage,
+            "tour.status": nextTourStatus,
+            "tour.managerApproval.action": action,
+            "tour.managerApproval.note": note,
+            "tour.managerApproval.actedAt": new Date(),
+            "statusSummary.tourStatus": nextTourStatus,
+            ...(action === MANAGER_ACTION.REJECT ? { "tour.travelType": TRAVEL_TYPE.SELF_TRAVEL } : {}),
+         },
+         $push: {
+            timeline: {
+               stage: nextStage,
+               actorId: toObjectId(managerId),
+               actorType: ACTOR_TYPE.MANAGER,
+               action: `tour_manager_${action}`,
+               note,
+               at: new Date(),
+            },
+         },
+      },
+      { new: true }
    );
 
    if (!updated) {

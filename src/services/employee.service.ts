@@ -1,5 +1,6 @@
 import { getApprovalStatsRepo, getDashboardSummaryRepo, getListedProgramsRepo } from "../repositories/employee.repository.js";
 import { getEmployeeProgramsListRepo, getEmployeeProgramByIdRepo, getAvailableProgramsPaginatedRepo } from "../repositories/program.repository.js";
+import { SubmitTourFormDto } from "../dtos/enrollment.dto.js";
 import {
    createEnrollmentRepo,
    findExistingEnrollmentRepo,
@@ -237,76 +238,122 @@ export const getEnrollmentDetailsService = async (id: string, userId: string) =>
 export const updateTravelDetailsService = async (
    userId: string,
    enrollmentId: string,
-   travelAndStayData: any
+   travelAndStayData: SubmitTourFormDto
 ) => {
-   const enrollmentObj = await enrollmentModel.findOne({
-      _id: toObjectId(enrollmentId),
-      $or: [
-         { employeeId: toObjectId(userId) },
-         { userId: toObjectId(userId) }
-      ]
-   });
+   const travelType = travelAndStayData.travelType || TRAVEL_TYPE.LOCAL;
 
-   if (!enrollmentObj) {
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         $or: [
+            { employeeId: toObjectId(userId) },
+            { userId: toObjectId(userId) }
+         ]
+      },
+      [
+         {
+            $set: {
+               "travelAndStay.stayType": { $ifNull: ["$travelAndStay.stayType", "twin_sharing"] },
+               "travelAndStay.placeOfTour": travelAndStayData.placeOfTour || "",
+               "travelAndStay.frequentFlyerNo": travelAndStayData.frequentFlyerNo || "",
+               "travelAndStay.modeOfTravel": travelAndStayData.modeOfTravel || "flight",
+               "travelAndStay.purpose": travelAndStayData.purpose || "To Attend Training Program",
+               "travelAndStay.bookingDetails": travelAndStayData.bookingDetails || [],
+               "travelAndStay.advancePaymentRequired": travelAndStayData.advancePaymentRequired ?? 0,
+               "travelAndStay.status": {
+                  $cond: {
+                     if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.managerApprovalRequired", true] }, true] },
+                     then: TOUR_STATUS.SUBMITTED,
+                     else: TOUR_STATUS.APPROVED
+                  }
+               },
+               "travelAndStay.managerAction": {
+                  $cond: {
+                     if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.managerApprovalRequired", true] }, true] },
+                     then: MANAGER_ACTION.PENDING,
+                     else: MANAGER_ACTION.APPROVE
+                  }
+               },
+               "travelAndStay.managerReason": "",
+
+               "tour.travelType": travelType,
+               "tour.status": {
+                  $cond: {
+                     if: { $eq: [travelType, TRAVEL_TYPE.COMPANY_ASSISTED] },
+                     then: {
+                        $cond: {
+                           if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.managerApprovalRequired", true] }, true] },
+                           then: TOUR_STATUS.SUBMITTED,
+                           else: {
+                              $cond: {
+                                 if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.osdApprovalRequired", true] }, true] },
+                                 then: TOUR_STATUS.MANAGER_APPROVED,
+                                 else: TOUR_STATUS.OSD_APPROVED
+                              }
+                           }
+                        }
+                     },
+                     else: TOUR_STATUS.NOT_REQUIRED
+                  }
+               },
+               "tour.details.placeOfTour": travelAndStayData.placeOfTour || { $ifNull: ["$tour.details.placeOfTour", ""] },
+               "tour.details.frequentFlyerNo": travelAndStayData.frequentFlyerNo || { $ifNull: ["$tour.details.frequentFlyerNo", ""] },
+               "tour.details.modeOfTravel": travelAndStayData.modeOfTravel || { $ifNull: ["$tour.details.modeOfTravel", "flight"] },
+               "tour.details.purpose": travelAndStayData.purpose || { $ifNull: ["$tour.details.purpose", "To Attend Training Program"] },
+               "tour.details.advancePaymentRequired": travelAndStayData.advancePaymentRequired ?? { $ifNull: ["$tour.details.advancePaymentRequired", 0] },
+               "tour.details.bookingDetails": travelAndStayData.bookingDetails || { $ifNull: ["$tour.details.bookingDetails", []] },
+               "tour.managerApproval.action": {
+                  $cond: {
+                     if: {
+                        $and: [
+                           { $eq: [travelType, TRAVEL_TYPE.COMPANY_ASSISTED] },
+                           { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.managerApprovalRequired", true] }, true] }
+                        ]
+                     },
+                     then: MANAGER_ACTION.PENDING,
+                     else: MANAGER_ACTION.APPROVE
+                  }
+               },
+               "tour.osdApproval.action": {
+                  $cond: {
+                     if: {
+                        $and: [
+                           { $eq: [travelType, TRAVEL_TYPE.COMPANY_ASSISTED] },
+                           { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.osdApprovalRequired", true] }, true] }
+                        ]
+                     },
+                     then: TOUR_OSD_ACTION.WAITING,
+                     else: TOUR_OSD_ACTION.APPROVE
+                  }
+               }
+            }
+         },
+         {
+            $set: {
+               timeline: {
+                  $concatArrays: [
+                     { $ifNull: ["$timeline", []] },
+                     [{
+                        stage: "$currentStage",
+                        actorId: toObjectId(userId),
+                        actorType: ACTOR_TYPE.EMPLOYEE,
+                        action: EMPLOYEE_TIMELINE_ACTION.UPDATED_TRAVEL,
+                        note: "Updated travel and stay details",
+                        at: new Date()
+                     }]
+                  ]
+               }
+            }
+         }
+      ],
+      { new: true }
+   );
+
+   if (!updated) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   const tourManagerApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
-   const tourOsdApprovalRequired = enrollmentObj.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
-
-   enrollmentObj.travelAndStay = {
-      stayType: enrollmentObj.travelAndStay?.stayType || "twin_sharing",
-      placeOfTour: travelAndStayData.placeOfTour,
-      frequentFlyerNo: travelAndStayData.frequentFlyerNo || "",
-      modeOfTravel: travelAndStayData.modeOfTravel,
-      purpose: travelAndStayData.purpose || "To Attend Training Program",
-      bookingDetails: travelAndStayData.bookingDetails || [],
-      advancePaymentRequired: travelAndStayData.advancePaymentRequired ?? 0,
-      status: tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED,
-      managerAction: tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
-      managerReason: ""
-   };
-
-   const travelType = travelAndStayData.travelType || enrollmentObj.tour?.travelType || TRAVEL_TYPE.LOCAL;
-   let initialTourStatus = TOUR_STATUS.NOT_REQUIRED;
-   if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-      initialTourStatus = tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : (tourOsdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED);
-   }
-
-   enrollmentObj.tour = {
-      travelType,
-      status: initialTourStatus,
-      details: {
-         placeOfTour: travelAndStayData.placeOfTour || enrollmentObj.tour?.details?.placeOfTour || "",
-         frequentFlyerNo: travelAndStayData.frequentFlyerNo || enrollmentObj.tour?.details?.frequentFlyerNo || "",
-         modeOfTravel: travelAndStayData.modeOfTravel || enrollmentObj.tour?.details?.modeOfTravel || "flight",
-         purpose: travelAndStayData.purpose || enrollmentObj.tour?.details?.purpose || "To Attend Training Program",
-         advancePaymentRequired: travelAndStayData.advancePaymentRequired ?? enrollmentObj.tour?.details?.advancePaymentRequired ?? 0,
-         bookingDetails: travelAndStayData.bookingDetails || enrollmentObj.tour?.details?.bookingDetails || [],
-      },
-      managerApproval: {
-         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && tourManagerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
-      },
-      osdApproval: {
-         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && tourOsdApprovalRequired ? TOUR_OSD_ACTION.WAITING : TOUR_OSD_ACTION.APPROVE,
-      }
-   };
-
-   if (!enrollmentObj.timeline) {
-      enrollmentObj.timeline = [];
-   }
-   enrollmentObj.timeline.push({
-      stage: enrollmentObj.currentStage,
-      actorId: toObjectId(userId),
-      actorType: ACTOR_TYPE.EMPLOYEE,
-      action: EMPLOYEE_TIMELINE_ACTION.UPDATED_TRAVEL,
-      note: "Updated travel and stay details",
-      at: new Date()
-   });
-
-
-   await enrollmentObj.save();
-   return enrollmentObj;
+   return updated;
 };
 
 export const submitEnrollmentService = async (userId: string, enrollmentId: string) => {
@@ -399,4 +446,122 @@ export const submitReimbursementService = async (
    }
 
    return updated;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submit tour form (post-CTD approval)
+//
+// Called when the enrollment is at TOUR_PENDING_EMPLOYEE stage.
+// Employee chooses between self_travel (no approval needed) or
+// company_assisted (requires manager and/or OSD approval).
+//
+// Atomicity: single findOneAndUpdate with stage filter — prevents
+// double-processing if two requests race on the same enrollment.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const submitTourFormService = async (
+   userId: string,
+   enrollmentId: string,
+   tourFormData: {
+      travelType: string;
+      placeOfTour?: string;
+      frequentFlyerNo?: string;
+      modeOfTravel?: string;
+      purpose?: string;
+      bookingDetails?: any[];
+      advancePaymentRequired?: number;
+   }
+) => {
+   const enrollment = await enrollmentModel.findOne({
+      _id: toObjectId(enrollmentId),
+      employeeId: toObjectId(userId),
+      currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+   });
+
+   if (!enrollment) {
+      throw new AppError(MESSAGES.TOUR_NOT_PENDING, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const travelType = tourFormData.travelType as TRAVEL_TYPE;
+   const managerApprovalRequired = enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
+   const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+
+   let nextStage: ENROLLMENT_STAGE;
+   let tourStatus: TOUR_STATUS;
+
+   if (travelType === TRAVEL_TYPE.SELF_TRAVEL || travelType === TRAVEL_TYPE.LOCAL) {
+      // Self-travel / local — no approval needed
+      nextStage = ENROLLMENT_STAGE.APPROVED;
+      tourStatus = TOUR_STATUS.NOT_REQUIRED;
+   } else if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+      if (managerApprovalRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW;
+         tourStatus = TOUR_STATUS.SUBMITTED;
+      } else if (osdApprovalRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+         tourStatus = TOUR_STATUS.MANAGER_APPROVED;
+      } else {
+         nextStage = ENROLLMENT_STAGE.APPROVED;
+         tourStatus = TOUR_STATUS.APPROVED;
+      }
+   } else {
+      throw new AppError("Invalid travel type", HTTP_STATUS.BAD_REQUEST);
+   }
+
+   const updateOps: Record<string, any> = {
+      $set: {
+         currentStage: nextStage,
+         "tour.travelType": travelType,
+         "tour.status": tourStatus,
+         "tour.details": {
+            placeOfTour: tourFormData.placeOfTour || "",
+            frequentFlyerNo: tourFormData.frequentFlyerNo || "",
+            modeOfTravel: tourFormData.modeOfTravel || "flight",
+            purpose: tourFormData.purpose || "To Attend Training Program",
+            advancePaymentRequired: tourFormData.advancePaymentRequired ?? 0,
+            bookingDetails: tourFormData.bookingDetails || [],
+         },
+         "tour.managerApproval": {
+            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && managerApprovalRequired
+               ? MANAGER_ACTION.PENDING
+               : MANAGER_ACTION.APPROVE,
+         },
+         "tour.osdApproval": {
+            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && osdApprovalRequired
+               ? TOUR_OSD_ACTION.WAITING
+               : TOUR_OSD_ACTION.APPROVE,
+         },
+         "statusSummary.tourStatus": tourStatus,
+      },
+      $push: {
+         timeline: {
+            stage: nextStage,
+            actorId: toObjectId(userId),
+            actorType: ACTOR_TYPE.EMPLOYEE,
+            action: EMPLOYEE_TIMELINE_ACTION.TOUR_FORM_SUBMITTED,
+            note: `Tour form submitted — ${travelType}`,
+            at: new Date(),
+         },
+      },
+   };
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(enrollmentId),
+         employeeId: toObjectId(userId),
+         currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+      },
+      updateOps,
+      { new: true }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.TOUR_NOT_PENDING, HTTP_STATUS.CONFLICT);
+   }
+
+   return {
+      enrollmentId: updated._id.toString(),
+      currentStage: updated.currentStage,
+      tourStatus: updated.tour?.status,
+   };
 };

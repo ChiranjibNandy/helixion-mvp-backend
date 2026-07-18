@@ -25,6 +25,7 @@ export const MESSAGES = {
   LIMIT_CANNOT_EXCEED_100: "Limit cannot exceed 100",
 
   PENDING_REGISTRATIONS_FETCHED: "Pending user registrations fetched successfully",
+  PENDING_TOUR_APPROVALS_FETCHED: "Pending tour approvals fetched successfully",
 
   TOKEN_REQUIRED: "Access token is required",
   INVALID_TOKEN: "Invalid token",
@@ -111,4 +112,7 @@ export const MESSAGES = {
   REIMBURSEMENT_ALREADY_SUBMITTED: "Reimbursement has already been submitted for this enrollment",
   REIMBURSEMENT_SUBMITTED: "Reimbursement claim submitted successfully",
   INVALID_REIMBURSEMENT_ACTION: "Invalid action. Must be approve or reject.",
+  TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
+  INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
+  TOUR_NOT_PENDING: "Tour form is not pending submission",
 } as const;

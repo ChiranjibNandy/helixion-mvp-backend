@@ -76,9 +76,10 @@ export enum ACTOR_TYPE {
 
 // ─── Employee-actor timeline actions ──────────────────────────────────────────
 export enum EMPLOYEE_TIMELINE_ACTION {
-  CREATED        = "created",
-  UPDATED_TRAVEL = "updated_travel",
-  SUBMITTED      = "submitted",
+  CREATED             = "created",
+  UPDATED_TRAVEL      = "updated_travel",
+  SUBMITTED           = "submitted",
+  TOUR_FORM_SUBMITTED = "tour_form_submitted",
 }
 
 // ─── Stay types ───────────────────────────────────────────────────────────────
@@ -127,6 +128,8 @@ export enum ENROLLMENT_STAGE {
   TRAINING_DEPT_REVIEW         = "training_dept_review",
   APPROVED                     = "approved",
   TOUR_PENDING_EMPLOYEE        = "tour_pending_employee",
+  TOUR_MANAGER_REVIEW          = "tour_manager_review",
+  TOUR_OSD_REVIEW              = "tour_osd_review",
   REJECTED                     = "rejected",
   ATTENDED                     = "attended",
   ABSENT                       = "absent",

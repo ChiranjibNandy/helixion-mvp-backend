@@ -4,3 +4,14 @@ export interface getReleventEnrollRequestDto {
    limit: number,
    search: string
 }
+
+export interface SubmitTourFormDto {
+   stayType?: string;
+   placeOfTour?: string;
+   frequentFlyerNo?: string;
+   modeOfTravel?: string;
+   purpose?: string;
+   advancePaymentRequired?: number;
+   bookingDetails?: any[];
+   travelType?: string;
+}

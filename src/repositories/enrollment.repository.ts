@@ -3,7 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -613,4 +613,32 @@ export const updateEnrollmentForTourOsdActionRepo = async (enrollmentId: string,
       updateOps,
       { new: true }
    );
+};
+
+// ─── Tour approval queues ──────────────────────────────────────────────────────
+
+export const getPendingTourApprovalsForManagerRepo = async (
+   managerId: string,
+   orgId: string
+) => {
+   return await enrollmentModel
+      .find({
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+         "managerApproval.assignedApproverId": toObjectId(managerId),
+      })
+      .populate("employeeId", "name email employeeCode designation department placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
+};
+
+export const getPendingTourApprovalsForOsdRepo = async (orgId: string) => {
+   return await enrollmentModel
+      .find({
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
+      })
+      .populate("employeeId", "name email employeeCode designation department placeOfPosting")
+      .populate("programId", "title startDate endDate city venueName")
+      .sort({ createdAt: -1 });
 };

@@ -9,13 +9,16 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import {
    getPendingEnrollments,
-   takeOsdJuniorAction,
    takeOsdSeniorAction,
+   takeOsdJuniorAction,
    takeTourOsdAction,
+   getPendingTourOsdApprovals,
 } from "../controllers/osd.controller.js";
 import {
    reimbursementEnrollmentParamsSchema,
-   reimbursementOsdActionBodySchema,
+   reimbursementOsdJuniorActionBodySchema,
+   reimbursementOsdSeniorActionBodySchema,
+   tourOsdActionBodySchema,
 } from "../validators/osd.validator.js";
 
 const router = express.Router();
@@ -48,23 +51,45 @@ router.get(
 );
 
 /**
- * PATCH /api/osd/enrollments/:enrollmentId/reimbursement-action
- * Body: { action: "approve" | "reject", note? }
+ * PATCH /api/osd/enrollments/:enrollmentId/junior-action
+ * Body: { action: "return" | "recommend", note? }
  */
 router.patch(
-   "/enrollments/:enrollmentId/reimbursement-action",
+   "/enrollments/:enrollmentId/junior-action",
    authorizeOfficeRole("osd", 1),
-   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdActionBodySchema }),
-   takeReimbursementOsdAction
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdJuniorActionBodySchema }),
+   takeOsdJuniorAction
 );
 
 /**
- * PATCH /api/osd/enrollments/:id/tour-action
+ * PATCH /api/osd/enrollments/:enrollmentId/senior-action
  * Body: { action: "approve" | "reject", note? }
+ */
+router.patch(
+   "/enrollments/:enrollmentId/senior-action",
+   authorizeOfficeRole("osd", 2),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdSeniorActionBodySchema }),
+   takeOsdSeniorAction
+);
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOUR APPROVALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/tour-approvals/pending", getPendingTourOsdApprovals);
+
+/**
+ * PATCH /api/osd/enrollments/:id/tour-action
+ * 
+ * OSD action on the tour part of the enrollment.
+ * Requires osd role.
  */
 router.patch(
    "/enrollments/:id/tour-action",
    authorizeOfficeRole("osd", 1),
+   validate({ params: reimbursementEnrollmentParamsSchema, body: tourOsdActionBodySchema }),
    takeTourOsdAction
 );
 
