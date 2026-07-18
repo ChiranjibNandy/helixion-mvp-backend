@@ -282,4 +282,9 @@ enrollmentSchema.index({ programId: 1, employeeId: 1 });
 // manager gate is single-tier (no chain).
 enrollmentSchema.index({ orgId: 1, "managerApproval.assignedApproverId": 1, currentStage: 1 });
 
+// Employee notifications (ticket 0033) — getEmployeeNotificationTimelineRepo
+// sorts by updatedAt on every 45s poll; without this the sort can't be
+// index-covered and falls back to an in-memory sort after a broader scan.
+enrollmentSchema.index({ employeeId: 1, updatedAt: -1 });
+
 export default mongoose.model<IEnrollment>("Enrollment", enrollmentSchema);

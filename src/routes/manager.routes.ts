@@ -2,9 +2,18 @@ import express from "express";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
-import { getPendingEnrollments, getPendingReimbursements, getPendingTourApprovals, getEmployeeTrainingHistory, getRelevantEnrollments, takeManagerAction, takeReimbursementManagerAction, takeTourManagerAction } from "../controllers/manager.controller.js";
+import {
+   getPendingEnrollments,
+   getPendingReimbursements,
+   getPendingTourApprovals,
+   getEmployeeTrainingHistory,
+   getRelevantEnrollments,
+   takeManagerAction,
+   takeReimbursementManagerAction,
+   takeTourManagerAction,
+   getManagerDashboard,
+} from "../controllers/manager.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-
 import {
    reimbursementEnrollmentParamsSchema,
    reimbursementManagerActionBodySchema,
@@ -15,6 +24,8 @@ import {
 const router = express.Router();
 
 router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+
+router.get("/dashboard", getManagerDashboard);
 
 router.get("/pending", getPendingEnrollments);
 

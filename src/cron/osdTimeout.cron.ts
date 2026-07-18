@@ -1,6 +1,8 @@
 import cron from "node-cron";
 import enrollmentModel from "../models/enrollment.model.js";
 import { TOUR_STATUS, TRAVEL_TYPE, ACTOR_TYPE } from "../constants/enum.js";
+import { sendTravelRequestTimedOutMail } from "../utils/sendMail.js";
+import { loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 
 // Run every hour to check for timed-out OSD approvals
 // "0 * * * *" means at minute 0 past every hour
@@ -47,14 +49,24 @@ export const startOsdTimeoutCron = () => {
                updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
             }
 
-            await enrollmentModel.findOneAndUpdate(
+            const updated = await enrollmentModel.findOneAndUpdate(
                {
                   _id: enrollment._id,
                   "tour.status": { $in: [TOUR_STATUS.SUBMITTED, TOUR_STATUS.MANAGER_APPROVED] },
                },
                updateOps
             );
+
+            if (!updated) continue;
+
             console.log(`[CRON] OSD Timeout applied for enrollment ${enrollment._id}`);
+
+            loadNotificationContext(String(enrollment.employeeId), String(enrollment.programId))
+               .then(({ employee, programTitle }) => {
+                  if (!employee) return;
+                  return sendTravelRequestTimedOutMail(employee.email, employee.name, programTitle);
+               })
+               .catch(logMailFailure("tour-osd-timeout"));
          }
       } catch (error) {
          console.error("[CRON] Error in OSD Timeout job:", error);

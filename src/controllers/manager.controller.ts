@@ -5,11 +5,36 @@ import {
    takeManagerActionService,
    getPendingReimbursementsService,
    takeReimbursementManagerActionService,
+   getManagerDashboardService,
    getPendingTourApprovalsService,
    takeTourManagerActionService,
 } from "../services/manager.service.js";
 import { getRelevantEnrollmentService, getEmployeeTrainingHistoryService } from "../services/enrollment.service.js";
 import { MESSAGES } from "../constants/messages.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/manager/dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+export const getManagerDashboard = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const managerId = req.userId!;
+      const orgId     = req.orgId!;
+
+      const dashboard = await getManagerDashboardService(managerId, orgId);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.DASHBOARD_DATA_FETCH,
+         data:    dashboard,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/manager/pending

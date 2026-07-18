@@ -82,6 +82,30 @@ export enum EMPLOYEE_TIMELINE_ACTION {
   TOUR_FORM_SUBMITTED = "tour_form_submitted",
 }
 
+// ─── Timeline-only action values ───────────────────────────────────────────────
+// Distinct `timeline.action` values for events whose (actorType, action) would
+// otherwise collide with a different workflow's entry. E.g. a manager
+// rejecting a REIMBURSEMENT claim and a manager rejecting an ENROLLMENT both
+// use actorType MANAGER — if both wrote a bare "reject", ticket 0033's
+// notification-derivation logic (employee.service.ts) couldn't tell them
+// apart. These are written ONLY to timeline entries (never to a validated
+// schema field like `reimbursement.managerApproval.action`, which still uses
+// the real MANAGER_ACTION/REIMBURSEMENT_ACTION value), so they're plain
+// strings rather than a schema-enforced enum.
+export enum TIMELINE_ACTION {
+  ATTENDANCE_PRESENT             = "attendance_present",
+  ATTENDANCE_ABSENT              = "attendance_absent",
+  REIMBURSEMENT_MANAGER_APPROVE  = "reimbursement_manager_approve",
+  REIMBURSEMENT_MANAGER_REJECT   = "reimbursement_manager_reject",
+  REIMBURSEMENT_OSD_APPROVE      = "reimbursement_osd_approve",
+  REIMBURSEMENT_OSD_REJECT       = "reimbursement_osd_reject",
+  TOUR_MANAGER_APPROVE           = "tour_manager_approve",
+  TOUR_MANAGER_REJECT            = "tour_manager_reject",
+  TOUR_OSD_APPROVE               = "tour_osd_approve",
+  TOUR_OSD_REJECT                = "tour_osd_reject",
+  TOUR_OSD_TIMEOUT               = "osd_timeout",
+}
+
 // ─── Stay types ───────────────────────────────────────────────────────────────
 export enum STAY_TYPE {
   SINGLE_OCCUPANCY = "single_occupancy",

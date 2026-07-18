@@ -22,6 +22,8 @@ import {
    OSD_JUNIOR_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
+import { sendReimbursementApprovedMail, sendReimbursementRejectedByOsdMail, sendTravelRequestApprovedMail, sendTravelRequestNotApprovedByOsdMail } from "../utils/sendMail.js";
+import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending reimbursement claims awaiting OSD approval
@@ -148,11 +150,15 @@ export const takeOsdSeniorActionService = async (
       );
    }
 
-   // 2. Verify enrollment exists in senior-review stage (idempotency guard)
+   // 2. Verify enrollment exists in OSD-review stage (idempotency guard).
+   // Matches the stage takeReimbursementManagerActionService actually sets
+   // (REIMBURSEMENT_OSD_REVIEW) and the stage takeReimbursementOsdActionRepo's
+   // atomic update filters on below — OSD_SENIOR_REVIEW is never set by
+   // anything, which made this endpoint permanently unreachable.
    const existing = await getEnrollmentForStageOsdRepo(
       enrollmentId,
       orgId,
-      ENROLLMENT_STAGE.OSD_SENIOR_REVIEW
+      ENROLLMENT_STAGE.REIMBURSEMENT_OSD_REVIEW
    );
 
    if (!existing) {
@@ -190,7 +196,7 @@ export const takeOsdSeniorActionService = async (
          stage: nextStage,
          actorId: toObjectId(officerId),
          actorType: ACTOR_TYPE.OSD,
-         action,
+         action:    reimbursementTimelineAction("osd", action as REIMBURSEMENT_ACTION),
          note,
          at: new Date(),
       }
@@ -198,6 +204,22 @@ export const takeOsdSeniorActionService = async (
 
    if (!updated) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   if (action === REIMBURSEMENT_ACTION.APPROVE) {
+      loadNotificationContext(String(updated.employeeId), String(updated.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendReimbursementApprovedMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("reimbursement-approved"));
+   } else {
+      loadNotificationContext(String(updated.employeeId), String(updated.programId))
+         .then(({ employee, programTitle }) => {
+            if (!employee) return;
+            return sendReimbursementRejectedByOsdMail(employee.email, employee.name, programTitle);
+         })
+         .catch(logMailFailure("reimbursement-rejected-by-osd"));
    }
 
    return { currentStage: nextStage };
@@ -293,6 +315,15 @@ export const takeTourOsdActionService = async (
    if (!updated) {
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+
+   loadNotificationContext(String(updated.employeeId), String(updated.programId))
+      .then(({ employee, programTitle }) => {
+         if (!employee) return;
+         return action === TOUR_OSD_ACTION.APPROVE
+            ? sendTravelRequestApprovedMail(employee.email, employee.name, programTitle)
+            : sendTravelRequestNotApprovedByOsdMail(employee.email, employee.name, programTitle);
+      })
+      .catch(logMailFailure("tour-osd-action"));
 
    return { currentStage: nextStage };
 };

@@ -64,10 +64,15 @@ router.patch(
 /**
  * PATCH /api/osd/enrollments/:enrollmentId/senior-action
  * Body: { action: "approve" | "reject", note? }
+ *
+ * Level dropped from 2 to 1: matches the single-tier gate described in the
+ * comment above (ticket 0031) — any OSD officer can act, no junior/senior
+ * split. Kept at level 2 previously, no OSD officer holding only level 1
+ * could ever reach this route.
  */
 router.patch(
    "/enrollments/:enrollmentId/senior-action",
-   authorizeOfficeRole("osd", 2),
+   authorizeOfficeRole("osd", 1),
    validate({ params: reimbursementEnrollmentParamsSchema, body: reimbursementOsdSeniorActionBodySchema }),
    takeOsdSeniorAction
 );

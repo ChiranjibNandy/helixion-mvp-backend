@@ -19,6 +19,14 @@ export interface JwtPayloadType {
       osd: { enabled: boolean; level: number | null };
    };
 
+   /**
+    * User's own rank in the reporting hierarchy: 0 = individual contributor,
+    * 1+ = manages at least one direct report. There is no distinct `orgRole`
+    * for "manager" — a manager is an `orgRole: employee` with this level > 0
+    * — so this is the only signal available to tell them apart client-side.
+    */
+   hierarchyLevel?: number;
+
    /** If true the user must change their password before accessing the app */
    mustChangePassword?: boolean;
    permissions:IPermission
