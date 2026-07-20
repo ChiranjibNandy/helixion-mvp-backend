@@ -3,6 +3,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import {
    getPendingEnrollmentsForManagerRepo,
+   countPendingEnrollmentsForManagerRepo,
    getPendingReimbursementsForManagerRepo,
    takeReimbursementManagerActionRepo,
    getManagerOwnDashboardSummaryRepo,
@@ -22,11 +23,10 @@ import {
    TRAVEL_TYPE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
-   TOUR_OSD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderOsdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
-import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
+import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
+import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -51,11 +51,15 @@ export const getPendingEnrollmentsService = async (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getManagerDashboardService = async (managerId: string, orgId: string) => {
-   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments] = await Promise.all([
+   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount] = await Promise.all([
       getManagerOwnDashboardSummaryRepo(managerId),
       getManagerTeamEnrollmentCountRepo(managerId),
       getManagerApprovalStatsRepo(managerId),
+      // Capped (see DASHBOARD_LIST_CAP) — this list only backs the dashboard
+      // preview panel below, not the "Pending Approvals" count, which comes
+      // from the uncapped countDocuments() sibling instead.
       getPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
+      countPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
    ]);
 
    const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
@@ -74,7 +78,11 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
    });
 
    return {
-      summary:                 { ...ownSummary, teamEnrollments },
+      // "Pending Approvals" reflects team enrollments awaiting this manager's
+      // action (matches the "Pending Team Enrollments" badge/donut below it),
+      // not ownSummary's personal-employee pendingApprovals count. Uses the
+      // true count, not pendingTeamEnrollments.length, since that list is capped.
+      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount },
       approvalStats,
       pendingTeamEnrollments,
    };
@@ -168,6 +176,12 @@ export const takeManagerActionService = async (
 
    const tourManagerApprovalRequired = enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
 
+   // Populated only when this org has Training Dept review disabled and the
+   // chain's final approval skips straight past it (see below) — carries the
+   // employee/program lookup already done for that branch forward to the
+   // post-update mail dispatch, so it isn't fetched twice.
+   let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
+
    if (action === MANAGER_ACTION.REJECT) {
       nextStage             = ENROLLMENT_STAGE.REJECTED;
       nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
@@ -203,27 +217,64 @@ export const takeManagerActionService = async (
       const lowestApproved = Math.min(...approvedLevels);
 
       if (lowestApproved <= minLevel) {
-         // Minimum required level has approved — advance to training dept review
-         nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
-         nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
-         updateOps.$set.currentStage = nextStage;
-         updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
-         updateOps.$push.timeline.stage = nextStage;
-         if (tourManagerApprovalRequired && enrollment.travelAndStay) {
-            updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
-            updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
-            updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
-         }
-         const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
-         if (tourManagerApprovalRequired && enrollment.tour) {
-            updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
-            updateOps.$set["tour.managerApproval.actedAt"] = new Date();
-            updateOps.$set["tour.managerApproval.note"] = note;
-            
-            if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-                updateOps.$set["tour.status"] = osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED;
-            } else {
-                updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+         const trainingDeptEnabled = enrollment.policySnapshot?.trainingDeptApproval?.enabled ?? true;
+
+         if (!trainingDeptEnabled) {
+            // Training Dept review disabled for this org — skip straight past
+            // training_dept_review, applying the same local-vs-outstation
+            // branch takeSeniorActionService (CTD) would otherwise apply, and
+            // firing the "Enrollment Approved" notification here instead
+            // since CTD's own approval step, which normally sends it, never runs.
+            const { employee, program, programTitle } = await loadNotificationContext(
+               String(enrollment.employeeId),
+               String(enrollment.programId)
+            );
+            const isLocal = isLocalTraining(employee?.placeOfPosting, program?.city);
+
+            nextStage = isLocal ? ENROLLMENT_STAGE.APPROVED : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
+            // "approved" here means the approval chain approved it, same as
+            // takeSeniorActionService's unconditional approving->"approved"
+            // (trainingDept.service.ts) — it does NOT mean the tour is
+            // resolved. Nothing downstream (submitTourFormService,
+            // takeTourManagerActionService, takeTourCtdActionService) ever
+            // writes statusSummary.enrollmentStatus again, so gating this on
+            // isLocal left outstation enrollments permanently stuck at
+            // "recommended" even after the tour was later fully approved.
+            nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.APPROVED;
+            updateOps.$set.currentStage = nextStage;
+            updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
+            updateOps.$push.timeline.stage = nextStage;
+
+            if (isLocal) {
+               updateOps.$set["tour.travelType"] = TRAVEL_TYPE.LOCAL;
+               updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+               updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.NOT_REQUIRED;
+            }
+
+            skippedCtdNotification = { employee, programTitle, isLocal };
+         } else {
+            // Minimum required level has approved — advance to training dept review
+            nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
+            nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
+            updateOps.$set.currentStage = nextStage;
+            updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
+            updateOps.$push.timeline.stage = nextStage;
+            if (tourManagerApprovalRequired && enrollment.travelAndStay) {
+               updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
+               updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
+               updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
+            }
+            const ctdApprovalRequired = enrollment.policySnapshot?.tourApproval?.ctdApprovalRequired ?? true;
+            if (tourManagerApprovalRequired && enrollment.tour) {
+               updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
+               updateOps.$set["tour.managerApproval.actedAt"] = new Date();
+               updateOps.$set["tour.managerApproval.note"] = note;
+
+               if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
+                   updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
+               } else {
+                   updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+               }
             }
          }
       }
@@ -263,6 +314,12 @@ export const takeManagerActionService = async (
             return sendEnrollmentRejectedMail(employee.email, employee.name, programTitle);
          })
          .catch(logMailFailure("enrollment-rejected"));
+   } else if (skippedCtdNotification?.employee) {
+      const { employee, programTitle, isLocal } = skippedCtdNotification;
+      (isLocal
+         ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
+         : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle)
+      ).catch(logMailFailure("enrollment-approved"));
    }
 
    return { currentStage: nextStage };
@@ -362,7 +419,7 @@ export const getPendingTourApprovalsService = async (
 // Manager approve/reject a tour (company-assisted travel)
 //
 // Single-tier gate keyed on the same assignedApproverId.
-// Approve → advance to TOUR_OSD_REVIEW (if OSD required) or APPROVED.
+// Approve → advance to TOUR_CTD_REVIEW (if CTD required) or APPROVED.
 // Reject → fallback to self_travel, enrollment continues at APPROVED stage.
 //
 // Idempotency: query filters on currentStage === TOUR_MANAGER_REVIEW.
@@ -394,7 +451,7 @@ export const takeTourManagerActionService = async (
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   const osdRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+   const ctdRequired = enrollment.policySnapshot?.tourApproval?.ctdApprovalRequired ?? true;
 
    let nextStage: ENROLLMENT_STAGE;
    let nextTourStatus: TOUR_STATUS;
@@ -404,9 +461,9 @@ export const takeTourManagerActionService = async (
       nextStage = ENROLLMENT_STAGE.APPROVED;
       nextTourStatus = TOUR_STATUS.MANAGER_REJECTED;
    } else {
-      // Approval: route to OSD if required, otherwise mark approved
-      if (osdRequired) {
-         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+      // Approval: route to CTD if required, otherwise mark approved
+      if (ctdRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_CTD_REVIEW;
          nextTourStatus = TOUR_STATUS.MANAGER_APPROVED;
       } else {
          nextStage = ENROLLMENT_STAGE.APPROVED;
@@ -456,7 +513,7 @@ export const takeTourManagerActionService = async (
             return sendTravelRequestRejectedByManagerMail(employee.email, employee.name, programTitle);
          }
          return nextTourStatus === TOUR_STATUS.MANAGER_APPROVED
-            ? sendTravelRequestUnderOsdReviewMail(employee.email, employee.name, programTitle)
+            ? sendTravelRequestUnderCtdReviewMail(employee.email, employee.name, programTitle)
             : sendTravelRequestApprovedMail(employee.email, employee.name, programTitle);
       })
       .catch(logMailFailure("tour-manager-action"));

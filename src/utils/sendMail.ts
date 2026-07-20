@@ -203,6 +203,23 @@ export const sendEnrollmentRejectedMail = notificationMail(
   `
 );
 
+// Not one of the ticket's 12 named events, but its approval counterpart is —
+// a Training Dept rejection producing zero notification at all (found while
+// testing the CTD approval flow) was a gap, not a deliberate scope decision,
+// matching the same pattern already fixed for reimbursement rejections.
+export const sendEnrollmentRejectedByTrainingDeptMail = notificationMail(
+  "Training Enrollment Rejected",
+  "Enrollment Rejected",
+  ({ username, programTitle }) => `
+    <p>Hello, ${username}</p>
+    <p>
+      Your enrollment request for <strong>${programTitle}</strong> has been
+      rejected by the Training Department.
+    </p>
+    <p>Please contact your Training Department for more details.</p>
+  `
+);
+
 export const sendEnrollmentApprovedLocalMail = notificationMail(
   "Enrollment Approved",
   "Enrollment Approved",
@@ -325,14 +342,15 @@ export const sendTravelRequestSubmittedMail = notificationMail(
   `
 );
 
-export const sendTravelRequestUnderOsdReviewMail = notificationMail(
-  "Travel Request Under OSD Review",
-  "Travel Request Under OSD Review",
+export const sendTravelRequestUnderCtdReviewMail = notificationMail(
+  "Travel Request Under Training Dept Review",
+  "Travel Request Under Training Dept Review",
   ({ username, programTitle }) => `
     <p>Hello, ${username}</p>
     <p>
       Your company-assisted travel request for <strong>${programTitle}</strong>
-      has been approved by your manager and is awaiting OSD approval.
+      has been approved by your manager and is now with the Training Department
+      for final approval.
     </p>
   `
 );
@@ -366,14 +384,14 @@ export const sendTravelRequestApprovedMail = notificationMail(
   `
 );
 
-export const sendTravelRequestNotApprovedByOsdMail = notificationMail(
+export const sendTravelRequestNotApprovedByCtdMail = notificationMail(
   "Company-Assisted Travel Not Approved",
   "Company-Assisted Travel Not Approved",
   ({ username, programTitle }) => `
     <p>Hello, ${username}</p>
     <p>
       Your company-assisted travel request for <strong>${programTitle}</strong>
-      was not approved by OSD.
+      was not approved by the Training Department.
     </p>
     <p>
       You may proceed with self-arranged travel and submit reimbursement

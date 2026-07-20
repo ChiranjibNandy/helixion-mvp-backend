@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
 import enrollment from "../models/enrollment.model.js";
-import { APPROVAL_STATUS, ENROLLMENT_STATUS, PROGRAM_SAVED_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STAGE, PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 import { ApprovalStatus } from "../types/enrollment.js";
 import Program from '../models/program.model.js'
 import { toObjectId } from "../utils/mongo.js";
 
+// Stages where the enrollment hasn't yet cleared its core (manager/CTD) approval gate.
+const PRE_APPROVAL_STAGES = [
+  ENROLLMENT_STAGE.SUBMITTED,
+  ENROLLMENT_STAGE.MANAGER_REVIEW,
+  ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+];
 
 //employee dasboard summary data
 export const getDashboardSummaryRepo = async (
@@ -20,20 +26,22 @@ export const getDashboardSummaryRepo = async (
   ] = await Promise.all([
 
     enrollment.countDocuments({
-      userId: objectId,
-      status: ENROLLMENT_STATUS.COMPLETED
+      employeeId: objectId,
+      currentStage: ENROLLMENT_STAGE.COMPLETED
+    }),
+
+    // "Enrolled" means confirmed/active — past the pre-approval gate, not yet
+    // completed or rejected. Enrollments still awaiting approval are reported
+    // via pendingApprovals below instead, so a single enrollment is never
+    // counted in both tiles at once.
+    enrollment.countDocuments({
+      employeeId: objectId,
+      currentStage: { $nin: [...PRE_APPROVAL_STAGES, ENROLLMENT_STAGE.COMPLETED, ENROLLMENT_STAGE.REJECTED] }
     }),
 
     enrollment.countDocuments({
-      userId: objectId,
-      status: ENROLLMENT_STATUS.ACTIVE
-    }),
-
-    enrollment.countDocuments({
-      userId: objectId,
-      approvalStatus:
-        APPROVAL_STATUS.PENDING,
-      status: ENROLLMENT_STATUS.ACTIVE
+      employeeId: objectId,
+      currentStage: { $in: PRE_APPROVAL_STAGES }
     })
   ]);
 
@@ -54,12 +62,20 @@ export const getApprovalStatsRepo = async (
     await enrollment.aggregate([
       {
         $match: {
-          userId: toObjectId(userId)
+          employeeId: toObjectId(userId)
         }
       },
       {
         $group: {
-          _id: "$approvalStatus",
+          _id: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$currentStage", ENROLLMENT_STAGE.REJECTED] }, then: "dismissed" },
+                { case: { $in: ["$currentStage", PRE_APPROVAL_STAGES] }, then: "pending" },
+              ],
+              default: "approved"
+            }
+          },
           count: {
             $sum: 1
           }
@@ -113,7 +129,7 @@ export const getListedProgramsRepo = async (
                   },
                   {
                     $eq: [
-                      "$userId",
+                      "$employeeId",
                       toObjectId(userId)
                     ]
                   }
@@ -144,7 +160,7 @@ export const getListedProgramsRepo = async (
     {
       $project: {
         title: 1,
-        venue: 1,
+        venueName: 1,
         startDate: 1,
         endDate: 1,
 
@@ -152,10 +168,14 @@ export const getListedProgramsRepo = async (
           $switch: {
             branches: [
               {
+                case: { $not: ["$enrollment"] },
+                then: "Open"
+              },
+              {
                 case: {
                   $eq: [
-                    "$enrollment.status",
-                    ENROLLMENT_STATUS.COMPLETED
+                    "$enrollment.currentStage",
+                    ENROLLMENT_STAGE.COMPLETED
                   ]
                 },
                 then: "Completed"
@@ -163,23 +183,23 @@ export const getListedProgramsRepo = async (
               {
                 case: {
                   $eq: [
-                    "$enrollment.status",
-                    ENROLLMENT_STATUS.ACTIVE
-                  ]
-                },
-                then: "Enrolled"
-              },
-              {
-                case: {
-                  $eq: [
-                    "$enrollment.status",
-                    ENROLLMENT_STATUS.CANCELLED
+                    "$enrollment.currentStage",
+                    ENROLLMENT_STAGE.REJECTED
                   ]
                 },
                 then: "Rejected"
+              },
+              {
+                case: {
+                  $in: [
+                    "$enrollment.currentStage",
+                    PRE_APPROVAL_STAGES
+                  ]
+                },
+                then: "Pending"
               }
             ],
-            default: "Pending"
+            default: "Enrolled"
           }
         }
       }

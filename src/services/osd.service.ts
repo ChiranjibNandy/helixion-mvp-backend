@@ -4,25 +4,18 @@ import {
    getPendingEnrollmentsForStageRepo,
    getEnrollmentForStageOsdRepo,
    updateEnrollmentForStageOsdRepo,
-   getEnrollmentForTourOsdActionRepo,
-   updateEnrollmentForTourOsdActionRepo,
    takeReimbursementOsdActionRepo,
-   getPendingTourApprovalsForOsdRepo,
 } from "../repositories/enrollment.repository.js";
-import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
    ENROLLMENT_STAGE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
    ACTOR_TYPE,
-   TOUR_OSD_ACTION,
-   TOUR_STATUS,
-   TRAVEL_TYPE,
    OSD_JUNIOR_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendReimbursementApprovedMail, sendReimbursementRejectedByOsdMail, sendTravelRequestApprovedMail, sendTravelRequestNotApprovedByOsdMail } from "../utils/sendMail.js";
+import { sendReimbursementApprovedMail, sendReimbursementRejectedByOsdMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction } from "../utils/notification.util.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,109 +214,6 @@ export const takeOsdSeniorActionService = async (
          })
          .catch(logMailFailure("reimbursement-rejected-by-osd"));
    }
-
-   return { currentStage: nextStage };
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tour OSD action (approve | reject)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getPendingTourOsdApprovalsService = async (orgId: string) => {
-   return await getPendingTourApprovalsForOsdRepo(orgId);
-};
-
-export const takeTourOsdActionService = async (
-   enrollmentId: string,
-   officerId: string,
-   orgId: string,
-   action: TOUR_OSD_ACTION,
-   note: string
-) => {
-   if (
-      !Object.values(TOUR_OSD_ACTION).includes(action as TOUR_OSD_ACTION) ||
-      action === TOUR_OSD_ACTION.WAITING
-   ) {
-      throw new AppError(
-         "Invalid action. Must be 'approve' or 'reject'.",
-         HTTP_STATUS.BAD_REQUEST
-      );
-   }
-
-   const existing = await enrollmentModel.findOne({
-      _id: toObjectId(String(enrollmentId)),
-      orgId: toObjectId(orgId),
-      currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
-   });
-
-   if (!existing) {
-      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-   }
-
-   const nextStage = ENROLLMENT_STAGE.APPROVED;
-   const nextTourStatus =
-      action === TOUR_OSD_ACTION.APPROVE
-         ? TOUR_STATUS.OSD_APPROVED
-         : TOUR_STATUS.OSD_REJECTED;
-
-   const updateOps: any = {
-      $set: {
-         currentStage: nextStage,
-         "tour.status": nextTourStatus,
-         "statusSummary.tourStatus": nextTourStatus,
-         "tour.osdApproval": {
-            officerId: toObjectId(officerId),
-            action: action as TOUR_OSD_ACTION,
-            note,
-            actedAt: new Date(),
-         },
-      },
-      $push: {
-         timeline: {
-            stage: nextStage,
-            actorId: toObjectId(officerId),
-            actorType: ACTOR_TYPE.OSD,
-            action: `tour_osd_${action}`,
-            note,
-            at: new Date(),
-         },
-      },
-   };
-
-   // Fallback to self_travel if rejected
-   if (action === TOUR_OSD_ACTION.REJECT) {
-      updateOps.$set["tour.travelType"] = TRAVEL_TYPE.SELF_TRAVEL;
-      if (existing.travelAndStay) {
-         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
-      }
-   } else {
-      if (existing.travelAndStay) {
-         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
-      }
-   }
-
-   const updated = await enrollmentModel.findOneAndUpdate(
-      {
-         _id: toObjectId(String(enrollmentId)),
-         orgId: toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
-      },
-      updateOps,
-      { new: true }
-   );
-
-   if (!updated) {
-      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-   }
-
-   loadNotificationContext(String(updated.employeeId), String(updated.programId))
-      .then(({ employee, programTitle }) => {
-         if (!employee) return;
-         return action === TOUR_OSD_ACTION.APPROVE
-            ? sendTravelRequestApprovedMail(employee.email, employee.name, programTitle)
-            : sendTravelRequestNotApprovedByOsdMail(employee.email, employee.name, programTitle);
-      })
-      .catch(logMailFailure("tour-osd-action"));
 
    return { currentStage: nextStage };
 };

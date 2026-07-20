@@ -12,7 +12,7 @@ import {
    ACTOR_TYPE,
    ATTENDANCE_RECORD_STATUS,
    TRAVEL_TYPE,
-   TOUR_OSD_ACTION,
+   TOUR_CTD_ACTION,
    ENROLLMENT_STATUS,
 } from "../constants/enum.js";
 
@@ -129,7 +129,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
          },
          tourApproval: {
             managerApprovalRequired: { type: Boolean },
-            osdApprovalRequired: { type: Boolean },
+            ctdApprovalRequired: { type: Boolean },
          },
          reimbursementApproval: {
             managerApprovalRequired: { type: Boolean },
@@ -207,9 +207,9 @@ const enrollmentSchema = new Schema<IEnrollment>(
             note:    { type: String, default: "" },
             actedAt: { type: Date },
          },
-         osdApproval: {
+         ctdApproval: {
             officerId: { type: Schema.Types.ObjectId, ref: "User" },
-            action:    { type: String, enum: Object.values(TOUR_OSD_ACTION) },
+            action:    { type: String, enum: Object.values(TOUR_CTD_ACTION) },
             note:      { type: String, default: "" },
             actedAt:   { type: Date },
          },

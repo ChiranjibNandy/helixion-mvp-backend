@@ -11,14 +11,11 @@ import {
    getPendingEnrollments,
    takeOsdSeniorAction,
    takeOsdJuniorAction,
-   takeTourOsdAction,
-   getPendingTourOsdApprovals,
 } from "../controllers/osd.controller.js";
 import {
    reimbursementEnrollmentParamsSchema,
    reimbursementOsdJuniorActionBodySchema,
    reimbursementOsdSeniorActionBodySchema,
-   tourOsdActionBodySchema,
 } from "../validators/osd.validator.js";
 
 const router = express.Router();
@@ -78,24 +75,5 @@ router.patch(
 );
 
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TOUR APPROVALS
-// ─────────────────────────────────────────────────────────────────────────────
-
-router.get("/tour-approvals/pending", getPendingTourOsdApprovals);
-
-/**
- * PATCH /api/osd/enrollments/:id/tour-action
- * 
- * OSD action on the tour part of the enrollment.
- * Requires osd role.
- */
-router.patch(
-   "/enrollments/:id/tour-action",
-   authorizeOfficeRole("osd", 1),
-   validate({ params: reimbursementEnrollmentParamsSchema, body: tourOsdActionBodySchema }),
-   takeTourOsdAction
-);
 
 export default router;

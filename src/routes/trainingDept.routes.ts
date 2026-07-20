@@ -5,12 +5,19 @@ import {
    authorizeOfficeRole,
    requirePasswordChange,
 } from "../middlewares/authorizeRole.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import {
    getPendingEnrollments,
    takeJuniorAction,
    takeSeniorAction,
+   getPendingTourApprovals,
+   takeTourAction,
 } from "../controllers/trainingDept.controller.js";
+import {
+   tourActionParamsSchema,
+   tourCtdActionBodySchema,
+} from "../validators/trainingDept.validator.js";
 
 const router = express.Router();
 
@@ -47,6 +54,31 @@ router.patch(
    "/enrollments/:id/senior-action",
    authorizeOfficeRole("trainingDept", 2),
    takeSeniorAction
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOUR APPROVALS — final approval on the tour leg (replaces OSD's old role)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/training-dept/tour-approvals/pending
+ */
+router.get(
+   "/tour-approvals/pending",
+   authorizeOfficeRole("trainingDept", 1),
+   getPendingTourApprovals
+);
+
+/**
+ * PATCH /api/training-dept/enrollments/:id/tour-action
+ * Body: { action: "approve" | "reject", note? }
+ * Senior officers only (level >= 2), matching the main enrollment approve/reject gate.
+ */
+router.patch(
+   "/enrollments/:id/tour-action",
+   authorizeOfficeRole("trainingDept", 2),
+   validate({ params: tourActionParamsSchema, body: tourCtdActionBodySchema }),
+   takeTourAction
 );
 
 export default router;

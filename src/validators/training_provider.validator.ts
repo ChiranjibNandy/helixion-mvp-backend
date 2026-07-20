@@ -8,6 +8,8 @@ export const baseProgramSchema = z.object({
    startDate: z.union([z.string(), z.date()]).optional(),
    endDate: z.union([z.string(), z.date()]).optional(),
    venue: z.string().optional(),
+   city: z.string().optional(),
+   state: z.string().optional(),
 
    singleOccupancyFee: z.coerce.number().min(0).optional(),
    twinSharingFee: z.coerce.number().min(0).optional(),
@@ -52,6 +54,8 @@ export const updateProgramSchema = z.object({
    startDate: z.string().optional(),
    endDate: z.string().optional(),
    venue: z.string().optional(),
+   city: z.string().optional(),
+   state: z.string().optional(),
 
    singleOccupancyFee: z.coerce.number().min(0).optional(),
    twinSharingFee: z.coerce.number().min(0).optional(),
@@ -69,6 +73,8 @@ export const bulkProgramRowSchema = z.object({
   startDate: z.string().optional().transform(v => v === "" ? undefined : v),
   endDate: z.string().optional().transform(v => v === "" ? undefined : v),
   venue: z.string().optional().transform(v => v === "" ? undefined : v),
+  city: z.string().optional().transform(v => v === "" ? undefined : v),
+  state: z.string().optional().transform(v => v === "" ? undefined : v),
 
   isResidential: z.coerce.boolean().optional(),
   stayType: z.preprocess(v => v === "" ? undefined : v, z.enum([STAY_TYPE.SINGLE_OCCUPANCY, STAY_TYPE.TWIN_SHARING]).optional()),

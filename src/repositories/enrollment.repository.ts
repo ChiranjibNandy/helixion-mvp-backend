@@ -258,7 +258,12 @@ export const findEnrollmentByEmployeeIds = async (employeeIds: Types.ObjectId[])
 
 // ─── Manager approval queue ───────────────────────────────────────────────────
 
-export const getPendingEnrollmentsForManagerRepo = async (
+// Dashboard list previews are capped so a manager/CTD queue with thousands of
+// entries can't force a single request to fetch-and-populate all of them —
+// the true total is reported separately via the count* siblings below.
+const DASHBOARD_LIST_CAP = 200;
+
+const buildManagerPendingFilter = (
   userId: string,
   orgId: string,
   options: { level?: number } = {}
@@ -279,14 +284,31 @@ export const getPendingEnrollmentsForManagerRepo = async (
     chainFilter.level = options.level;
   }
 
+  return {
+    orgId: toObjectId(orgId),
+    managerChain: { $elemMatch: chainFilter },
+  };
+};
+
+export const getPendingEnrollmentsForManagerRepo = async (
+  userId: string,
+  orgId: string,
+  options: { level?: number } = {}
+) => {
   return await enrollmentModel
-    .find({
-      orgId: toObjectId(orgId),
-      managerChain: { $elemMatch: chainFilter },
-    })
+    .find(buildManagerPendingFilter(userId, orgId, options))
     .populate("employeeId", "name email employeeCode placeOfPosting")
     .populate("programId", "title startDate endDate city venueName")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(DASHBOARD_LIST_CAP);
+};
+
+export const countPendingEnrollmentsForManagerRepo = async (
+  userId: string,
+  orgId: string,
+  options: { level?: number } = {}
+) => {
+  return await enrollmentModel.countDocuments(buildManagerPendingFilter(userId, orgId, options));
 };
 
 // ─── Manager dashboard ─────────────────────────────────────────────────────────
@@ -328,15 +350,18 @@ export const getManagerApprovalStatsRepo = async (managerId: string) => {
       { $group: { _id: "$managerChain.status", count: { $sum: 1 } } },
    ]);
 
-   const result: Record<"approved" | "pending" | "dismissed" | "null", number> = {
-      approved: 0, pending: 0, dismissed: 0, null: 0,
+   const result: Record<"approved" | "pending" | "dismissed", number> = {
+      approved: 0, pending: 0, dismissed: 0,
    };
 
    stats.forEach((item) => {
-      if (item._id === MANAGER_CHAIN_STATUS.APPROVED) result.approved = item.count;
-      else if (item._id === MANAGER_CHAIN_STATUS.PENDING) result.pending = item.count;
-      else if (item._id === MANAGER_CHAIN_STATUS.REJECTED) result.dismissed = item.count;
-      else if (item._id === MANAGER_CHAIN_STATUS.WAITING) result.null = item.count;
+      if (item._id === MANAGER_CHAIN_STATUS.APPROVED) result.approved += item.count;
+      // WAITING means "not yet this manager's turn in a multi-level chain" —
+      // still fundamentally unresolved from the team's perspective, so it
+      // counts as Pending rather than a hidden fourth bucket the UI (which
+      // only renders Approved/Pending/Rejected) would silently never show.
+      else if (item._id === MANAGER_CHAIN_STATUS.PENDING || item._id === MANAGER_CHAIN_STATUS.WAITING) result.pending += item.count;
+      else if (item._id === MANAGER_CHAIN_STATUS.REJECTED) result.dismissed += item.count;
    });
 
    return result;
@@ -355,7 +380,21 @@ export const getPendingEnrollmentsForStageRepo = async (
     })
     .populate("employeeId", "name email employeeCode placeOfPosting")
     .populate("programId", "title startDate endDate city venueName")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(DASHBOARD_LIST_CAP);
+};
+
+// Count-only sibling for callers (dashboard summary tiles) that only need
+// the total, not the populated documents — avoids fetching/populating the
+// full list just to read its length.
+export const countPendingEnrollmentsForStageRepo = async (
+  orgId: string,
+  stage: string
+) => {
+  return await enrollmentModel.countDocuments({
+    orgId: toObjectId(orgId),
+    currentStage: stage,
+  });
 };
 
 export const getEnrollmentByUserIdInManagerChain = async (
@@ -742,13 +781,22 @@ export const getPendingTourApprovalsForManagerRepo = async (
       .sort({ createdAt: -1 });
 };
 
-export const getPendingTourApprovalsForOsdRepo = async (orgId: string) => {
+export const getPendingTourApprovalsForCtdRepo = async (orgId: string) => {
    return await enrollmentModel
       .find({
          orgId: toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.TOUR_OSD_REVIEW,
+         currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
       })
       .populate("employeeId", "name email employeeCode designation department placeOfPosting")
       .populate("programId", "title startDate endDate city venueName")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(DASHBOARD_LIST_CAP);
+};
+
+// Count-only sibling — see countPendingEnrollmentsForStageRepo above.
+export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
+   return await enrollmentModel.countDocuments({
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
+   });
 };

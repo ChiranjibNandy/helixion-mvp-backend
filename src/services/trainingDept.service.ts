@@ -1,6 +1,9 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { getPendingEnrollmentsForStageRepo } from "../repositories/enrollment.repository.js";
+import {
+   getPendingEnrollmentsForStageRepo,
+   getPendingTourApprovalsForCtdRepo,
+} from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -8,11 +11,17 @@ import {
    TRAINING_DEPT_JUNIOR_ACTION,
    TRAINING_DEPT_SENIOR_ACTION,
    ACTOR_TYPE,
+   TRAVEL_TYPE,
+   TOUR_STATUS,
+   TOUR_CTD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import {
    sendEnrollmentApprovedLocalMail,
    sendEnrollmentApprovedOutstationMail,
+   sendEnrollmentRejectedByTrainingDeptMail,
+   sendTravelRequestApprovedMail,
+   sendTravelRequestNotApprovedByCtdMail,
 } from "../utils/sendMail.js";
 import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 
@@ -183,17 +192,33 @@ export const takeSeniorActionService = async (
       );
    }
 
-   // 3. Determine next stage
-   const nextStage =
-      action === TRAINING_DEPT_SENIOR_ACTION.APPROVE
-         ? ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE
-         : ENROLLMENT_STAGE.REJECTED;
+   const approving = action === TRAINING_DEPT_SENIOR_ACTION.APPROVE;
 
-   const nextEnrollmentStatus =
-      action === TRAINING_DEPT_SENIOR_ACTION.APPROVE ? "approved" : "rejected";
+   // 3. On approval, resolve local-vs-outstation BEFORE deciding the next
+   // stage — local training skips the tour step entirely (no manager/OSD
+   // travel approval needed), so the stage decision itself depends on this,
+   // not just the email copy.
+   const notificationContext = await loadNotificationContext(
+      String(existing.employeeId),
+      String(existing.programId)
+   );
+   const isLocal = approving
+      ? isLocalTraining(notificationContext.employee?.placeOfPosting, notificationContext.program?.city)
+      : false;
 
-   // 4. Atomic update — single round-trip, no race condition
-   await enrollmentModel.findOneAndUpdate(
+   const nextStage = !approving
+      ? ENROLLMENT_STAGE.REJECTED
+      : isLocal
+         ? ENROLLMENT_STAGE.APPROVED
+         : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
+
+   const nextEnrollmentStatus = approving ? "approved" : "rejected";
+
+   // 4. Atomic update — single round-trip. The filter re-checks currentStage,
+   // so a second, racing request (double-click, or a second officer acting
+   // concurrently) will find nothing to update once the first request has
+   // already moved currentStage away from TRAINING_DEPT_REVIEW.
+   const updated = await enrollmentModel.findOneAndUpdate(
       {
          _id:          toObjectId(String(enrollmentId)),
          orgId:        toObjectId(orgId),
@@ -207,6 +232,17 @@ export const takeSeniorActionService = async (
             "trainingDeptReview.seniorAction":    action as TRAINING_DEPT_SENIOR_ACTION,
             "trainingDeptReview.seniorNote":      note,
             "trainingDeptReview.seniorActedAt":   new Date(),
+            // Local training bypasses the tour form (submitTourFormService
+            // never runs for it) — mirror the fields that function would
+            // have set for a LOCAL choice, so tour.* doesn't stay at
+            // whatever default enrollment-time value it started with.
+            ...(approving && isLocal
+               ? {
+                  "tour.travelType":         TRAVEL_TYPE.LOCAL,
+                  "tour.status":             TOUR_STATUS.NOT_REQUIRED,
+                  "statusSummary.tourStatus": TOUR_STATUS.NOT_REQUIRED,
+               }
+               : {}),
          },
          $push: {
             timeline: {
@@ -222,16 +258,130 @@ export const takeSeniorActionService = async (
       { new: true }
    );
 
-   if (action === TRAINING_DEPT_SENIOR_ACTION.APPROVE) {
-      loadNotificationContext(String(existing.employeeId), String(existing.programId))
-         .then(({ employee, program, programTitle }) => {
-            if (!employee) return;
-            return isLocalTraining(employee.placeOfPosting, program?.city)
-               ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
-               : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle);
-         })
-         .catch(logMailFailure("enrollment-approved"));
+   if (!updated) {
+      throw new AppError(
+         "Senior review has already been recorded for this enrollment.",
+         HTTP_STATUS.CONFLICT
+      );
    }
+
+   const { employee, programTitle } = notificationContext;
+   if (employee) {
+      (approving
+         ? (isLocal
+            ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
+            : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle))
+         : sendEnrollmentRejectedByTrainingDeptMail(employee.email, employee.name, programTitle)
+      ).catch(logMailFailure(approving ? "enrollment-approved" : "enrollment-rejected-by-training-dept"));
+   }
+
+   return { currentStage: nextStage };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tour CTD action (approve | reject) — final approval on the tour leg,
+// replacing what OSD used to do here. Reject falls back to self_travel and
+// is non-terminal — the enrollment still proceeds to APPROVED either way.
+//
+// Idempotency: stage filter on TOUR_CTD_REVIEW.
+// Atomicity: single findOneAndUpdate.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getPendingTourCtdApprovalsService = async (orgId: string) => {
+   return await getPendingTourApprovalsForCtdRepo(orgId);
+};
+
+export const takeTourCtdActionService = async (
+   enrollmentId: string,
+   officerId: string,
+   orgId: string,
+   action: TOUR_CTD_ACTION,
+   note: string
+) => {
+   if (
+      !Object.values(TOUR_CTD_ACTION).includes(action as TOUR_CTD_ACTION) ||
+      action === TOUR_CTD_ACTION.WAITING
+   ) {
+      throw new AppError(
+         "Invalid action. Must be 'approve' or 'reject'.",
+         HTTP_STATUS.BAD_REQUEST
+      );
+   }
+
+   const existing = await enrollmentModel.findOne({
+      _id: toObjectId(String(enrollmentId)),
+      orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
+   });
+
+   if (!existing) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const nextStage = ENROLLMENT_STAGE.APPROVED;
+   const nextTourStatus =
+      action === TOUR_CTD_ACTION.APPROVE
+         ? TOUR_STATUS.CTD_APPROVED
+         : TOUR_STATUS.CTD_REJECTED;
+
+   const updateOps: any = {
+      $set: {
+         currentStage: nextStage,
+         "tour.status": nextTourStatus,
+         "statusSummary.tourStatus": nextTourStatus,
+         "tour.ctdApproval": {
+            officerId: toObjectId(officerId),
+            action: action as TOUR_CTD_ACTION,
+            note,
+            actedAt: new Date(),
+         },
+      },
+      $push: {
+         timeline: {
+            stage: nextStage,
+            actorId: toObjectId(officerId),
+            actorType: ACTOR_TYPE.TRAINING_DEPT,
+            action: `tour_ctd_${action}`,
+            note,
+            at: new Date(),
+         },
+      },
+   };
+
+   // Fallback to self_travel if rejected
+   if (action === TOUR_CTD_ACTION.REJECT) {
+      updateOps.$set["tour.travelType"] = TRAVEL_TYPE.SELF_TRAVEL;
+      if (existing.travelAndStay) {
+         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
+      }
+   } else {
+      if (existing.travelAndStay) {
+         updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
+      }
+   }
+
+   const updated = await enrollmentModel.findOneAndUpdate(
+      {
+         _id: toObjectId(String(enrollmentId)),
+         orgId: toObjectId(orgId),
+         currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
+      },
+      updateOps,
+      { new: true }
+   );
+
+   if (!updated) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   loadNotificationContext(String(updated.employeeId), String(updated.programId))
+      .then(({ employee, programTitle }) => {
+         if (!employee) return;
+         return action === TOUR_CTD_ACTION.APPROVE
+            ? sendTravelRequestApprovedMail(employee.email, employee.name, programTitle)
+            : sendTravelRequestNotApprovedByCtdMail(employee.email, employee.name, programTitle);
+      })
+      .catch(logMailFailure("tour-ctd-action"));
 
    return { currentStage: nextStage };
 };

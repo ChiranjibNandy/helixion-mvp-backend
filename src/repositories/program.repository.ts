@@ -428,7 +428,7 @@ export const getEmployeeProgramByIdRepo = async (id: string) => {
    return await programModel.findOne({
       _id: toObjectId(id),
       status: PROGRAM_SAVED_STATUS.PUBLISHED
-   });
+   }).populate("createdBy", "name");
 };
 
 export const getEmployeeProgramsListRepo = async ({
@@ -455,7 +455,7 @@ export const getEmployeeProgramsListRepo = async ({
       filter.title = { $regex: search, $options: "i" };
    }
    if (venue) {
-      filter.venue = { $regex: venue, $options: "i" };
+      filter.venueName = { $regex: venue, $options: "i" };
    }
    if (fromDate || toDate) {
       filter.startDate = {};
@@ -472,6 +472,7 @@ export const getEmployeeProgramsListRepo = async ({
          .sort({ startDate: 1 })
          .skip(skip)
          .limit(limit)
+         .populate("createdBy", "name")
          .lean(),
       programModel.countDocuments(filter)
    ]);
