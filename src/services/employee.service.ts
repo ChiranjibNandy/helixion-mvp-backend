@@ -9,6 +9,8 @@ import {
    findEnrollmentForReimbursementSubmitRepo,
    submitReimbursementRepo,
    getEmployeeNotificationTimelineRepo,
+   countPendingEnrollmentsForStageRepo,
+   countPendingTourApprovalsForCtdRepo,
 } from "../repositories/enrollment.repository.js";
 import userModel from "../models/user.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
@@ -29,7 +31,7 @@ import {
    TRAINING_DEPT_SENIOR_ACTION,
    TIMELINE_ACTION,
    TRAVEL_TYPE,
-   TOUR_OSD_ACTION,
+   TOUR_CTD_ACTION,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
@@ -40,11 +42,29 @@ import { IUser } from "../interfaces/user.interface.js";
 
 
 export const getEmployeeDashboardService = async (userId: string) => {
-  const [summary, approvalStats, listedPrograms] = await Promise.all([
+  const [summary, approvalStats, listedPrograms, user] = await Promise.all([
     getDashboardSummaryRepo(userId),
     getApprovalStatsRepo(userId),
     getListedProgramsRepo(userId),
+    userModel.findById(userId).select("orgId officeRoles.trainingDept").lean(),
   ]);
+
+  // A CTD officer's own personal "pendingApprovals" (enrollments THEY
+  // submitted awaiting a manager) is rarely what they actually care about
+  // on this dashboard — they land here because there's no separate CTD
+  // dashboard. Mirror the same override already applied to the Manager
+  // dashboard: replace it with the count of items actually awaiting THEIR
+  // CTD action (main enrollment queue + tour queue combined), so "Pending
+  // Approvals" / "Awaiting your review" means something real for them.
+  const trainingDeptRole = (user as any)?.officeRoles?.trainingDept;
+  if (trainingDeptRole?.enabled && (user as any)?.orgId) {
+    const orgId = String((user as any).orgId);
+    const [ctdMainPendingCount, ctdTourPendingCount] = await Promise.all([
+      countPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
+      countPendingTourApprovalsForCtdRepo(orgId),
+    ]);
+    summary.pendingApprovals = ctdMainPendingCount + ctdTourPendingCount;
+  }
 
   return { summary, approvalStats, listedPrograms };
 };
@@ -115,13 +135,13 @@ export const enrollInProgramService = async (
 
    // 5. Structure travel and stay details
    const managerApprovalRequired = organization.policy?.tourApproval?.managerApprovalRequired ?? true;
-   const osdApprovalRequired = organization.policy?.tourApproval?.osdApprovalRequired ?? true;
+   const ctdApprovalRequired = organization.policy?.tourApproval?.ctdApprovalRequired ?? true;
 
    const travelType = travelAndStayInput?.travelType || TRAVEL_TYPE.LOCAL;
 
    let initialTourStatus = TOUR_STATUS.NOT_REQUIRED;
    if (travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-      initialTourStatus = managerApprovalRequired ? TOUR_STATUS.SUBMITTED : (osdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.OSD_APPROVED);
+      initialTourStatus = managerApprovalRequired ? TOUR_STATUS.SUBMITTED : (ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED);
    }
 
    const travelAndStay = {
@@ -151,8 +171,8 @@ export const enrollInProgramService = async (
       managerApproval: {
          action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && managerApprovalRequired ? MANAGER_ACTION.PENDING : MANAGER_ACTION.APPROVE,
       },
-      osdApproval: {
-         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && osdApprovalRequired ? TOUR_OSD_ACTION.WAITING : TOUR_OSD_ACTION.APPROVE,
+      ctdApproval: {
+         action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && ctdApprovalRequired ? TOUR_CTD_ACTION.WAITING : TOUR_CTD_ACTION.APPROVE,
       }
    };
 
@@ -185,7 +205,7 @@ export const enrollInProgramService = async (
          managerApproval: organization.policy?.managerApproval || { levels: 3, minLevelToApprove: 1 },
          trainingDeptApproval: organization.policy?.trainingDeptApproval || { enabled: true, levels: 2, minLevelToApprove: 2 },
          osdReview: organization.policy?.osdReview || { enabled: true, levels: 2, minLevelToApprove: 2 },
-         tourApproval: organization.policy?.tourApproval || { managerApprovalRequired: true, osdApprovalRequired: true },
+         tourApproval: organization.policy?.tourApproval || { managerApprovalRequired: true, ctdApprovalRequired: true },
          reimbursementApproval: organization.policy?.reimbursementApproval || { managerApprovalRequired: true, osdApprovalRequired: true }
       },
       managerChain,
@@ -293,9 +313,9 @@ export const updateTravelDetailsService = async (
                            then: TOUR_STATUS.SUBMITTED,
                            else: {
                               $cond: {
-                                 if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.osdApprovalRequired", true] }, true] },
+                                 if: { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.ctdApprovalRequired", true] }, true] },
                                  then: TOUR_STATUS.MANAGER_APPROVED,
-                                 else: TOUR_STATUS.OSD_APPROVED
+                                 else: TOUR_STATUS.CTD_APPROVED
                               }
                            }
                         }
@@ -321,16 +341,16 @@ export const updateTravelDetailsService = async (
                      else: MANAGER_ACTION.APPROVE
                   }
                },
-               "tour.osdApproval.action": {
+               "tour.ctdApproval.action": {
                   $cond: {
                      if: {
                         $and: [
                            { $eq: [travelType, TRAVEL_TYPE.COMPANY_ASSISTED] },
-                           { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.osdApprovalRequired", true] }, true] }
+                           { $eq: [{ $ifNull: ["$policySnapshot.tourApproval.ctdApprovalRequired", true] }, true] }
                         ]
                      },
-                     then: TOUR_OSD_ACTION.WAITING,
-                     else: TOUR_OSD_ACTION.APPROVE
+                     then: TOUR_CTD_ACTION.WAITING,
+                     else: TOUR_CTD_ACTION.APPROVE
                   }
                }
             }
@@ -353,7 +373,11 @@ export const updateTravelDetailsService = async (
             }
          }
       ],
-      { new: true }
+      // Mongoose 9 requires explicitly opting in to aggregation-pipeline
+      // (array) updates — previously auto-detected, now throws
+      // "Cannot pass an array to query updates unless the `updatePipeline`
+      // option is set" without this.
+      { new: true, updatePipeline: true }
    );
 
    if (!updated) {
@@ -510,6 +534,31 @@ const NOTIFICATION_RULES: NotificationRule[] = [
             : `Your enrollment for ${programTitle} has been approved. Please coordinate travel arrangements with the Training Department.`,
    },
    {
+      // For orgs with Training Dept review disabled, takeManagerActionService
+      // applies the local/outstation branch itself and the timeline's `stage`
+      // lands on APPROVED directly — distinguishes this from an intermediate
+      // multi-level chain approval, which leaves `stage` unchanged.
+      type:    "enrollment_approved",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.APPROVED,
+      buildMessage: ({ programTitle }) =>
+         `Your enrollment for ${programTitle} has been approved. No travel action is required.`,
+   },
+   {
+      type:    "enrollment_approved",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+      buildMessage: ({ programTitle }) =>
+         `Your enrollment for ${programTitle} has been approved. Please coordinate travel arrangements with the Training Department.`,
+   },
+   {
+      // Not one of the ticket's 12 named events, but its approval counterpart
+      // (above) is — a Training Dept rejection producing zero notification
+      // was a gap found while testing, matching the reimbursement-reject fix.
+      type:    "enrollment_rejected",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TRAINING_DEPT_SENIOR_ACTION.REJECT,
+      buildMessage: ({ programTitle }) =>
+         `Your enrollment request for ${programTitle} has been rejected by the Training Department.`,
+   },
+   {
       type:    "attendance_present",
       matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.ATTENDANCE_PRESENT,
       buildMessage: ({ programTitle }) =>
@@ -555,10 +604,10 @@ const NOTIFICATION_RULES: NotificationRule[] = [
          `Your company-assisted travel request for ${programTitle} has been submitted and is awaiting manager approval.`,
    },
    {
-      type:    "travel_under_osd_review",
+      type:    "travel_under_ctd_review",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === TIMELINE_ACTION.TOUR_MANAGER_APPROVE,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} has been approved by your manager and is awaiting OSD approval.`,
+         `Your company-assisted travel request for ${programTitle} has been approved by your manager and is awaiting Training Dept approval.`,
    },
    {
       type:    "travel_rejected_by_manager",
@@ -568,19 +617,19 @@ const NOTIFICATION_RULES: NotificationRule[] = [
    },
    {
       type:    "travel_approved",
-      matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.TOUR_OSD_APPROVE,
+      matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TIMELINE_ACTION.TOUR_CTD_APPROVE,
       buildMessage: ({ programTitle }) =>
          `Your company-assisted travel request for ${programTitle} has been approved. Please proceed with the approved travel arrangements.`,
    },
    {
-      type:    "travel_rejected_by_osd",
-      matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.TOUR_OSD_REJECT,
+      type:    "travel_rejected_by_ctd",
+      matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TIMELINE_ACTION.TOUR_CTD_REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} was not approved by OSD. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
+         `Your company-assisted travel request for ${programTitle} was not approved by the Training Department. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
    },
    {
       type:    "travel_timed_out",
-      matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.TOUR_OSD_TIMEOUT,
+      matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.TOUR_CTD_TIMEOUT,
       buildMessage: ({ programTitle }) =>
          `Your company-assisted travel request for ${programTitle} could not be processed within the required time. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
    },
@@ -662,7 +711,7 @@ export const submitTourFormService = async (
 
    const travelType = tourFormData.travelType as TRAVEL_TYPE;
    const managerApprovalRequired = enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
-   const osdApprovalRequired = enrollment.policySnapshot?.tourApproval?.osdApprovalRequired ?? true;
+   const ctdApprovalRequired = enrollment.policySnapshot?.tourApproval?.ctdApprovalRequired ?? true;
 
    let nextStage: ENROLLMENT_STAGE;
    let tourStatus: TOUR_STATUS;
@@ -675,8 +724,8 @@ export const submitTourFormService = async (
       if (managerApprovalRequired) {
          nextStage = ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW;
          tourStatus = TOUR_STATUS.SUBMITTED;
-      } else if (osdApprovalRequired) {
-         nextStage = ENROLLMENT_STAGE.TOUR_OSD_REVIEW;
+      } else if (ctdApprovalRequired) {
+         nextStage = ENROLLMENT_STAGE.TOUR_CTD_REVIEW;
          tourStatus = TOUR_STATUS.MANAGER_APPROVED;
       } else {
          nextStage = ENROLLMENT_STAGE.APPROVED;
@@ -704,10 +753,10 @@ export const submitTourFormService = async (
                ? MANAGER_ACTION.PENDING
                : MANAGER_ACTION.APPROVE,
          },
-         "tour.osdApproval": {
-            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && osdApprovalRequired
-               ? TOUR_OSD_ACTION.WAITING
-               : TOUR_OSD_ACTION.APPROVE,
+         "tour.ctdApproval": {
+            action: travelType === TRAVEL_TYPE.COMPANY_ASSISTED && ctdApprovalRequired
+               ? TOUR_CTD_ACTION.WAITING
+               : TOUR_CTD_ACTION.APPROVE,
          },
          "statusSummary.tourStatus": tourStatus,
       },

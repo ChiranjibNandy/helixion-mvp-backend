@@ -74,6 +74,25 @@ export const canApproveTrainingDept = async (
    );
 };
 
+// Tour approval (CTD's final approval on the tour leg) is governed by
+// org.policy.tourApproval.ctdApprovalRequired, NOT trainingDeptApproval.enabled
+// (that gates the separate main-enrollment CTD approval step). Deliberately
+// does not check trainingDeptApproval.enabled — an officer must not lose
+// tour-approval access just because the org has disabled the unrelated
+// main-approval step. Level 2 matches the PATCH tour-action route's
+// authorizeOfficeRole("trainingDept", 2) gate.
+export const canApproveTourCtd = async (user: IUser) => {
+   if (!user.orgId) {
+      return false
+   }
+
+   return !!await hasApproveTrainingDept(
+      user.orgId,
+      user._id,
+      2
+   );
+};
+
 export const canReviewOsd = async (user: IUser) => {
    if (!user.orgId) {
       return false
@@ -120,6 +139,7 @@ export const buildPermission = async (user: IUser) => {
       canApproveEnrollmentPermission,
       canReviewTrainingDeptPermission,
       canApproveTrainingDeptPermission,
+      canApproveTourCtdPermission,
       canReviewOsdPermission,
       canApproveOsdPermission,
    ] = await Promise.all([
@@ -128,6 +148,7 @@ export const buildPermission = async (user: IUser) => {
       canEnrollmentApproval(user),
       canReviewTrainingDept(user),
       canApproveTrainingDept(user),
+      canApproveTourCtd(user),
       canReviewOsd(user),
       canApproveOsd(user),
    ]);
@@ -138,6 +159,7 @@ export const buildPermission = async (user: IUser) => {
       canApproveEnrollment: canApproveEnrollmentPermission,
       canReviewTrainingDept: canReviewTrainingDeptPermission,
       canApproveTrainingDept: canApproveTrainingDeptPermission,
+      canApproveTourCtd: canApproveTourCtdPermission,
       canReviewOsd: canReviewOsdPermission,
       canApproveOsd: canApproveOsdPermission,
    };

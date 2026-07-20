@@ -101,9 +101,9 @@ export enum TIMELINE_ACTION {
   REIMBURSEMENT_OSD_REJECT       = "reimbursement_osd_reject",
   TOUR_MANAGER_APPROVE           = "tour_manager_approve",
   TOUR_MANAGER_REJECT            = "tour_manager_reject",
-  TOUR_OSD_APPROVE               = "tour_osd_approve",
-  TOUR_OSD_REJECT                = "tour_osd_reject",
-  TOUR_OSD_TIMEOUT               = "osd_timeout",
+  TOUR_CTD_APPROVE               = "tour_ctd_approve",
+  TOUR_CTD_REJECT                = "tour_ctd_reject",
+  TOUR_CTD_TIMEOUT               = "ctd_timeout",
 }
 
 // ─── Stay types ───────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ export enum ENROLLMENT_STAGE {
   APPROVED                     = "approved",
   TOUR_PENDING_EMPLOYEE        = "tour_pending_employee",
   TOUR_MANAGER_REVIEW          = "tour_manager_review",
-  TOUR_OSD_REVIEW              = "tour_osd_review",
+  TOUR_CTD_REVIEW              = "tour_ctd_review",
   REJECTED                     = "rejected",
   ATTENDED                     = "attended",
   ABSENT                       = "absent",
@@ -195,7 +195,7 @@ export enum TRAVEL_TYPE {
   COMPANY_ASSISTED = "company_assisted",
 }
 
-export enum TOUR_OSD_ACTION {
+export enum TOUR_CTD_ACTION {
   WAITING = "waiting",
   APPROVE = "approve",
   REJECT  = "reject",
@@ -207,9 +207,9 @@ export enum TOUR_STATUS {
   SUBMITTED               = "submitted",
   MANAGER_APPROVED        = "manager_approved",
   MANAGER_REJECTED        = "manager_rejected",
-  OSD_APPROVED            = "osd_approved",
-  OSD_REJECTED            = "osd_rejected",
-  OSD_TIMEOUT             = "osd_timeout",
+  CTD_APPROVED            = "ctd_approved",
+  CTD_REJECTED            = "ctd_rejected",
+  CTD_TIMEOUT             = "ctd_timeout",
   APPROVED                = "approved",
   REJECTED                = "rejected",
 }

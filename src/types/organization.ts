@@ -21,7 +21,7 @@ export interface OrganizationPolicy {
    reimbursement: ApprovalPolicy;
    tourApproval?: {
       managerApprovalRequired: boolean;
-      osdApprovalRequired: boolean;
+      ctdApprovalRequired: boolean;
    };
    reimbursementApproval?: {
       managerApprovalRequired: boolean;

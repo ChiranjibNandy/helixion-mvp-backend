@@ -6,6 +6,7 @@ import { validateBulkRows } from "../utils/bulkValidator.js";
 import { AppError } from "../utils/appError.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { mapProgramInputToModelFields } from "../utils/programFields.js";
 
 
 
@@ -20,15 +21,15 @@ export const createProgramService = async (data: createProgramReq) => {
     brochurePublicId = uploadResult.public_id;
   }
 
-  const payload = {
+  const payload = mapProgramInputToModelFields({
     ...data,
     brochureUrl,
     brochurePublicId,
-  };
+  });
 
   delete (payload as any).file;
 
-  return await createProgramRepo(payload);
+  return await createProgramRepo(payload as any);
 };
 
 //bulk program upload service
@@ -52,7 +53,7 @@ export const bulkCreateProgramService = async ({
     throw new AppError(MESSAGES.NO_PROGRAM_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
-  const inserted = await programBulkInsert(validPrograms);
+  const inserted = await programBulkInsert(validPrograms.map(mapProgramInputToModelFields));
 
   return {
     insertedCount: inserted.length,
@@ -109,10 +110,10 @@ export const updateDraftService = async (
     brochurePublicId = uploadResult.public_id;
   }
 
-  const updateData = {
+  const updateData = mapProgramInputToModelFields({
     ...data,
     ...(file && { brochureUrl, brochurePublicId })
-  };
+  });
 
   const updatedProgram = await updateProgramRepo(id, providerId, updateData);
   return updatedProgram;
@@ -130,9 +131,14 @@ export const publishDraftService = async (id: string, providerId: string) => {
     throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
-  // Use the createProgramSchema to validate if all required fields for publishing are present
+  // Use the createProgramSchema to validate if all required fields for publishing are present.
+  // createProgramSchema checks `venue` (the request-body field name); the
+  // persisted document has `venueName` (the model field name) — map it back
+  // for this validation-only purpose, otherwise every real program with a
+  // venue set still fails "Venue is required" here.
   const validationData = {
     ...program.toObject(),
+    venue: program.venueName,
     status: PROGRAM_SAVED_STATUS.PUBLISHED
   };
 

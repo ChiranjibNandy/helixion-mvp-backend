@@ -18,7 +18,7 @@ const policyAssignmentSchema = z.object({
 
 const tourApprovalPolicySchema = z.object({
   managerApprovalRequired: z.boolean(),
-  osdApprovalRequired: z.boolean(),
+  ctdApprovalRequired: z.boolean(),
 });
 
 const reimbursementApprovalPolicySchema = z.object({
@@ -61,7 +61,7 @@ export const createOrganizationSchema = z.object({
     tourApproval:
       tourApprovalPolicySchema.default({
         managerApprovalRequired: true,
-        osdApprovalRequired: true,
+        ctdApprovalRequired: true,
       }),
 
     reimbursementApproval:

@@ -80,7 +80,7 @@ const organizationSchema = new Schema<IOrganization>(
          reimbursement: approvalPolicySchema,
          tourApproval: {
             managerApprovalRequired: { type: Boolean, default: true },
-            osdApprovalRequired: { type: Boolean, default: true }
+            ctdApprovalRequired: { type: Boolean, default: true }
          },
          reimbursementApproval: {
             managerApprovalRequired: { type: Boolean, default: true },

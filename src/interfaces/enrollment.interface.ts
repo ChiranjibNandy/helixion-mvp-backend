@@ -12,7 +12,7 @@ import {
    ATTENDANCE_RECORD_STATUS,
    ENROLLMENT_STATUS_SUMMARY,
    TRAVEL_TYPE,
-   TOUR_OSD_ACTION,
+   TOUR_CTD_ACTION,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -73,7 +73,7 @@ export interface IEnrollment {
       managerApproval?: { levels: number; minLevelToApprove: number };
       trainingDeptApproval?: { enabled: boolean; levels: number; minLevelToApprove: number };
       osdReview?: { enabled: boolean; levels: number; minLevelToApprove: number };
-      tourApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
+      tourApproval?: { managerApprovalRequired: boolean; ctdApprovalRequired: boolean };
       reimbursementApproval?: { managerApprovalRequired: boolean; osdApprovalRequired: boolean };
    };
 
@@ -127,9 +127,9 @@ export interface IEnrollment {
          note?: string;
          actedAt?: Date;
       };
-      osdApproval?: {
+      ctdApproval?: {
          officerId?: Types.ObjectId;
-         action: TOUR_OSD_ACTION;
+         action: TOUR_CTD_ACTION;
          note?: string;
          actedAt?: Date;
       };

@@ -62,7 +62,7 @@ export const buildOrganizationPolicy = (
 
   tourApproval: {
     managerApprovalRequired: true,
-    osdApprovalRequired: true,
+    ctdApprovalRequired: true,
   },
 
   reimbursementApproval: {

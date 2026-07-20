@@ -24,6 +24,21 @@ const ATTENDANCE_LOCKED_STAGES: ENROLLMENT_STAGE[] = [
    ENROLLMENT_STAGE.REJECTED,
 ];
 
+// The frontend used to hide any program whose endDate hadn't passed yet from
+// the "Update Attendance" list — that filter was removed (it was also hiding
+// genuinely in-progress programs), but nothing replaced the one invariant it
+// incidentally enforced: attendance shouldn't be marked before a program has
+// even started. Only guards against startDate, not endDate, so marking
+// attendance while a program is in progress or already finished is fine.
+const assertProgramHasStarted = (program: { startDate?: Date | string | null }) => {
+   if (program.startDate && new Date(program.startDate) > new Date()) {
+      throw new AppError(
+         "Attendance cannot be marked before the program has started.",
+         HTTP_STATUS.BAD_REQUEST
+      );
+   }
+};
+
 const presentUpdate = (now: Date) => ({
    "attendance.uploadedByProvider":  true,
    "attendance.uploadedAt":          now,
@@ -185,6 +200,7 @@ export const takeAttendanceService = async (
       payload.programId,
       payload.training_providerId
    );
+   assertProgramHasStarted(programData);
 
    const participantIds = payload.participants.map(
       (participant) => participant.participantId
@@ -219,7 +235,8 @@ export const updateParticipantAttendanceService =
    ) => {
       // Ownership check (ticket 0032): only the TP who created this program
       // may mark attendance for it.
-      await assertProgramOwnershipService(payload.programId, payload.training_providerId);
+      const programData = await assertProgramOwnershipService(payload.programId, payload.training_providerId);
+      assertProgramHasStarted(programData);
 
       // Same CTD-approval visibility gate the bulk path enforces via
       // validateParticipantsEnrollmentService — the single-participant path
