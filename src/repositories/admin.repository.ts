@@ -1,6 +1,5 @@
 import User from "../models/user.model.js";
 import { IUser } from "../interfaces/user.interface.js";
-import { APPROVAL_STATUS } from "../constants/enum.js";
 
 // Retrieve a list of users with pending registration status for admin, supporting pagination and limit
 export const getPendingRegistrationsRepo = async (
@@ -14,14 +13,14 @@ export const getPendingRegistrationsRepo = async (
 
    const [users, total] = await Promise.all([
       User.find({
-         approval_status: APPROVAL_STATUS.PENDING,
+         isApproved: false
       })
          .sort({ createdAt: -1 })
          .skip(skip)
          .limit(limit),
 
       User.countDocuments({
-         approval_status: APPROVAL_STATUS.PENDING,
+         isApproved: false
       }),
    ]);
 

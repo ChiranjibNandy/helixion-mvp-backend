@@ -40,6 +40,7 @@ export const MESSAGES = {
   USER_DEACTIVATED_SUCCESSFULLY: "User deactivated successfully",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   CANNOT_DEACTIVATE_SELF: "Cannot deactivate your own account",
+  NOT_ACTIVE_USER: "Your account is not active. Please contact the administrator.",
 
   BATCH_USERS_PROCESSED: "Bulk users processed successfully",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",

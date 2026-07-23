@@ -84,6 +84,10 @@ const userSchema = new Schema<IUser>(
          default: USER_STATUS.ACTIVE,
          index: true,
       },
+      isApproved: {
+         type: Boolean,
+         default: false,
+      },
 
       hierarchy: {
          level: { type: Number, default: 0 }, // 0 = individual contributor

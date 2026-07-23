@@ -69,6 +69,7 @@ export const approveUserRepo = async (id: string, orgRole: string, placeOfPostin
          status: USER_STATUS.ACTIVE,
          mustChangePassword: false,
          ...(placeOfPosting && { placeOfPosting }),
+         isApproved:true
       },
       { new: true }
    );

@@ -72,8 +72,12 @@ export const loginService = async (
       throw new AppError(MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.CONFLICT);
    }
 
+   if(!user.isApproved){
+       throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
+   }
+
    if (user.status !== USER_STATUS.ACTIVE) {
-      throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
+      throw new AppError(MESSAGES.NOT_ACTIVE_USER, HTTP_STATUS.CONFLICT);
    }
    const permissions = await buildPermission(user);
 

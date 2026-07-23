@@ -38,10 +38,8 @@ export interface IHierarchy {
  */
 export interface IUser {
    _id: Types.ObjectId;
-
    orgId?: Types.ObjectId;       // null for training_provider users (not corporate)
    orgType?: "corporate";
-
    employeeCode?: string;
    name: string;                 // was: username
    email: string;
@@ -49,17 +47,13 @@ export interface IUser {
    placeOfPosting?: string;      // was: location
    designation?: string;
    department?: string;
-
    passwordHash: string;         // was: password
    mustChangePassword: boolean;
-
    orgRole: ORG_ROLE;            // top-level role (admin | employee | training_provider)
    status: USER_STATUS;
-
+   isApproved:boolean;
    hierarchy: IHierarchy;
-
    officeRoles: IOfficeRoles;
-
    createdAt?: Date;
    updatedAt?: Date;
 }
