@@ -28,10 +28,11 @@ export const canEnrollmentApproval = async (user: IUser) => {
    if (!organization) {
       return false
    }
+
    const exists = await hasApproveEmployees(
       user.orgId,
       user._id,
-      organization?.policy.managerApproval.minLevelToApprove
+      organization.policy.managerApproval.minLevelToApprove
    )
    return !!exists
 };
@@ -63,7 +64,7 @@ export const canApproveTrainingDept = async (
 
    const policy = organization.policy.trainingDeptApproval;
 
-   if (!policy.enabled) {
+   if (!policy?.enabled) {
       return false;
    }
 
@@ -119,7 +120,7 @@ export const canApproveOsd = async (user: IUser) => {
 
    const policy = organization.policy.osdReview;
 
-   if (!policy.enabled) {
+   if (!policy?.enabled) {
       return false;
    }
 
