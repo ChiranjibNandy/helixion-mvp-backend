@@ -41,7 +41,10 @@ export const getRegisteredUsersRepo =
          query = {
             $or: [
                {
-                  username: {
+                  // Was filtering on `username`, a field that doesn't exist
+                  // on the User schema (the real field is `name`) — every
+                  // name-based search silently matched nothing.
+                  name: {
                      $regex: search,
                      $options: "i"
                   }
@@ -63,7 +66,9 @@ export const getRegisteredUsersRepo =
             User.find(
                query,
                {
-                  username: 1,
+                  // Was projecting `username` (nonexistent) instead of
+                  // `name` — every row came back with only _id and email.
+                  name: 1,
                   email: 1
                }
             )

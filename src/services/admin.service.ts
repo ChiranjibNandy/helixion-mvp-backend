@@ -111,12 +111,13 @@ const buildNewUserDocument = (
     name:               row.name || row.email.split("@")[0],
     email:              row.email.toLowerCase(),
     passwordHash:       hashedPassword,
-    orgRole:            row.orgRole,
+    orgRole:            row.role,
     employeeCode:       row.employeeCode,
     placeOfPosting:     row.placeOfPosting,
     mobile:             row.mobile,
     mustChangePassword: true,       // batch-imported users must set their own password
     status:             USER_STATUS.ACTIVE,
+    isApproved:         true,       // batch-imported by an Admin — not a self-signup pending review
     hierarchy: {
       level:        0,
       managerId:    row.managerId ? toObjectId(row.managerId) : undefined,
@@ -180,11 +181,22 @@ export const batchCreateUsersService = async (
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
     const newUsers = toCreate.map((row) => buildNewUserDocument(row, hashedPassword));
 
-    const created = await batchCreateUsersRepo(newUsers as any);
-    createdCount  = created.length;
+    const { inserted, failed } = await batchCreateUsersRepo(newUsers as any);
+    createdCount = inserted.length;
+
+    // Rows that failed schema validation (e.g. an invalid role) are reported
+    // back as skipped instead of silently vanishing — and, critically, no
+    // longer take the rows that DID succeed down with them (see
+    // batchCreateUsersRepo's ordered:false comment).
+    for (const f of failed) {
+      skipped.push(f.email ? `${f.email} (${f.error})` : f.error);
+    }
 
     // ── Step 5: Notify — send welcome emails (fire-and-forget, no throw) ──────
+    // Only for rows that actually got inserted, not all of toCreate.
+    const insertedEmails = new Set(inserted.map((u) => u.email.toLowerCase()));
     for (const row of toCreate) {
+      if (!insertedEmails.has(row.email.toLowerCase())) continue;
       const displayName = row.name || row.email.split("@")[0];
       sendWelcomeMail(row.email, displayName, defaultPassword).catch((err) => {
         console.error(`${MESSAGES.WELCOME_EMAIL_SEND_FAILED}: ${row.email}`, err);
@@ -197,7 +209,7 @@ export const batchCreateUsersService = async (
 
   if (toUpdate.length > 0) {
     await Promise.all(
-      toUpdate.map((row) => updateUserRoleRepo(row.email.toLowerCase(), row.orgRole))
+      toUpdate.map((row) => updateUserRoleRepo(row.email.toLowerCase(), row.role))
     );
     updatedCount = toUpdate.length;
   }
@@ -218,11 +230,22 @@ export const getUsersService = async (
   search: string
 ) => {
 
-  return await getRegisteredUsersRepo(
+  const { users, pagination } = await getRegisteredUsersRepo(
     page,
     limit,
     search
   );
+
+  // Maps to `username` here, matching the frontend's table column (hooks/useUser.ts
+  // reads row.username) — the model's real field is `name`.
+  return {
+    users: users.map((user: any) => ({
+      _id:      user._id,
+      username: user.name,
+      email:    user.email,
+    })),
+    pagination,
+  };
 
 };
 
@@ -235,11 +258,16 @@ export const searchUsersService = async (
   const totalPages = Math.ceil(total / limit);
 
   return {
+    // Field names here (username/role) match the frontend's UserSearchResult
+    // contract (hooks/useUsersSearch.ts) — the model's real fields are
+    // name/orgRole. Sending those raw previously left every user.username/
+    // user.role read on the Deactivate User page as undefined, crashing on
+    // any string method called on it (e.g. getInitials' .substring call).
     data: users.map(user => ({
       id:       user._id,
-      name:     user.name,
+      username: user.name,
       email:    user.email,
-      orgRole:  user.orgRole,
+      role:     user.orgRole,
       status:   user.status,
       mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,

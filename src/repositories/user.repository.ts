@@ -29,8 +29,40 @@ export const createUserRepo = async (userData: Partial<IUser>): Promise<IUser> =
    return user;
 };
 
-export const batchCreateUsersRepo = async (users: Partial<IUser>[]): Promise<IUser[]> => {
-   return await User.insertMany(users) as unknown as IUser[];
+export interface BatchInsertResult {
+   inserted: IUser[];
+   failed: { email?: string; error: string }[];
+}
+
+// { ordered: false } is required — with the default (ordered: true), a
+// single row failing schema validation (e.g. an invalid orgRole enum value)
+// aborts the ENTIRE insertMany call, silently discarding every other valid
+// row in the same batch.
+//
+// Failure reporting: Mongoose's client-side schema validation (which is what
+// catches an invalid enum value) does NOT throw with ordered:false — it just
+// silently omits the invalid documents from the returned array, verified
+// directly against this Mongoose version. So rather than parse an error
+// shape that doesn't reliably exist, failures are detected by diffing the
+// input against whichever rows actually made it into `inserted`. A genuine
+// server-side write error (e.g. a duplicate-key race) DOES throw a
+// MongoBulkWriteError with `.insertedDocs` — that's still handled via catch,
+// and the same before/after diff is applied to its partial `insertedDocs`.
+export const batchCreateUsersRepo = async (users: Partial<IUser>[]): Promise<BatchInsertResult> => {
+   let inserted: IUser[];
+   try {
+      inserted = await User.insertMany(users, { ordered: false }) as unknown as IUser[];
+   } catch (err: any) {
+      if (!err.insertedDocs) throw err;
+      inserted = err.insertedDocs as IUser[];
+   }
+
+   const insertedEmails = new Set(inserted.map((u) => (u.email ?? "").toLowerCase()));
+   const failed = users
+      .filter((u) => !insertedEmails.has((u.email ?? "").toLowerCase()))
+      .map((u) => ({ email: u.email, error: "Failed validation (e.g. invalid role)" }));
+
+   return { inserted, failed };
 };
 
 export const deactivateUserRepo = async (id: string) => {
