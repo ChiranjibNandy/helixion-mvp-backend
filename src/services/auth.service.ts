@@ -39,8 +39,8 @@ export const signupService = async (
          status: USER_STATUS.ACTIVE,
          hierarchy: { level: 0, managerChain: [] },
          officeRoles: {
-            trainingDept: { enabled: false, level: null },
-            osd: { enabled: false, level: null },
+            trainingDept: { enabled: false, level: 0 },
+            osd: { enabled: false, level: 0 },
          },
       });
    } catch (err: any) {
@@ -80,6 +80,7 @@ export const loginService = async (
       throw new AppError(MESSAGES.NOT_ACTIVE_USER, HTTP_STATUS.CONFLICT);
    }
    const permissions = await buildPermission(user);
+
 
    return {
       user,

@@ -147,10 +147,10 @@ export const batchCreateUsersService = async (
     const existing = await getUserByEmailRepo(payload.email);
 
     if (existing) {
-      await updateOneUser(existing._id, payload);
+      await updateOneUser(existing._id, { ...payload, isApproved: true });
       updated++;
     } else {
-      await createUserRepo(payload);
+      await createUserRepo({ ...payload, isApproved: true });
       created++;
     }
   }

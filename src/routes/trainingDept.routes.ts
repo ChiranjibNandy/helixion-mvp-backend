@@ -30,7 +30,7 @@ router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE)
  */
 router.get(
    "/pending",
-   authorizeOfficeRole("trainingDept", 1),
+   // authorizeOfficeRole("trainingDept", 1),
    getPendingEnrollments
 );
 
