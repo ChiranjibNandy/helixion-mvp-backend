@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IUser } from "../interfaces/user.interface.js";
-import { ORG_ROLE, ROLE, USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 
 const managerChainEntrySchema = new Schema(
    {
@@ -110,11 +110,11 @@ const userSchema = new Schema<IUser>(
       officeRoles: {
          trainingDept: {
             enabled: { type: Boolean, default: false },
-            level: { type: Number, default: null },  // 1 = junior, 2 = senior
+            level: { type: Number, default: 0 }, 
          },
          osd: {
             enabled: { type: Boolean, default: false },
-            level: { type: Number, default: null },
+            level: { type: Number, default: 0 },
          },
       },
    },

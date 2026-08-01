@@ -117,4 +117,6 @@ export const MESSAGES = {
   TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
+
+  ORG_NOT_ADD_USER:"Organization not added the admin"
 } as const;

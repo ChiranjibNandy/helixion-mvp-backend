@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
-import { APPROVAL_STATUS, USER_STATUS } from "../constants/enum.js";
-import { IUser, IUserWithOrganization } from "../interfaces/user.interface.js";
+import { USER_STATUS } from "../constants/enum.js";
+import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
@@ -27,6 +27,20 @@ export const getUsersByIdsRepo = async (userIds: string[]): Promise<IUser[]> => 
 export const createUserRepo = async (userData: Partial<IUser>): Promise<IUser> => {
    const user = await User.create(userData);
    return user;
+};
+
+export const updateOneUser = async (
+   id: Types.ObjectId,
+   userData: Partial<IUser>
+): Promise<IUser | null> => {
+   return await User.findByIdAndUpdate(
+      id,
+      { $set: userData },
+      {
+         new: true,
+         runValidators: true,
+      }
+   );
 };
 
 export interface BatchInsertResult {
@@ -101,7 +115,7 @@ export const approveUserRepo = async (id: string, orgRole: string, placeOfPostin
          status: USER_STATUS.ACTIVE,
          mustChangePassword: false,
          ...(placeOfPosting && { placeOfPosting }),
-         isApproved:true
+         isApproved: true
       },
       { new: true }
    );
