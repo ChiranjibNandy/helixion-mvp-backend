@@ -24,6 +24,9 @@ import { sendWelcomeMail } from "../utils/sendMail.js";
 import { toObjectId } from "../utils/mongo.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { findOrgById } from "../repositories/organization.repository.js";
+import { parseExcelBuffer } from "../utils/parseExcelBuffer.js";
+import { mapSpreadsheetEmployee } from "../utils/mapSpreadsheetEmployee.js";
+import { mapEmployeeHierarchy } from "../utils/mapEmployeeHierarchy.js";
 
 
 
@@ -97,9 +100,20 @@ export const deactivateUserService = async (
 /// ─── Batch create service ──────────────────────────────────────────────────────
 
 export const batchCreateUsersService = async (
-  buffer: Buffer, userId: string
+  file: Express.Multer.File, userId: string
 ) => {
-  const rows = await parseCsvBuffer(buffer);
+  let rows;
+
+  if (file.originalname.endsWith(".csv")) {
+    rows = await parseCsvBuffer(file.buffer);
+  } else if (
+    file.originalname.endsWith(".xlsx") ||
+    file.originalname.endsWith(".xls")
+  ) {
+    rows = await parseExcelBuffer(file.buffer);
+  } else {
+    throw new AppError("Unsupported file type", 400);
+  }
 
   let created = 0;
   let updated = 0;
@@ -124,151 +138,50 @@ export const batchCreateUsersService = async (
   //-------------------------------------------------------
 
   for (const row of rows) {
-
-    row.orgId = org._id
-
-
-    const officeRoles = {
-      trainingDept: {
-        enabled: false,
-        level: 0
-      },
-      osd: {
-        enabled: false,
-        level: 0
-      }
-    };
-
-    //------------------------------------------------
-    // Training Junior
-    //------------------------------------------------
-
-    if (row["Training Department Junior Officer"]?.trim()?.toLowerCase() === "yes") {
-
-      officeRoles.trainingDept.enabled = true;
-      officeRoles.trainingDept.level = 1;
-    }
-
-    //------------------------------------------------
-
-    if (row["Training Department Senior Officer"]?.trim()?.toLowerCase() === "yes") {
-
-      officeRoles.trainingDept.enabled = true;
-      officeRoles.trainingDept.level = 2;
-    }
-
-    //------------------------------------------------
-
-    if (row["OSD Team Junior Officer"]?.trim()?.toLowerCase() === "yes") {
-
-      officeRoles.osd.enabled = true;
-      officeRoles.osd.level = 1;
-    }
-
-    //------------------------------------------------
-
-    if (row["OSD Team Senior Officer"]?.trim()?.toLowerCase() === "yes") {
-
-      officeRoles.osd.enabled = true;
-      officeRoles.osd.level = 2;
-    }
-
-    const payload = {
-
-      orgId: org._id,
-      orgType: org.orgType,
-
-      employeeCode: row["Employee Roll No."],
-
-      name: row["Name of the employee"],
-
-      email: row.Email.toLowerCase(),
-
-      mobile: row.Mobile,
-
-      placeOfPosting: row["Place of Posting"],
-
-      designation: row.Designation || "",
-
-      department: row.Department || "",
-
-      passwordHash: defaultPassword,
-
-      mustChangePassword: true,
-
-      orgRole: ORG_ROLE.EMPLOYEE,
-
-      officeRoles
-    };
+    const payload = mapSpreadsheetEmployee(
+      row,
+      org,
+      defaultPassword
+    );
 
     const existing = await getUserByEmailRepo(payload.email);
 
     if (existing) {
-
-      await updateOneUser(
-        existing._id,
-        payload
-      );
-
+      await updateOneUser(existing._id, payload);
       updated++;
-
     } else {
-
       await createUserRepo(payload);
-
       created++;
     }
   }
 
 
   for (const row of rows) {
-
-    const employee = await getUserByEmailRepo(row.Email.toLowerCase());
+    const employee = await getUserByEmailRepo(
+      row.Email?.toLowerCase()
+    );
 
     if (!employee) continue;
 
-    const reportingManager = await getUserByEmailRepo(row["Reporting Manager Email"]?.toLowerCase());
-
-    const skip1 = await getUserByEmailRepo(row["Skip Level 1 Manager Email"]?.toLowerCase());
-
-    const skip2 = await getUserByEmailRepo(row["Skip Level 2 Manager Email"]?.toLowerCase());
-
-    const managerChain: any[] = [];
-
-    if (reportingManager) {
-
-      managerChain.push({
-        userId: reportingManager._id,
-        level: 0
-      });
-    }
-
-    if (skip1) {
-
-      managerChain.push({
-        userId: skip1._id,
-        level: 1
-      });
-    }
-
-    if (skip2) {
-
-      managerChain.push({
-        userId: skip2._id,
-        level: 2
-      });
-    }
-
-    await updateOneUser(
-      employee._id,
-      {
-        hierarchy: {
-          level: managerChain.length,
-          managerId: reportingManager?._id,
-          managerChain
-        }
-      }
+    const reportingManager = await getUserByEmailRepo(
+      row["Reporting Manager Email"]?.toLowerCase()
     );
+
+    const skip1 = await getUserByEmailRepo(
+      row["Skip Level 1 Manager Email"]?.toLowerCase()
+    );
+
+    const skip2 = await getUserByEmailRepo(
+      row["Skip Level 2 Manager Email"]?.toLowerCase()
+    );
+
+    await updateOneUser(employee._id, {
+      hierarchy: mapEmployeeHierarchy(
+        reportingManager,
+        skip1,
+        skip2
+      ),
+    });
   }
   return {
     createdCount: created,

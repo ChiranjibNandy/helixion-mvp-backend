@@ -164,7 +164,7 @@ export const batchCreateUsers = async (
       throw new AppError(MESSAGES.ACCESS_DENIED,HTTP_STATUS.FORBIDDEN)
     }
 
-    const result = await batchCreateUsersService(req.file.buffer,req.userId);
+    const result = await batchCreateUsersService(req.file,req.userId);
 
 
     return res.status(HTTP_STATUS.CREATED).json({

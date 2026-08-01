@@ -33,7 +33,7 @@ router.get("/users/search",
 );
 
 router.post("/users/batch",
-   validate({ body: batchCreateUsersBodySchema }),
+   uploadCsv.single("file"),
    batchCreateUsers
 );
 
