@@ -1,20 +1,20 @@
 import { Types } from "mongoose";
-import { USER_STATUS, ORG_ROLE, ROLE } from "../constants/enum.js";
+import { USER_STATUS, ORG_ROLE, ROLE, OrganizationType } from "../constants/enum.js";
 import { IOrganization } from "./organization.interface.js";
 
 export interface IManagerChainEntry {
    userId: Types.ObjectId;
-   level: number; // 1 = direct manager, 2 = skip-level, etc.
+   level: number; 
 }
 
 export interface IOfficeRoles {
    trainingDept: {
       enabled: boolean;
-      level: number | null; // 1 = junior, 2 = senior, null = not an officer
+      level: number 
    };
    osd: {
       enabled: boolean;
-      level: number | null;
+      level: number 
    };
 }
 
@@ -39,7 +39,7 @@ export interface IHierarchy {
 export interface IUser {
    _id: Types.ObjectId;
    orgId?: Types.ObjectId;       // null for training_provider users (not corporate)
-   orgType?: "corporate";
+   orgType?: OrganizationType;
    employeeCode?: string;
    name: string;                 // was: username
    email: string;
@@ -49,7 +49,7 @@ export interface IUser {
    department?: string;
    passwordHash: string;         // was: password
    mustChangePassword: boolean;
-   orgRole: ORG_ROLE;            // top-level role (admin | employee | training_provider)
+   orgRole: string;            // top-level role (admin | employee | training_provider)
    status: USER_STATUS;
    isApproved:boolean;
    hierarchy: IHierarchy;

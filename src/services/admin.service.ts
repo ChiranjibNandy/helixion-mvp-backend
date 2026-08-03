@@ -12,13 +12,21 @@ import {
   batchCreateUsersRepo,
   searchUsersRepo,
   updateUserRoleRepo,
+  getUserByEmailRepo,
+  createUserRepo,
+  updateOneUser,
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { ENV } from "../config/env.js";
 import { sendWelcomeMail } from "../utils/sendMail.js";
 import { toObjectId } from "../utils/mongo.js";
+import { parseCsvBuffer } from "../utils/csvParser.js";
+import { findOrgById } from "../repositories/organization.repository.js";
+import { parseExcelBuffer } from "../utils/parseExcelBuffer.js";
+import { mapSpreadsheetEmployee } from "../utils/mapSpreadsheetEmployee.js";
+import { mapEmployeeHierarchy } from "../utils/mapEmployeeHierarchy.js";
 
 
 
@@ -72,153 +80,114 @@ export const deactivateUserService = async (
   requesterId: string
 ) => {
   if (id === requesterId) {
-    throw new AppError(MESSAGES.CANNOT_DEACTIVATE_SELF,HTTP_STATUS.CONFLICT);
+    throw new AppError(MESSAGES.CANNOT_DEACTIVATE_SELF, HTTP_STATUS.CONFLICT);
   }
 
   const user = await getUserByIdRepo(id);
 
   if (!user) {
-    throw new AppError(MESSAGES.USER_NOT_FOUND,HTTP_STATUS.NOT_FOUND);
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
   if (user.status === USER_STATUS.DEACTIVE) {
-    throw new AppError(MESSAGES.USER_ALREADY_DEACTIVATED,HTTP_STATUS.CONFLICT);
+    throw new AppError(MESSAGES.USER_ALREADY_DEACTIVATED, HTTP_STATUS.CONFLICT);
   }
 
   await deactivateUserRepo(id);
 };
 
-// ─── Pure data-transformation helper (no DB/email side-effects) ───────────────
 
-/**
- * Builds the User document shape from a bulk-upload CSV row.
- * Pure function — no I/O, fully unit-testable.
- */
-const buildNewUserDocument = (
-  row: BulkUploadUserDto,
-  hashedPassword: string
-) => {
-  const tdEnabled =
-    row.trainingDeptEnabled === true ||
-    row.trainingDeptEnabled === "true" ||
-    row.trainingDeptEnabled === "Yes";
-  const osdEnabled =
-    row.osdEnabled === true ||
-    row.osdEnabled === "true" ||
-    row.osdEnabled === "Yes";
-
-  return {
-    name:               row.name || row.email.split("@")[0],
-    email:              row.email.toLowerCase(),
-    passwordHash:       hashedPassword,
-    orgRole:            row.role,
-    employeeCode:       row.employeeCode,
-    placeOfPosting:     row.placeOfPosting,
-    mobile:             row.mobile,
-    mustChangePassword: true,       // batch-imported users must set their own password
-    status:             USER_STATUS.ACTIVE,
-    isApproved:         true,       // batch-imported by an Admin — not a self-signup pending review
-    hierarchy: {
-      level:        0,
-      managerId:    row.managerId ? toObjectId(row.managerId) : undefined,
-      managerChain: [],             // populated in a second pass once all users exist
-    },
-    officeRoles: {
-      trainingDept: {
-        enabled: tdEnabled,
-        level:   tdEnabled ? Number(row.trainingDeptLevel) || 1 : null,
-      },
-      osd: {
-        enabled: osdEnabled,
-        level:   osdEnabled ? Number(row.osdLevel) || 1 : null,
-      },
-    },
-  };
-};
-
-// ─── Batch create service ──────────────────────────────────────────────────────
+/// ─── Batch create service ──────────────────────────────────────────────────────
 
 export const batchCreateUsersService = async (
-  usersData: BulkUploadUserDto[]
+  file: Express.Multer.File, userId: string
 ) => {
-  // ── Step 1: Validate — no duplicate emails within the uploaded batch ─────────
-  const emails = usersData.map((u) => u.email.toLowerCase());
-  const uniqueEmails = new Set(emails);
+  let rows;
 
-  if (uniqueEmails.size !== emails.length) {
-    throw new AppError(MESSAGES.DUPLICATE_EMAILS_IN_BATCH, HTTP_STATUS.BAD_REQUEST);
+  if (file.originalname.endsWith(".csv")) {
+    rows = await parseCsvBuffer(file.buffer);
+  } else if (
+    file.originalname.endsWith(".xlsx") ||
+    file.originalname.endsWith(".xls")
+  ) {
+    rows = await parseExcelBuffer(file.buffer);
+  } else {
+    throw new AppError("Unsupported file type", 400);
   }
 
-  // ── Step 2: Query DB — find which emails already exist ──────────────────────
-  const existingUsers = await getUsersByEmailsRepo(emails);
-  const existingEmailSet = new Set(
-    existingUsers.map((u) => u.email.toLowerCase())
-  );
+  let created = 0;
+  let updated = 0;
 
-  // ── Step 3: Categorise — separate rows into create / update / skip buckets ──
-  const toCreate: BulkUploadUserDto[] = [];
-  const toUpdate: BulkUploadUserDto[] = [];
-  const skipped:  string[]           = [];
-
-  for (const row of usersData) {
-    const emailLower = row.email.toLowerCase();
-    const action     = (row.action || "approve").toLowerCase();
-
-    if (action === "approve") {
-      existingEmailSet.has(emailLower) ? skipped.push(row.email) : toCreate.push(row);
-    } else if (action === "update") {
-      existingEmailSet.has(emailLower) ? toUpdate.push(row) : skipped.push(row.email);
-    } else {
-      skipped.push(row.email);
-    }
+  const defaultPassword = await bcrypt.hash("Password@123", 10);
+  const user = await getUserByIdRepo(userId)
+  if (!user) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
+  }
+  if (!user.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND)
   }
 
-  // ── Step 4: Persist — create new users ──────────────────────────────────────
-  let createdCount = 0;
-  const defaultPassword = ENV.DEFAULT_PASSWORD;
-
-  if (toCreate.length > 0) {
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-    const newUsers = toCreate.map((row) => buildNewUserDocument(row, hashedPassword));
-
-    const { inserted, failed } = await batchCreateUsersRepo(newUsers as any);
-    createdCount = inserted.length;
-
-    // Rows that failed schema validation (e.g. an invalid role) are reported
-    // back as skipped instead of silently vanishing — and, critically, no
-    // longer take the rows that DID succeed down with them (see
-    // batchCreateUsersRepo's ordered:false comment).
-    for (const f of failed) {
-      skipped.push(f.email ? `${f.email} (${f.error})` : f.error);
-    }
-
-    // ── Step 5: Notify — send welcome emails (fire-and-forget, no throw) ──────
-    // Only for rows that actually got inserted, not all of toCreate.
-    const insertedEmails = new Set(inserted.map((u) => u.email.toLowerCase()));
-    for (const row of toCreate) {
-      if (!insertedEmails.has(row.email.toLowerCase())) continue;
-      const displayName = row.name || row.email.split("@")[0];
-      sendWelcomeMail(row.email, displayName, defaultPassword).catch((err) => {
-        console.error(`${MESSAGES.WELCOME_EMAIL_SEND_FAILED}: ${row.email}`, err);
-      });
-    }
+  const org = await findOrgById(user.orgId)
+  if (!org) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
   }
 
-  // ── Step 6: Persist — update existing users' roles ──────────────────────────
-  let updatedCount = 0;
 
-  if (toUpdate.length > 0) {
-    await Promise.all(
-      toUpdate.map((row) => updateUserRoleRepo(row.email.toLowerCase(), row.role))
+  //-------------------------------------------------------
+  // PASS 1
+  //-------------------------------------------------------
+
+  for (const row of rows) {
+    const payload = mapSpreadsheetEmployee(
+      row,
+      org,
+      defaultPassword
     );
-    updatedCount = toUpdate.length;
+
+    const existing = await getUserByEmailRepo(payload.email);
+
+    if (existing) {
+      await updateOneUser(existing._id, { ...payload, isApproved: true });
+      updated++;
+    } else {
+      await createUserRepo({ ...payload, isApproved: true });
+      created++;
+    }
   }
 
+
+  for (const row of rows) {
+    const employee = await getUserByEmailRepo(
+      row.Email?.toLowerCase()
+    );
+
+    if (!employee) continue;
+
+    const reportingManager = await getUserByEmailRepo(
+      row["Reporting Manager Email"]?.toLowerCase()
+    );
+
+    const skip1 = await getUserByEmailRepo(
+      row["Skip Level 1 Manager Email"]?.toLowerCase()
+    );
+
+    const skip2 = await getUserByEmailRepo(
+      row["Skip Level 2 Manager Email"]?.toLowerCase()
+    );
+
+    await updateOneUser(employee._id, {
+      hierarchy: mapEmployeeHierarchy(
+        reportingManager,
+        skip1,
+        skip2
+      ),
+    });
+  }
   return {
-    createdCount,
-    updatedCount,
-    skippedCount:  skipped.length,
-    skippedEmails: skipped,
+    createdCount: created,
+    updatedCount: updated,
+    skippedCount: 0,
+    skippedEmails: []
   };
 };
 
@@ -240,9 +209,9 @@ export const getUsersService = async (
   // reads row.username) — the model's real field is `name`.
   return {
     users: users.map((user: any) => ({
-      _id:      user._id,
+      _id: user._id,
       username: user.name,
-      email:    user.email,
+      email: user.email,
     })),
     pagination,
   };
@@ -264,11 +233,11 @@ export const searchUsersService = async (
     // user.role read on the Deactivate User page as undefined, crashing on
     // any string method called on it (e.g. getInitials' .substring call).
     data: users.map(user => ({
-      id:       user._id,
+      id: user._id,
       username: user.name,
-      email:    user.email,
-      role:     user.orgRole,
-      status:   user.status,
+      email: user.email,
+      role: user.orgRole,
+      status: user.status,
       mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

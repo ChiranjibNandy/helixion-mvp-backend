@@ -9,6 +9,7 @@ import {
   searchUsersService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
+import { AppError } from "../utils/appError.js";
 
 /**
  * Fetch pending user registrations with pagination.
@@ -156,9 +157,15 @@ export const batchCreateUsers = async (
   next: NextFunction
 ) => {
   try {
-    const { users } = req.body;
+    if (!req.file) {
+      throw new AppError("CSV file is required", HTTP_STATUS.BAD_REQUEST);
+    }
+    if(!req.userId){
+      throw new AppError(MESSAGES.ACCESS_DENIED,HTTP_STATUS.FORBIDDEN)
+    }
 
-    const result = await batchCreateUsersService(users);
+    const result = await batchCreateUsersService(req.file,req.userId);
+
 
     return res.status(HTTP_STATUS.CREATED).json({
       success: true,
@@ -217,7 +224,7 @@ export const getUsersController =
   };
 
 
-  //search approved User
+//search approved User
 
 export const searchUsers = async (
   req: Request,
@@ -233,7 +240,7 @@ export const searchUsers = async (
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
-      message:MESSAGES.USERS_FETCHED,
+      message: MESSAGES.USERS_FETCHED,
       ...result,
     });
   } catch (error) {
