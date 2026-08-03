@@ -77,7 +77,10 @@ export const mapSpreadsheetEmployee = (
 
     passwordHash: defaultPassword,
 
-    mustChangePassword: true,
+    // Bulk-uploaded employees log in directly with the default password —
+    // the frontend has no flow to intercept a forced password-change, so
+    // leaving this true would lock every bulk-uploaded user out after login.
+    mustChangePassword: false,
 
     orgRole: ORG_ROLE.EMPLOYEE,
 

@@ -127,17 +127,19 @@ export const approveUserRepo = async (id: string, orgRole: string, placeOfPostin
  * Used to label a search result as "Manager" — there's no role flag for
  * this on the user document itself, being a manager is purely a function
  * of appearing in another user's hierarchy.managerId. */
-export const getDistinctManagerIdsRepo = async (): Promise<string[]> => {
-   const ids = await User.distinct("hierarchy.managerId", { "hierarchy.managerId": { $ne: null } });
+export const getDistinctManagerIdsRepo = async (orgId: string): Promise<string[]> => {
+   const ids = await User.distinct("hierarchy.managerId", { orgId, "hierarchy.managerId": { $ne: null } });
    return ids.map((id) => String(id));
 };
 
 export const searchUsersRepo = async (
    query: string,
    page: number,
-   limit: number
+   limit: number,
+   orgId: string
 ) => {
    const filter: Record<string, unknown> = {
+      orgId,
       status: USER_STATUS.ACTIVE,
    };
 

@@ -6,9 +6,17 @@ import { startOsdTimeoutCron } from "./cron/osdTimeout.cron.js";
 
 dotenv.config();
 
-connectDB();
-startOsdTimeoutCron();
+// Requests that arrive before Mongoose finishes connecting sit in its command
+// buffer and fail with an opaque "buffering timed out" error instead of a
+// clear connection error — waiting here means the server never accepts
+// traffic before the DB is actually ready.
+async function start() {
+  await connectDB();
+  startOsdTimeoutCron();
 
-app.listen(ENV.PORT, () => {
-  console.log(`Server running on port ${ENV.PORT}`);
-});
+  app.listen(ENV.PORT, () => {
+    console.log(`Server running on port ${ENV.PORT}`);
+  });
+}
+
+start();

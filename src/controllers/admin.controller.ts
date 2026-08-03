@@ -7,6 +7,7 @@ import {
   batchCreateUsersService,
   getUsersService,
   searchUsersService,
+  createSingleUserService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
@@ -133,6 +134,35 @@ export const deactivateUser = async (
 };
 
 /**
+ * Create a single employee directly — the only way to create someone with
+ * no reporting manager, since bulk upload now requires one on every row.
+ * Intended for the one root-of-hierarchy person per org; reportingManagerEmail
+ * is optional here.
+ *
+ * Route:
+ * POST /api/admin/users
+ *
+ * Access:
+ * Admin only
+ */
+export const createSingleUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const result = await createSingleUserService(req.body, req.userId!);
+    return res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      message: MESSAGES.USER_CREATED_SUCCESSFULLY,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Bulk import users from CSV upload.
  *
  * Route:
@@ -210,7 +240,7 @@ export const getUsersController =
       const { page, limit, search } = req.query
 
       const users =
-        await getUsersService(Number(page), Number(limit), search ? String(search) : "");
+        await getUsersService(Number(page), Number(limit), search ? String(search) : "", req.userId!);
 
       res.status(HTTP_STATUS.OK).json({
         message:
@@ -236,7 +266,7 @@ export const searchUsers = async (
     const limit = Number(req.query.limit) || 10;
     const query = (req.query.q as string) || "";
 
-    const result = await searchUsersService(query, page, limit);
+    const result = await searchUsersService(query, page, limit, req.userId!);
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
