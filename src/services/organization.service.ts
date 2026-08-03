@@ -2,15 +2,18 @@ import { OrganizationStatus } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { bulkCreateOrganizations, createOrganization, findOneOrgBySlug, updateOrganizationPolicy } from "../repositories/organization.repository.js";
+import { updateOneUser } from "../repositories/user.repository.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
+import { toObjectId } from "../utils/mongo.js";
 import { organizationCsvRowSchema } from "../validators/organization.validator.js";
 
 //Create org
 export const createOrganizationService = async (
-  data: CreateOrganization
+  data: CreateOrganization,
+  creatingAdminId: string
 ) => {
   const existingOrganization =
     await findOneOrgBySlug(data.slug);
@@ -21,7 +24,15 @@ export const createOrganizationService = async (
       HTTP_STATUS.CONFLICT
     );
   }
-  await createOrganization(data);
+  const org = await createOrganization(data);
+
+  // Without this, the admin who just created the org has no orgId on their
+  // own user record — every org-scoped route (bulk upload, policy update,
+  // etc.) reads orgId straight off the JWT (see authenticate middleware),
+  // and nothing else in the app ever assigns orgId to an admin account.
+  await updateOneUser(toObjectId(creatingAdminId), { orgId: org._id } as any);
+
+  return org;
 };
 
 // update organization policy
