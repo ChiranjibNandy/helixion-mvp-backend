@@ -1,6 +1,6 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { ENROLLMENT_STAGE, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STAGE } from "../constants/enum.js";
 import { getReleventEnrollRequestDto } from "../dtos/enrollment.dto.js";
 import {
   getEnrollmentByUserIdInManagerChain,
@@ -56,7 +56,7 @@ export const getRelevantEnrollmentService = async (
 
     return {
       ...enrollment,
-      approve: (manager?.status === MANAGER_CHAIN_STATUS.PENDING)
+      approve: (manager?.level >= organization?.policy?.managerApproval?.minLevelToApprove)
         && enrollment.currentStage == ENROLLMENT_STAGE.MANAGER_REVIEW,
     };
   });

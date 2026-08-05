@@ -64,16 +64,16 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
 
    const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
       const employee = enrollment.employeeId;
-      const program   = enrollment.programId;
+      const program = enrollment.programId;
 
       return {
-         _id:          enrollment._id.toString(),
+         _id: enrollment._id.toString(),
          employeeName: employee?.name ?? "Unknown",
          programTitle: program?.title ?? "Untitled Program",
-         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
-         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
-         venue:        program?.venueName || program?.city || "",
-         status:       "Pending Approval",
+         fromDate: program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate: program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue: program?.venueName || program?.city || "",
+         status: "Pending Approval",
       };
    });
 
@@ -82,7 +82,7 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
       // action (matches the "Pending Team Enrollments" badge/donut below it),
       // not ownSummary's personal-employee pendingApprovals count. Uses the
       // true count, not pendingTeamEnrollments.length, since that list is capped.
-      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount },
+      summary: { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount },
       approvalStats,
       pendingTeamEnrollments,
    };
@@ -122,12 +122,11 @@ export const takeManagerActionService = async (
    // 2. Load enrollment — must have this manager's chain entry in PENDING state
    //    (idempotency: if already acted, the query returns null → 404/409)
    const enrollment = await enrollmentModel.findOne({
-      _id:   toObjectId(String(enrollmentId)),
+      _id: toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
       managerChain: {
          $elemMatch: {
-            userId: toObjectId(managerId),
-            status: MANAGER_CHAIN_STATUS.PENDING,
+            userId: toObjectId(managerId)
          },
       },
    });
@@ -148,7 +147,7 @@ export const takeManagerActionService = async (
 
    // 4. Determine next enrollment stage
    let nextStage: ENROLLMENT_STAGE = enrollment.currentStage;
-   let nextEnrollmentStatus        = enrollment.statusSummary.enrollmentStatus;
+   let nextEnrollmentStatus = enrollment.statusSummary.enrollmentStatus;
 
    const arrayFilters: Record<string, any>[] = [
       { "actingElem.userId": toObjectId(managerId) },
@@ -156,20 +155,20 @@ export const takeManagerActionService = async (
    const updateOps: Record<string, any> = {
       $set: {
          "managerChain.$[actingElem].status": newChainStatus,
-         "managerApproval.action":            action as MANAGER_ACTION,
-         "managerApproval.note":              note,
-         "managerApproval.actedAt":           new Date(),
-         currentStage:                        nextStage,
-         "statusSummary.enrollmentStatus":    nextEnrollmentStatus,
+         "managerApproval.action": action as MANAGER_ACTION,
+         "managerApproval.note": note,
+         "managerApproval.actedAt": new Date(),
+         currentStage: nextStage,
+         "statusSummary.enrollmentStatus": nextEnrollmentStatus,
       },
       $push: {
          timeline: {
-            stage:     nextStage,
-            actorId:   toObjectId(managerId),
+            stage: nextStage,
+            actorId: toObjectId(managerId),
             actorType: ACTOR_TYPE.MANAGER,
             action,
             note,
-            at:        new Date(),
+            at: new Date(),
          },
       },
    };
@@ -183,8 +182,8 @@ export const takeManagerActionService = async (
    let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
 
    if (action === MANAGER_ACTION.REJECT) {
-      nextStage             = ENROLLMENT_STAGE.REJECTED;
-      nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
+      nextStage = ENROLLMENT_STAGE.REJECTED;
+      nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.REJECTED;
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
@@ -201,7 +200,7 @@ export const takeManagerActionService = async (
       }
    } else {
       // Check whether the minimum required level has approved
-      const minLevel      = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
+      const minLevel = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
       const approvedChain = enrollment.managerChain.filter(
          (e) => (e as any).status === MANAGER_CHAIN_STATUS.APPROVED
       );
@@ -209,14 +208,14 @@ export const takeManagerActionService = async (
       const thisEntry = enrollment.managerChain.find(
          (e) => e.userId.toString() === managerId
       );
-      const thisLevel    = thisEntry?.level ?? Infinity;
+      const thisLevel = thisEntry?.level ?? Infinity;
       const approvedLevels = [
          ...approvedChain.map((e) => e.level),
          thisLevel,
       ];
       const lowestApproved = Math.min(...approvedLevels);
 
-      if (lowestApproved <= minLevel) {
+      if (thisLevel >= minLevel) {
          const trainingDeptEnabled = enrollment.policySnapshot?.trainingDeptApproval?.enabled ?? true;
 
          if (!trainingDeptEnabled) {
@@ -254,7 +253,7 @@ export const takeManagerActionService = async (
             skippedCtdNotification = { employee, programTitle, isLocal };
          } else {
             // Minimum required level has approved — advance to training dept review
-            nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
+            nextStage = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
             updateOps.$set.currentStage = nextStage;
             updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
@@ -271,9 +270,9 @@ export const takeManagerActionService = async (
                updateOps.$set["tour.managerApproval.note"] = note;
 
                if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-                   updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
+                  updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
                } else {
-                   updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+                  updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
                }
             }
          }
@@ -281,30 +280,24 @@ export const takeManagerActionService = async (
    }
 
    // 5. Find the next WAITING chain entry to activate (if any)
-   const nextWaiting = enrollment.managerChain
-      .filter((e) => (e as any).status === MANAGER_CHAIN_STATUS.WAITING)
-      .sort((a, b) => a.level - b.level)[0];
+   // const nextWaiting = enrollment.managerChain
+   //    .filter((e) => (e as any).status === MANAGER_CHAIN_STATUS.WAITING)
+   //    .sort((a, b) => a.level - b.level)[0];
 
    // Activate the next waiting manager level atomically
-   if (nextWaiting && action !== MANAGER_ACTION.REJECT) {
-      arrayFilters.push({ "waitingElem.userId": nextWaiting.userId });
-      updateOps.$set["managerChain.$[waitingElem].status"] =
-         MANAGER_CHAIN_STATUS.PENDING;
-   }
+   // if (nextWaiting && action !== MANAGER_ACTION.REJECT) {
+   //    arrayFilters.push({ "waitingElem.userId": nextWaiting.userId });
+   //    updateOps.$set["managerChain.$[waitingElem].status"] =
+   //       MANAGER_CHAIN_STATUS.PENDING;
+   // }
 
-   await enrollmentModel.findOneAndUpdate(
-      {
-         _id:   toObjectId(String(enrollmentId)),
-         orgId: toObjectId(orgId),
-         managerChain: {
-            $elemMatch: {
-               userId: toObjectId(managerId),
-               status: MANAGER_CHAIN_STATUS.PENDING,
-            },
-         },
-      },
+   await enrollmentModel.findByIdAndUpdate(
+      toObjectId(String(enrollmentId)),
       updateOps,
-      { arrayFilters, new: true }
+      {
+         new: true,
+         arrayFilters,
+      }
    );
 
    if (action === MANAGER_ACTION.REJECT) {
@@ -374,17 +367,17 @@ export const takeReimbursementManagerActionService = async (
       orgId,
       managerId,
       {
-         currentStage:                    nextStage,
-         "reimbursement.status":          nextReimbursementStatus,
+         currentStage: nextStage,
+         "reimbursement.status": nextReimbursementStatus,
          "reimbursement.managerApproval": { action, note, actedAt: new Date() },
       },
       {
-         stage:     nextStage,
-         actorId:   toObjectId(managerId),
+         stage: nextStage,
+         actorId: toObjectId(managerId),
          actorType: ACTOR_TYPE.MANAGER,
-         action:    reimbursementTimelineAction("manager", action),
+         action: reimbursementTimelineAction("manager", action),
          note,
-         at:        new Date(),
+         at: new Date(),
       }
    );
 
@@ -493,7 +486,7 @@ export const takeTourManagerActionService = async (
                stage: nextStage,
                actorId: toObjectId(managerId),
                actorType: ACTOR_TYPE.MANAGER,
-               action: `tour_manager_${action}`,
+               action: `tour_manager_${ action }`,
                note,
                at: new Date(),
             },
