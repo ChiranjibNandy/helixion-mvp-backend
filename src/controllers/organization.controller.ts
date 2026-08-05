@@ -11,7 +11,8 @@ export const createOrganization = async (
 ) => {
    try {
       await createOrganizationService(
-         req.body
+         req.body,
+         req.userId!
       );
       res.status(HTTP_STATUS.CREATED).json({
          success: true,

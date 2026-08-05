@@ -123,6 +123,15 @@ export const approveUserRepo = async (id: string, orgRole: string, placeOfPostin
 
 // ─── Search / List ────────────────────────────────────────────────────────────
 
+/** Every userId currently referenced as someone else's manager, anywhere.
+ * Used to label a search result as "Manager" — there's no role flag for
+ * this on the user document itself, being a manager is purely a function
+ * of appearing in another user's hierarchy.managerId. */
+export const getDistinctManagerIdsRepo = async (): Promise<string[]> => {
+   const ids = await User.distinct("hierarchy.managerId", { "hierarchy.managerId": { $ne: null } });
+   return ids.map((id) => String(id));
+};
+
 export const searchUsersRepo = async (
    query: string,
    page: number,

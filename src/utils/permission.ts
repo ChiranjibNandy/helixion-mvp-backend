@@ -1,6 +1,6 @@
 import { ORG_ROLE } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
-import { findOrgById, hasApproveOsd, hasApproveTrainingDept, hasReportingTrainingDept, hasReviewOsd } from "../repositories/organization.repository.js";
+import { findOrgById } from "../repositories/organization.repository.js";
 import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user.repository.js";
 
 export const canEnroll = (user: IUser): boolean => {
@@ -37,16 +37,15 @@ export const canEnrollmentApproval = async (user: IUser) => {
    return !!exists
 };
 
+// Reads officeRoles directly off the user — the same field bulk upload sets
+// and the same field the actual route gate (authorizeOfficeRole) checks.
+// Previously this checked organization.policyAssignments.trainingDeptChain, a
+// separate manually-curated list set at org creation that bulk upload never
+// updates — so a bulk-uploaded CTD/junior officer could call the API
+// successfully but the frontend nav item stayed hidden, since it's gated on
+// this permission flag. See authorizeOfficeRole in authorizeRole.middleware.ts.
 export const canReviewTrainingDept = async (user: IUser) => {
-   if (!user.orgId) {
-      return false
-   }
-   const exists = await hasReportingTrainingDept(
-      user.orgId,
-      user._id
-   );
-
-   return !!exists;
+   return !!user.officeRoles?.trainingDept?.enabled;
 };
 
 export const canApproveTrainingDept = async (
@@ -68,11 +67,8 @@ export const canApproveTrainingDept = async (
       return false;
    }
 
-   return !!await hasApproveTrainingDept(
-      user.orgId,
-      user._id,
-      policy.minLevelToApprove
-   );
+   const officer = user.officeRoles?.trainingDept;
+   return !!(officer?.enabled && officer.level != null && officer.level >= policy.minLevelToApprove);
 };
 
 // Tour approval (CTD's final approval on the tour leg) is governed by
@@ -83,28 +79,12 @@ export const canApproveTrainingDept = async (
 // main-approval step. Level 2 matches the PATCH tour-action route's
 // authorizeOfficeRole("trainingDept", 2) gate.
 export const canApproveTourCtd = async (user: IUser) => {
-   if (!user.orgId) {
-      return false
-   }
-
-   return !!await hasApproveTrainingDept(
-      user.orgId,
-      user._id,
-      2
-   );
+   const officer = user.officeRoles?.trainingDept;
+   return !!(officer?.enabled && officer.level != null && officer.level >= 2);
 };
 
 export const canReviewOsd = async (user: IUser) => {
-   if (!user.orgId) {
-      return false
-   }
-
-   const exists = await hasReviewOsd(
-      user.orgId,
-      user._id
-   );
-
-   return !!exists;
+   return !!user.officeRoles?.osd?.enabled;
 };
 
 export const canApproveOsd = async (user: IUser) => {
@@ -124,13 +104,8 @@ export const canApproveOsd = async (user: IUser) => {
       return false;
    }
 
-   const exists = await hasApproveOsd(
-      user.orgId,
-      user._id,
-      policy.minLevelToApprove
-   );
-
-   return !!exists;
+   const officer = user.officeRoles?.osd;
+   return !!(officer?.enabled && officer.level != null && officer.level >= policy.minLevelToApprove);
 };
 
 export const buildPermission = async (user: IUser) => {

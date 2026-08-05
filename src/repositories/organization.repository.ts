@@ -9,8 +9,8 @@ import { IOrganization } from "../interfaces/organization.interface.js";
 
 export const createOrganization = async (
    data: CreateOrganization
-): Promise<void> => {
-   await organizationModel.create(data);
+): Promise<IOrganization> => {
+   return await organizationModel.create(data);
 };
 
 export const updateOrganizationPolicy = async (
@@ -86,54 +86,3 @@ export const findOrgById = async (
    return organizationModel.findById(id)
 }
 
-export const hasReportingTrainingDept = async (
-   id: Types.ObjectId,
-   userId: Types.ObjectId
-) => {
-   return organizationModel.exists({
-      _id: id,
-      "policyAssignments.trainingDeptChain.userId": userId
-   })
-}
-
-export const hasApproveTrainingDept = (
-   orgId: Types.ObjectId,
-   userId: Types.ObjectId,
-   minLevel: number
-) => {
-   return organizationModel.exists({
-      _id: orgId,
-      "policyAssignments.trainingDeptChain": {
-         $elemMatch: {
-            userId,
-            level: { $gte: minLevel }
-         }
-      }
-   });
-};
-
-export const hasReviewOsd = (
-   orgId: Types.ObjectId,
-   userId: Types.ObjectId
-) => {
-   return organizationModel.exists({
-      _id: orgId,
-      "policyAssignments.osdChain.userId": userId,
-   });
-};
-
-export const hasApproveOsd = (
-   orgId: Types.ObjectId,
-   userId: Types.ObjectId,
-   minLevel: number
-) => {
-   return organizationModel.exists({
-      _id: orgId,
-      "policyAssignments.osdChain": {
-         $elemMatch: {
-            userId,
-            level: { $gte: minLevel },
-         },
-      },
-   });
-};
