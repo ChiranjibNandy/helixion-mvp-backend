@@ -124,6 +124,15 @@ export const enrollInProgramService = async (
       throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
+   // A manager is required before enrollment is allowed at all — an empty
+   // managerChain would otherwise reach MANAGER_REVIEW with nobody able to
+   // ever act on it. Bulk upload doesn't require a manager (some rows are
+   // legitimately top-of-chain), so this is enforced here instead, at the
+   // moment it actually matters.
+   if (!(user as any).hierarchy?.managerChain?.length) {
+      throw new AppError(MESSAGES.NO_REPORTING_MANAGER, HTTP_STATUS.CONFLICT);
+   }
+
    // 3.5. Retrieve organization to get its policy
    const organization = await organizationModel.findById((user as any).orgId);
    if (!organization) {
@@ -406,51 +415,14 @@ export const submitEnrollmentService = async (userId: string, enrollmentId: stri
       enrollmentObj.timeline = [];
    }
 
-   // An employee with an empty managerChain (e.g. a top-of-chain manager
-   // enrolling themselves, or bulk-upload data with no resolvable manager)
-   // has nobody who could ever satisfy MANAGER_REVIEW — takeManagerActionService
-   // only matches enrollments with a PENDING managerChain entry, so routing
-   // here would strand the enrollment permanently. Skip straight past the
-   // manager stage instead, mirroring the same skip takeManagerActionService
-   // already performs when trainingDeptApproval is disabled for the org.
+   // enrollInProgramService already blocks creating an enrollment at all for
+   // an employee with no manager — this is a defense-in-depth check for the
+   // same condition (e.g. a manager removed between enrollment and submit),
+   // since routing an empty managerChain to MANAGER_REVIEW would strand the
+   // enrollment permanently (takeManagerActionService only matches a PENDING
+   // managerChain entry, and there'd never be one to activate).
    if (!enrollmentObj.managerChain || enrollmentObj.managerChain.length === 0) {
-      const trainingDeptEnabled = enrollmentObj.policySnapshot?.trainingDeptApproval?.enabled ?? true;
-
-      if (!trainingDeptEnabled) {
-         const { employee, program } = await loadNotificationContext(
-            String(enrollmentObj.employeeId),
-            String(enrollmentObj.programId)
-         );
-         const isLocal = isLocalTraining(employee?.placeOfPosting, program?.city);
-
-         enrollmentObj.currentStage = isLocal ? ENROLLMENT_STAGE.APPROVED : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
-         enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STATUS_SUMMARY.APPROVED;
-         enrollmentObj.statusSummary.tourStatus = isLocal ? TOUR_STATUS.NOT_REQUIRED : (tourManagerApprovalRequired ? TOUR_STATUS.SUBMITTED : TOUR_STATUS.APPROVED);
-         if (isLocal && enrollmentObj.tour) {
-            enrollmentObj.tour.travelType = TRAVEL_TYPE.LOCAL;
-            enrollmentObj.tour.status = TOUR_STATUS.NOT_REQUIRED;
-         }
-      } else {
-         enrollmentObj.currentStage = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
-         enrollmentObj.statusSummary.enrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
-         enrollmentObj.statusSummary.tourStatus = tourManagerApprovalRequired ? TOUR_STATUS.APPROVED : enrollmentObj.statusSummary.tourStatus;
-         if (tourManagerApprovalRequired && enrollmentObj.travelAndStay) {
-            enrollmentObj.travelAndStay.managerAction = MANAGER_ACTION.APPROVE;
-            enrollmentObj.travelAndStay.status = TOUR_STATUS.APPROVED;
-         }
-      }
-
-      enrollmentObj.timeline.push({
-         stage: enrollmentObj.currentStage,
-         actorId: toObjectId(userId),
-         actorType: ACTOR_TYPE.EMPLOYEE,
-         action: EMPLOYEE_TIMELINE_ACTION.SUBMITTED,
-         note: "Submitted — no manager in chain, auto-advanced past manager review",
-         at: new Date()
-      });
-
-      await enrollmentObj.save();
-      return enrollmentObj;
+      throw new AppError(MESSAGES.NO_REPORTING_MANAGER, HTTP_STATUS.CONFLICT);
    }
 
    enrollmentObj.currentStage = ENROLLMENT_STAGE.MANAGER_REVIEW;

@@ -22,6 +22,13 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { ENV } from "../config/env.js";
 import { sendWelcomeMail } from "../utils/sendMail.js";
+import { logMailFailure } from "../utils/notification.util.js";
+
+// Bulk upload and single-employee creation both hash this same default
+// password for storage — kept as a separate plaintext constant so the
+// welcome email can actually tell the new user what it is, without
+// re-deriving/guessing it from the hash.
+const DEFAULT_PASSWORD_PLAINTEXT = "Password@123";
 import { toObjectId } from "../utils/mongo.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { findOrgById } from "../repositories/organization.repository.js";
@@ -84,9 +91,21 @@ export const deactivateUserService = async (
     throw new AppError(MESSAGES.CANNOT_DEACTIVATE_SELF, HTTP_STATUS.CONFLICT);
   }
 
+  const requester = await getUserByIdRepo(requesterId);
+  if (!requester) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
   const user = await getUserByIdRepo(id);
 
   if (!user) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // An admin may only act on users in their own org — without this check,
+  // any admin could deactivate any user in the system by ID, regardless of
+  // which org either of them belongs to.
+  if (String(user.orgId) !== String(requester.orgId)) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
@@ -97,6 +116,109 @@ export const deactivateUserService = async (
   await deactivateUserRepo(id);
 };
 
+
+/// ─── Single user create service ────────────────────────────────────────────────
+//
+// Bulk upload requires every row to have a Reporting Manager Email, which
+// makes it impossible to create the one person any org hierarchy needs at
+// its root — someone with nobody above them. This is that escape hatch:
+// reportingManagerEmail is optional here, on purpose.
+
+export interface CreateSingleUserInput {
+  name: string;
+  email: string;
+  employeeCode?: string;
+  mobile?: string;
+  placeOfPosting?: string;
+  designation?: string;
+  department?: string;
+  reportingManagerEmail?: string;
+  trainingDeptJuniorOfficer?: boolean;
+  trainingDeptSeniorOfficer?: boolean;
+  osdJuniorOfficer?: boolean;
+  osdSeniorOfficer?: boolean;
+}
+
+export const createSingleUserService = async (
+  data: CreateSingleUserInput,
+  adminUserId: string
+) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+  if (!admin.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const org = await findOrgById(admin.orgId);
+  if (!org) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const email = data.email.trim().toLowerCase();
+  const existing = await getUserByEmailRepo(email);
+  if (existing) {
+    throw new AppError(MESSAGES.USER_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+  }
+
+  let reportingManager = null;
+  if (data.reportingManagerEmail) {
+    reportingManager = await getUserByEmailRepo(data.reportingManagerEmail.trim().toLowerCase());
+    if (!reportingManager) {
+      throw new AppError(MESSAGES.REPORTING_MANAGER_NOT_FOUND, HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
+  const officeRoles = {
+    trainingDept: {
+      enabled: !!(data.trainingDeptJuniorOfficer || data.trainingDeptSeniorOfficer),
+      level: data.trainingDeptSeniorOfficer ? 2 : data.trainingDeptJuniorOfficer ? 1 : 0,
+    },
+    osd: {
+      enabled: !!(data.osdJuniorOfficer || data.osdSeniorOfficer),
+      level: data.osdSeniorOfficer ? 2 : data.osdJuniorOfficer ? 1 : 0,
+    },
+  };
+
+  const defaultPassword = await bcrypt.hash(DEFAULT_PASSWORD_PLAINTEXT, 10);
+
+  // The {orgId, employeeCode} unique index treats a missing employeeCode as
+  // colliding across different users in the same org (the live index isn't
+  // actually sparse, despite the schema declaring it that way — likely
+  // created before that option was added and never rebuilt). Always supply
+  // a value rather than relying on sparseness to exclude it.
+  const employeeCode = data.employeeCode?.trim() || `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const created = await createUserRepo({
+    orgId: org._id,
+    orgType: org.orgType,
+    employeeCode,
+    name: data.name.trim(),
+    email,
+    mobile: data.mobile?.trim() || "",
+    placeOfPosting: data.placeOfPosting?.trim() || "",
+    designation: data.designation?.trim() || "",
+    department: data.department?.trim() || "",
+    passwordHash: defaultPassword,
+    mustChangePassword: true,
+    isApproved: true,
+    orgRole: ORG_ROLE.EMPLOYEE,
+    officeRoles,
+    hierarchy: reportingManager
+      ? { level: 1, managerId: reportingManager._id, managerChain: [{ userId: reportingManager._id, level: 0 }] }
+      : { level: 0, managerChain: [] },
+  } as any);
+
+  sendWelcomeMail(created.email, created.name, DEFAULT_PASSWORD_PLAINTEXT)
+    .catch(logMailFailure("welcome-single-user"));
+
+  return {
+    id: created._id,
+    email: created.email,
+    name: created.name,
+  };
+};
 
 /// ─── Batch create service ──────────────────────────────────────────────────────
 
@@ -120,7 +242,7 @@ export const batchCreateUsersService = async (
   let updated = 0;
   const skipped: { email?: string; error: string }[] = [];
 
-  const defaultPassword = await bcrypt.hash("Password@123", 10);
+  const defaultPassword = await bcrypt.hash(DEFAULT_PASSWORD_PLAINTEXT, 10);
   const user = await getUserByIdRepo(userId)
   if (!user) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
@@ -135,9 +257,31 @@ export const batchCreateUsersService = async (
   }
 
 
+  // Every email in this file, collected up front — lets a manager
+  // reference resolve to another row in the SAME upload regardless of
+  // which order the rows appear in (Pass 1 hasn't created that row yet
+  // if it comes later in the file, but its email is already known here).
+  const emailsInFile = new Set(
+    rows
+      .map((r: any) => r.Email?.toString().trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  // A manager reference is valid if it's blank (no manager required — a
+  // top-of-chain person legitimately has none), matches another row in
+  // this file, or matches a user who already exists in the org from a
+  // prior upload. Anything else doesn't resolve to anyone, ever.
+  const managerRefResolves = async (email: unknown): Promise<boolean> => {
+    if (!email) return true;
+    const normalized = String(email).trim().toLowerCase();
+    if (emailsInFile.has(normalized)) return true;
+    return !!(await getUserByEmailRepo(normalized));
+  };
+
   //-------------------------------------------------------
   // PASS 1 — one row failing (duplicate employeeCode, missing/invalid
-  // email, etc.) must not abort every row after it in the same file.
+  // email, unresolvable manager reference, etc.) must not abort every row
+  // after it in the same file.
   //-------------------------------------------------------
 
   for (const row of rows) {
@@ -152,6 +296,23 @@ export const batchCreateUsersService = async (
         throw new Error("Missing or invalid email");
       }
 
+      // Reporting Manager Email is mandatory — every uploaded person must
+      // have a direct manager, no top-of-chain exceptions via bulk upload.
+      // Skip Level 1/2 remain optional, but must resolve if given.
+      if (!row["Reporting Manager Email"]) {
+        throw new Error("Reporting Manager Email is required");
+      }
+
+      for (const [label, managerEmail] of [
+        ["Reporting Manager Email", row["Reporting Manager Email"]],
+        ["Skip Level 1 Manager Email", row["Skip Level 1 Manager Email"]],
+        ["Skip Level 2 Manager Email", row["Skip Level 2 Manager Email"]],
+      ] as const) {
+        if (managerEmail && !(await managerRefResolves(managerEmail))) {
+          throw new Error(`${label} "${managerEmail}" does not match any existing user or row in this file`);
+        }
+      }
+
       const existing = await getUserByEmailRepo(payload.email);
 
       if (existing) {
@@ -160,6 +321,12 @@ export const batchCreateUsersService = async (
       } else {
         await createUserRepo({ ...payload, isApproved: true });
         created++;
+        // Only brand-new rows get the welcome email — an existing employee
+        // being updated (e.g. role/office-role change) already has an
+        // account and a real password; resending "here's your password"
+        // would be wrong for them.
+        sendWelcomeMail(payload.email, payload.name || payload.email, DEFAULT_PASSWORD_PLAINTEXT)
+          .catch(logMailFailure("welcome-bulk-upload"));
       }
     } catch (err: any) {
       skipped.push({ email: row.Email, error: err?.message || "Unknown error" });
@@ -219,13 +386,19 @@ export const batchCreateUsersService = async (
 export const getUsersService = async (
   page: number,
   limit: number,
-  search: string
+  search: string,
+  adminUserId: string
 ) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
 
   const { users, pagination } = await getRegisteredUsersRepo(
     page,
     limit,
-    search
+    search,
+    String(admin.orgId)
   );
 
   // Maps to `username` here, matching the frontend's table column (hooks/useUser.ts
@@ -269,11 +442,18 @@ const deriveDisplayRole = (user: any, managerIds: Set<string>): string => {
 export const searchUsersService = async (
   query: string,
   page: number,
-  limit: number
+  limit: number,
+  adminUserId: string
 ) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
+  const orgId = String(admin.orgId);
+
   const [{ users, total }, managerIdList] = await Promise.all([
-    searchUsersRepo(query, page, limit),
-    getDistinctManagerIdsRepo(),
+    searchUsersRepo(query, page, limit, orgId),
+    getDistinctManagerIdsRepo(orgId),
   ]);
   const managerIds = new Set(managerIdList);
   const totalPages = Math.ceil(total / limit);

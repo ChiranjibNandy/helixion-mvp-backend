@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import {  bulkUploadOrganizationService, createOrganizationService, updateOrganizationPolicyService } from "../services/organization.service.js";
+import {  bulkUploadOrganizationService, createOrganizationService, getOrganizationStatusService, updateOrganizationPolicyService } from "../services/organization.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
 
@@ -41,6 +41,22 @@ export const bulkUploadOrganizations = async (req: Request, res: Response, next:
       next(error);
    }
 }
+
+export const getOrganizationStatus = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const data = await getOrganizationStatusService(req.userId!);
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data
+      });
+   } catch (error) {
+      next(error);
+   }
+};
 
 export const updatePolicy = async (
    req: Request,

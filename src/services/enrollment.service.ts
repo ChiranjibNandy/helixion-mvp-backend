@@ -1,6 +1,6 @@
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { ENROLLMENT_STAGE, MANAGER_CHAIN_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STAGE } from "../constants/enum.js";
 import { getReleventEnrollRequestDto } from "../dtos/enrollment.dto.js";
 import {
   getEnrollmentByUserIdInManagerChain,
@@ -32,9 +32,6 @@ export const getRelevantEnrollmentService = async (
     );
   }
 
-  const minLevel =
-    organization.policy.managerApproval.minLevelToApprove;
-
   const { enrollments, pagination } =
     await getEnrollmentByUserIdInManagerChain(
       user,
@@ -43,6 +40,15 @@ export const getRelevantEnrollmentService = async (
       request.search
     );
 
+  // Whether this manager can act mirrors takeManagerActionService's own
+  // eligibility check exactly: a PENDING entry for them in managerChain,
+  // on an enrollment still at MANAGER_REVIEW. Previously this compared
+  // `manager.level >= minLevelToApprove` instead — since level 0 is the
+  // DIRECT (most common) manager and minLevelToApprove defaults to 1, that
+  // locked the "Review" button for every direct manager, on every
+  // enrollment, regardless of whether their approval was actually due.
+  // Level only matters for what happens AFTER approving (whether the chain
+  // needs to escalate further) — it was never a gate on who may act at all.
   const result = enrollments.map((enrollment: any) => {
     const manager = enrollment.managerChain?.find(
       (m: any) => String(m.userId) === String(user._id)
@@ -50,9 +56,8 @@ export const getRelevantEnrollmentService = async (
 
     return {
       ...enrollment,
-      approve: (manager
-        ? manager.level >= minLevel
-        : false) && enrollment.currentStage == ENROLLMENT_STAGE.MANAGER_REVIEW,
+      approve: (manager?.level >= organization?.policy?.managerApproval?.minLevelToApprove)
+        && enrollment.currentStage == ENROLLMENT_STAGE.MANAGER_REVIEW,
     };
   });
 

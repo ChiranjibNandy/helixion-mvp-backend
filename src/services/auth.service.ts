@@ -11,7 +11,7 @@ import { IUser } from "../interfaces/user.interface.js";
 import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { buildPermission } from "../utils/permission.js";
 import { LoginResponse } from "../types/auth.js";
 
@@ -28,13 +28,19 @@ export const signupService = async (
    }
 
    const hashedPassword = await bcrypt.hash(userData.password, 10);
+   const orgRole = (userData as any).orgRole || (userData as any).role;
 
    try {
       return await createUserRepo({
          name: userData.name || (userData as any).username,
          email: userData.email,
          passwordHash: hashedPassword,
-         orgRole: (userData as any).orgRole || (userData as any).role,
+         orgRole,
+         // Admins self-register to create their org — there's no other admin
+         // yet to approve them, so they must be approved immediately.
+         // Employees self-registering into an existing org still need an
+         // admin to review and assign their role via Pending Registrations.
+         isApproved: orgRole === ORG_ROLE.ADMIN,
          mustChangePassword: false,
          status: USER_STATUS.ACTIVE,
          hierarchy: { level: 0, managerChain: [] },

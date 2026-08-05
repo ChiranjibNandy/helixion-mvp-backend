@@ -32,13 +32,15 @@ export const getRegisteredUsersRepo =
    async (
       page: number,
       limit: number,
-      search: string
+      search: string,
+      orgId: string
    ) => {
       const skip =
          (page - 1) * limit;
-      let query = {};
+      let query: Record<string, unknown> = { orgId };
       if (search) {
          query = {
+            orgId,
             $or: [
                {
                   // Was filtering on `username`, a field that doesn't exist

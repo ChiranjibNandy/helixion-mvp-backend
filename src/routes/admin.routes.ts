@@ -1,12 +1,12 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers, searchUsers, getUsersController } from "../controllers/admin.controller.js";
-import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema } from "../validators/admin.validator.js";
+import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser } from "../controllers/admin.controller.js";
+import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { bulkUploadOrganizations, createOrganization, updatePolicy } from "../controllers/organization.controller.js";
+import { bulkUploadOrganizations, createOrganization, getOrganizationStatus, updatePolicy } from "../controllers/organization.controller.js";
 import { createOrganizationSchema, organizationIdParamSchema, updatePolicySchema } from "../validators/organization.validator.js";
 import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
@@ -37,6 +37,13 @@ router.post("/users/batch",
    batchCreateUsers
 );
 
+// Single-employee creation — the only path that can create someone with no
+// reporting manager (bulk upload now requires one on every row).
+router.post("/users",
+   validate({ body: createSingleUserSchema }),
+   createSingleUser
+);
+
 router.patch("/users/:id",
    validate({ params: approveUserParamsSchema, body: approveUserBodySchema }),
    approveUser
@@ -51,6 +58,8 @@ router.post("/organizations",
    validate({ body: createOrganizationSchema }),
    createOrganization
 );
+
+router.get("/organizations/status", getOrganizationStatus);
 
 router.post(
    "/organizations/bulk-upload",

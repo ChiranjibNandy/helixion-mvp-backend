@@ -2,7 +2,7 @@ import { OrganizationStatus } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { bulkCreateOrganizations, createOrganization, findOneOrgBySlug, updateOrganizationPolicy } from "../repositories/organization.repository.js";
-import { updateOneUser } from "../repositories/user.repository.js";
+import { getUserByIdRepo, updateOneUser } from "../repositories/user.repository.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
@@ -33,6 +33,17 @@ export const createOrganizationService = async (
   await updateOneUser(toObjectId(creatingAdminId), { orgId: org._id } as any);
 
   return org;
+};
+
+// Whether THIS admin (not "any org in the system") has an org set up yet —
+// drives the frontend's Bulk Import gating (admin/layout.tsx). Previously
+// this endpoint didn't exist at all; the frontend's fetch failed and
+// "failed open" to true unconditionally, so Bulk Import always looked
+// unlocked even for an admin with no orgId, and the real error only
+// surfaced later at actual upload time.
+export const getOrganizationStatusService = async (adminId: string) => {
+  const admin = await getUserByIdRepo(adminId);
+  return { hasOrgPolicySetup: !!admin?.orgId };
 };
 
 // update organization policy
