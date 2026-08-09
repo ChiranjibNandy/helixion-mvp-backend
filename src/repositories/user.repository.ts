@@ -164,6 +164,15 @@ export const searchUsersRepo = async (
    return { users, total };
 };
 
+/** Every user in an org, no pagination — for the admin employee directory
+ *  (resolves each person's manager chain to names in the service layer). */
+export const getAllUsersByOrgRepo = async (orgId: string) => {
+   return await User.find({ orgId })
+      .select("-passwordHash")
+      .sort({ name: 1 })
+      .lean();
+};
+
 /** Get all users belonging to a specific org (tenant-scoped) */
 export const getUsersByOrgRepo = async (
    orgId: string,

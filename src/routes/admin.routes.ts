@@ -1,6 +1,6 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser } from "../controllers/admin.controller.js";
+import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getEmployeeDirectory } from "../controllers/admin.controller.js";
 import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
@@ -31,6 +31,9 @@ router.get("/users/search",
    validate({ query: searchUsersQuerySchema }),
    searchUsers
 );
+
+// employee directory — everyone + their role, reporting chain, and approvers
+router.get("/users/directory", getEmployeeDirectory);
 
 router.post("/users/batch",
    uploadCsv.single("file"),
