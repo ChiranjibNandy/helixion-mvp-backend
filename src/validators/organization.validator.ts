@@ -147,11 +147,13 @@ export const organizationCsvRowSchema = z.object({
     Object.values(OrganizationType)
   ),
 
-  status: z
-    .enum(
-      Object.values(OrganizationStatus)
-    )
-    .optional(),
+  // A CSV parser turns an empty cell into "" (not undefined), which would
+  // fail the enum even though status is meant to be optional. Treat blank/
+  // whitespace as "not provided" so the service can default it to ACTIVE.
+  status: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.enum(Object.values(OrganizationStatus)).optional()
+  ),
 
   managerLevels: z.coerce.number().min(1),
   managerMinLevel: z.coerce.number().min(1),

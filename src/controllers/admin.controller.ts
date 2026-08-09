@@ -8,6 +8,7 @@ import {
   getUsersService,
   searchUsersService,
   createSingleUserService,
+  getEmployeeDirectoryService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
@@ -253,6 +254,26 @@ export const getUsersController =
     }
   };
 
+
+/**
+ * Employee directory — every user in the admin's org with their derived role,
+ * resolved reporting chain (direct + skip-level managers), and the org's
+ * CTD / OSD approver pools.
+ *
+ * Route: GET /api/admin/users/directory  (Admin only)
+ */
+export const getEmployeeDirectory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const data = await getEmployeeDirectoryService(req.userId!);
+    return res.status(HTTP_STATUS.OK).json({ success: true, ...data });
+  } catch (error) {
+    next(error);
+  }
+};
 
 //search approved User
 
