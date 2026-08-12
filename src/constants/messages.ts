@@ -41,6 +41,8 @@ export const MESSAGES = {
 
   USER_DEACTIVATED_SUCCESSFULLY: "User deactivated successfully",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
+  USER_ACTIVATED_SUCCESSFULLY: "User activated successfully",
+  USER_ALREADY_ACTIVE: "User is already active",
   CANNOT_DEACTIVATE_SELF: "Cannot deactivate your own account",
   NOT_ACTIVE_USER: "Your account is not active. Please contact the administrator.",
 
