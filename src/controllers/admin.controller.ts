@@ -4,11 +4,12 @@ import {
   approveUserAndAddRoleService,
   getPendingRegistrationsService,
   deactivateUserService,
+  activateUserService,
   batchCreateUsersService,
   getUsersService,
   searchUsersService,
   createSingleUserService,
-  getEmployeeDirectoryService,
+  getAdminDashboardStatsService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
@@ -128,6 +129,29 @@ export const deactivateUser = async (
     return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: MESSAGES.USER_DEACTIVATED_SUCCESSFULLY,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Re-activate a previously deactivated user.
+ * Route: PATCH /users/:id/activate  (Admin only, same-org)
+ */
+export const activateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    await activateUserService(String(id), req.userId!);
+
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USER_ACTIVATED_SUCCESSFULLY,
     });
   } catch (error) {
     next(error);
@@ -255,20 +279,18 @@ export const getUsersController =
   };
 
 
+
 /**
- * Employee directory — every user in the admin's org with their derived role,
- * resolved reporting chain (direct + skip-level managers), and the org's
- * CTD / OSD approver pools.
- *
- * Route: GET /api/admin/users/directory  (Admin only)
+ * Admin dashboard summary counts (org-scoped): total users, pending approval,
+ * deactivated. Route: GET /api/admin/dashboard/stats  (Admin only)
  */
-export const getEmployeeDirectory = async (
+export const getAdminDashboardStats = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const data = await getEmployeeDirectoryService(req.userId!);
+    const data = await getAdminDashboardStatsService(req.userId!);
     return res.status(HTTP_STATUS.OK).json({ success: true, ...data });
   } catch (error) {
     next(error);

@@ -87,6 +87,14 @@ export const deactivateUserRepo = async (id: string) => {
    );
 };
 
+export const activateUserRepo = async (id: string) => {
+   return await User.findByIdAndUpdate(
+      id,
+      { status: USER_STATUS.ACTIVE },
+      { new: true }
+   );
+};
+
 /** Update the user's orgRole (replaces the old role field) */
 export const updateUserRoleRepo = async (email: string, orgRole: string) => {
    return await User.findOneAndUpdate(
@@ -138,9 +146,9 @@ export const searchUsersRepo = async (
    limit: number,
    orgId: string
 ) => {
+   
    const filter: Record<string, unknown> = {
       orgId,
-      status: USER_STATUS.ACTIVE,
    };
 
    if (query) {
@@ -164,13 +172,35 @@ export const searchUsersRepo = async (
    return { users, total };
 };
 
-/** Every user in an org, no pagination — for the admin employee directory
- *  (resolves each person's manager chain to names in the service layer). */
-export const getAllUsersByOrgRepo = async (orgId: string) => {
-   return await User.find({ orgId })
-      .select("-passwordHash")
-      .sort({ name: 1 })
-      .lean();
+/** All admin-dashboard counts for an org in a single aggregation round-trip —
+ *  no user documents are loaded into application memory. */
+export const getOrgUserStatsRepo = async (orgId: string) => {
+   const [res] = await User.aggregate<{
+      total: { n: number }[];
+      active: { n: number }[];
+      deactivated: { n: number }[];
+      pending: { n: number }[];
+   }>([
+      { $match: { orgId: new Types.ObjectId(orgId) } },
+      {
+         $facet: {
+            total: [{ $count: "n" }],
+            active: [{ $match: { status: USER_STATUS.ACTIVE } }, { $count: "n" }],
+            deactivated: [
+               { $match: { status: { $in: [USER_STATUS.INACTIVE, USER_STATUS.DEACTIVE] } } },
+               { $count: "n" },
+            ],
+            pending: [{ $match: { isApproved: false } }, { $count: "n" }],
+         },
+      },
+   ]);
+   const n = (arr?: { n: number }[]) => arr?.[0]?.n ?? 0;
+   return {
+      totalUsers: n(res?.total),
+      activeUsers: n(res?.active),
+      deactivated: n(res?.deactivated),
+      pendingApproval: n(res?.pending),
+   };
 };
 
 /** Get all users belonging to a specific org (tenant-scoped) */

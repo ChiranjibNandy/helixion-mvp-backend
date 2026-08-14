@@ -1,6 +1,6 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getEmployeeDirectory } from "../controllers/admin.controller.js";
+import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats } from "../controllers/admin.controller.js";
 import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
@@ -32,8 +32,8 @@ router.get("/users/search",
    searchUsers
 );
 
-// employee directory — everyone + their role, reporting chain, and approvers
-router.get("/users/directory", getEmployeeDirectory);
+// dashboard summary counts (org-scoped)
+router.get("/dashboard/stats", getAdminDashboardStats);
 
 router.post("/users/batch",
    uploadCsv.single("file"),
@@ -55,6 +55,11 @@ router.patch("/users/:id",
 router.patch("/users/:id/deactivate",
    validate({ params: approveUserParamsSchema }),
    deactivateUser
+);
+
+router.patch("/users/:id/activate",
+   validate({ params: approveUserParamsSchema }),
+   activateUser
 );
 
 router.post("/organizations",

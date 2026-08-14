@@ -8,6 +8,7 @@ import {
   approveUserRepo,
   getUserByIdRepo,
   deactivateUserRepo,
+  activateUserRepo,
   getUsersByEmailsRepo,
   batchCreateUsersRepo,
   searchUsersRepo,
@@ -16,7 +17,8 @@ import {
   createUserRepo,
   updateOneUser,
   getDistinctManagerIdsRepo,
-  getAllUsersByOrgRepo,
+  getUsersByIdsRepo,
+  getOrgUserStatsRepo,
 } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -110,11 +112,37 @@ export const deactivateUserService = async (
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
-  if (user.status === USER_STATUS.DEACTIVE) {
+  if (user.status === USER_STATUS.INACTIVE || user.status === USER_STATUS.DEACTIVE) {
     throw new AppError(MESSAGES.USER_ALREADY_DEACTIVATED, HTTP_STATUS.CONFLICT);
   }
 
   await deactivateUserRepo(id);
+};
+
+export const activateUserService = async (
+  id: string,
+  requesterId: string
+) => {
+  const requester = await getUserByIdRepo(requesterId);
+  if (!requester) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const user = await getUserByIdRepo(id);
+  if (!user) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // Same-org guard — an admin may only act on users in their own org.
+  if (String(user.orgId) !== String(requester.orgId)) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (user.status === USER_STATUS.ACTIVE) {
+    throw new AppError(MESSAGES.USER_ALREADY_ACTIVE, HTTP_STATUS.CONFLICT);
+  }
+
+  await activateUserRepo(id);
 };
 
 
@@ -457,6 +485,21 @@ export const searchUsersService = async (
     getDistinctManagerIdsRepo(orgId),
   ]);
   const managerIds = new Set(managerIdList);
+
+
+  const referencedManagerIds = new Set<string>();
+  for (const user of users as any[]) {
+    for (const entry of user.hierarchy?.managerChain || []) {
+      if (entry?.userId) referencedManagerIds.add(String(entry.userId));
+    }
+    if (user.hierarchy?.managerId) referencedManagerIds.add(String(user.hierarchy.managerId));
+  }
+  const managerDocs = await getUsersByIdsRepo([...referencedManagerIds]);
+  const byId = new Map(managerDocs.map((u: any) => [String(u._id), u]));
+  const brief = (id: any) => {
+    const u: any = byId.get(String(id));
+    return u ? { name: u.name, email: u.email } : null;
+  };
   const totalPages = Math.ceil(total / limit);
 
   return {
@@ -465,16 +508,27 @@ export const searchUsersService = async (
     // name/orgRole. Sending those raw previously left every user.username/
     // user.role read on the Deactivate User page as undefined, crashing on
     // any string method called on it (e.g. getInitials' .substring call).
-    data: users.map(user => ({
-      id: user._id,
-      username: user.name,
-      email: user.email,
-      role: deriveDisplayRole(user, managerIds),
-      status: user.status,
-      mustChangePassword: user.mustChangePassword,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    })),
+    data: users.map((user: any) => {
+      const chain: any[] = user.hierarchy?.managerChain || [];
+      const at = (lvl: number) => {
+        const entry = chain.find((m: any) => m.level === lvl);
+        return entry ? brief(entry.userId) : null;
+      };
+      return {
+        id: user._id,
+        username: user.name,
+        email: user.email,
+        role: deriveDisplayRole(user, managerIds),
+        status: user.status,
+        mustChangePassword: user.mustChangePassword,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        // reporting chain (merged in from the former Employee Directory page)
+        reportingManager: at(0) || (user.hierarchy?.managerId ? brief(user.hierarchy.managerId) : null),
+        skipLevel1Manager: at(1),
+        skipLevel2Manager: at(2),
+      };
+    }),
     meta: {
       total,
       page,
@@ -484,80 +538,18 @@ export const searchUsersService = async (
   };
 };
 
-/// ─── Employee directory ──────────────────────────────────────────────────────
+/// ─── Admin dashboard stats ───────────────────────────────────────────────────
 //
-// A single org-scoped view of everyone and their approval structure: each
-// person's derived role plus their resolved reporting chain (direct manager +
-// skip levels), and the org's training-dept (CTD) and OSD approvers listed
-// separately since those are org-wide pools, not per-employee assignments.
+// Org-scoped counts for the admin dashboard cards. "Active today" was dropped —
+// there's no last-login/last-active field on the user model to derive it from.
 
-export const getEmployeeDirectoryService = async (adminUserId: string) => {
+export const getAdminDashboardStatsService = async (adminUserId: string) => {
   const admin = await getUserByIdRepo(adminUserId);
   if (!admin?.orgId) {
     throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
   }
 
-  const users = await getAllUsersByOrgRepo(String(admin.orgId));
-  const byId = new Map(users.map((u: any) => [String(u._id), u]));
-
-  // Being a "Manager" is purely a function of appearing as someone else's
-  // hierarchy.managerId — there's no role flag for it on the user document.
-  const managerIds = new Set(
-    users
-      .map((u: any) => u.hierarchy?.managerId)
-      .filter(Boolean)
-      .map((id: any) => String(id))
-  );
-
-  const brief = (id: any) => {
-    const u: any = byId.get(String(id));
-    return u ? { name: u.name, email: u.email } : null;
-  };
-
-  const employees = users.map((u: any) => {
-    const chain: any[] = u.hierarchy?.managerChain || [];
-    const at = (lvl: number) => {
-      const entry = chain.find((m: any) => m.level === lvl);
-      return entry ? brief(entry.userId) : null;
-    };
-    return {
-      id: String(u._id),
-      name: u.name,
-      email: u.email,
-      employeeCode: u.employeeCode || null,
-      department: u.department || null,
-      designation: u.designation || null,
-      placeOfPosting: u.placeOfPosting || null,
-      role: deriveDisplayRole(u, managerIds),
-      status: u.status,
-      // level 0 = direct manager; 1/2 = skip-levels
-      reportingManager: at(0) || (u.hierarchy?.managerId ? brief(u.hierarchy.managerId) : null),
-      skipLevel1Manager: at(1),
-      skipLevel2Manager: at(2),
-    };
-  });
-
-  // Org-wide approver pools (same set applies to everyone in the org).
-  const trainingDeptApprovers = users
-    .filter((u: any) => u.officeRoles?.trainingDept?.enabled)
-    .map((u: any) => ({
-      name: u.name,
-      email: u.email,
-      role: u.officeRoles.trainingDept.level >= 2 ? "CTD (Senior)" : "Training Dept Officer (Junior)",
-    }));
-
-  const osdApprovers = users
-    .filter((u: any) => u.officeRoles?.osd?.enabled)
-    .map((u: any) => ({
-      name: u.name,
-      email: u.email,
-      role: u.officeRoles.osd.level >= 2 ? "OSD Senior" : "OSD Officer (Junior)",
-    }));
-
-  return {
-    employees,
-    approvers: { trainingDept: trainingDeptApprovers, osd: osdApprovers },
-    total: employees.length,
-  };
+  // Counted in the DB via a single aggregation — no user docs loaded here.
+  return await getOrgUserStatsRepo(String(admin.orgId));
 };
 
