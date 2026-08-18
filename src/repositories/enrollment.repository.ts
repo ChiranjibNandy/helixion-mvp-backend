@@ -800,3 +800,18 @@ export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
     currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
   });
 };
+
+
+export const getEnrollmentPanelById = async (enrollmentId: string) => {
+  return await enrollmentModel.findById(enrollmentId)
+    .select("notes currentStage providerOrgId programId")
+    .populate({
+      path: "providerOrgId",
+      select: "name email",
+    })
+    .populate({
+      path: "programId",
+      select: "brochureUrl title",
+    })
+    .lean();
+}

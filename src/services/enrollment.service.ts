@@ -6,6 +6,7 @@ import {
   getEnrollmentByUserIdInManagerChain,
   findEnrollmentForManagerRepo,
   getEmployeeTrainingHistoryRepo,
+  getEnrollmentPanelById,
 } from "../repositories/enrollment.repository.js";
 import { getUserByIdRepo } from "../repositories/user.repository.js";
 import { AppError } from "../utils/appError.js";
@@ -95,3 +96,30 @@ export const getEmployeeTrainingHistoryService = async (
     brochureUrl: entry.programId?.brochureUrl,
   }));
 };
+
+/**
+   * Fetches a single enrollment panel record
+   */
+export const getEnrollmentPanelDetails = async (enrollmentId: string) => {
+  const enrollment: any = await getEnrollmentPanelById(enrollmentId);
+
+  if (!enrollment) {
+    throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const providerOrg = enrollment.providerOrgId;
+  const program = enrollment.programId;
+
+  return {
+    _id: enrollment._id,
+    currentStage: enrollment.currentStage,
+    notes: enrollment.notes || "",
+    createdBy: providerOrg
+      ? {
+        name: providerOrg.name,
+        email: providerOrg.email,
+      }
+      : null,
+    downloadBrochureUrl: program?.brochureUrl || null,
+  };
+}

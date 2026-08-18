@@ -16,6 +16,7 @@ import {
    getEmployeeNotificationsService,
    submitTourFormService
 } from "../services/employee.service.js";
+import { getEnrollmentPanelDetails } from "../services/enrollment.service.js";
 
 
 /**
@@ -284,5 +285,20 @@ export const submitTourForm = async (req: Request, res: Response, next: NextFunc
       });
    } catch (error) {
       next(error);
+   }
+};
+
+
+export const getEnrollmentPanelById = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const { id } = req.params;
+      const data = await getEnrollmentPanelDetails(String(id));
+
+      res.status(200).json({
+         success: true,
+         data,
+      });
+   } catch (error) {
+      next(error)
    }
 };
