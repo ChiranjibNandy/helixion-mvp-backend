@@ -123,5 +123,6 @@ export const MESSAGES = {
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
 
-  ORG_NOT_ADD_USER:"Organization not added the admin"
+  ORG_NOT_ADD_USER:"Organization not added the admin",
+  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program"
 } as const;
