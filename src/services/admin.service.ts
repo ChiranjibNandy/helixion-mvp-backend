@@ -37,7 +37,8 @@ import { parseCsvBuffer } from "../utils/csvParser.js";
 import { findOrgById } from "../repositories/organization.repository.js";
 import { parseExcelBuffer } from "../utils/parseExcelBuffer.js";
 import { mapSpreadsheetEmployee } from "../utils/mapSpreadsheetEmployee.js";
-import { mapEmployeeHierarchy } from "../utils/mapEmployeeHierarchy.js";
+import { mapEmployeeHierarchy, buildManagerChain } from "../utils/mapEmployeeHierarchy.js";
+import { EmployeeDetailDto } from "../dtos/user.dto.js";
 
 
 
@@ -249,7 +250,255 @@ export const createSingleUserService = async (
   };
 };
 
-/// ─── Batch create service ──────────────────────────────────────────────────────
+/// employee edit details
+
+const mapEmployeeToDetailDto = (
+  employee: any,
+  managerChainEmails: { reportingManagerEmail: string | null; skip1Email: string | null; skip2Email: string | null }
+): EmployeeDetailDto => ({
+  id: String(employee._id),
+  name: employee.name,
+  email: employee.email,
+  employeeCode: employee.employeeCode,
+  mobile: employee.mobile,
+  placeOfPosting: employee.placeOfPosting,
+  designation: employee.designation,
+  department: employee.department,
+  orgRole: employee.orgRole,
+  status: employee.status,
+  reportingManagerEmail: managerChainEmails.reportingManagerEmail,
+  skip1Email: managerChainEmails.skip1Email,
+  skip2Email: managerChainEmails.skip2Email,
+  trainingDeptJuniorOfficer: !!employee.officeRoles?.trainingDept?.enabled && employee.officeRoles.trainingDept.level === 1,
+  trainingDeptSeniorOfficer: !!employee.officeRoles?.trainingDept?.enabled && employee.officeRoles.trainingDept.level >= 2,
+  osdJuniorOfficer: !!employee.officeRoles?.osd?.enabled && employee.officeRoles.osd.level === 1,
+  osdSeniorOfficer: !!employee.officeRoles?.osd?.enabled && employee.officeRoles.osd.level >= 2,
+});
+
+
+const resolveManagerChainEmails = async (
+  employee: any
+): Promise<{ reportingManagerEmail: string | null; skip1Email: string | null; skip2Email: string | null }> => {
+  const chain: any[] = employee.hierarchy?.managerChain || [];
+  const managerEntry = chain.find((m: any) => m.level === 0);
+  const skip1Entry = chain.find((m: any) => m.level === 1);
+  const skip2Entry = chain.find((m: any) => m.level === 2);
+
+  const [manager, skip1, skip2] = await Promise.all([
+    managerEntry ? getUserByIdRepo(String(managerEntry.userId)) : Promise.resolve(null),
+    skip1Entry ? getUserByIdRepo(String(skip1Entry.userId)) : Promise.resolve(null),
+    skip2Entry ? getUserByIdRepo(String(skip2Entry.userId)) : Promise.resolve(null),
+  ]);
+
+  return {
+    reportingManagerEmail: manager?.email ?? null,
+    skip1Email: skip1?.email ?? null,
+    skip2Email: skip2?.email ?? null,
+  };
+};
+
+export const getEmployeeByIdService = async (
+  id: string,
+  adminUserId: string
+): Promise<EmployeeDetailDto> => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const employee = await getUserByIdRepo(id);
+  if (!employee) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // same org guard , admin may only view employees in their own org
+  if (String(employee.orgId) !== String(admin.orgId)) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+
+  if (employee.orgRole !== ORG_ROLE.EMPLOYEE) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const managerChainEmails = await resolveManagerChainEmails(employee);
+  return mapEmployeeToDetailDto(employee, managerChainEmails);
+};
+
+export interface UpdateEmployeeInput {
+  name?: string;
+  email?: string;
+  employeeCode?: string;
+  mobile?: string;
+  placeOfPosting?: string;
+  designation?: string;
+  department?: string;
+  reportingManagerEmail?: string;
+  skip1Email?: string;
+  skip2Email?: string;
+  trainingDeptJuniorOfficer?: boolean;
+  trainingDeptSeniorOfficer?: boolean;
+  osdJuniorOfficer?: boolean;
+  osdSeniorOfficer?: boolean;
+}
+
+export const updateEmployeeService = async (
+  id: string,
+  data: UpdateEmployeeInput,
+  adminUserId: string
+): Promise<EmployeeDetailDto> => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const employee = await getUserByIdRepo(id);
+  if (!employee) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  // same org guard , admin may only view employees in their own org
+  if (String(employee.orgId) !== String(admin.orgId)) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (employee.orgRole !== ORG_ROLE.EMPLOYEE) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const update: Record<string, unknown> = {};
+
+  if (data.name !== undefined) update.name = data.name.trim();
+  if (data.employeeCode !== undefined) update.employeeCode = data.employeeCode.trim();
+  if (data.mobile !== undefined) update.mobile = data.mobile.trim();
+  if (data.placeOfPosting !== undefined) update.placeOfPosting = data.placeOfPosting.trim();
+  if (data.designation !== undefined) update.designation = data.designation.trim();
+  if (data.department !== undefined) update.department = data.department.trim();
+
+  if (data.email !== undefined) {
+    const email = data.email.trim().toLowerCase();
+    if (email !== employee.email) {
+
+      const existing = await getUserByEmailRepo(email);
+      if (existing && String(existing._id) !== id) {
+        throw new AppError(MESSAGES.USER_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+      }
+      update.email = email;
+    }
+  }
+
+
+  const resolveManagerLevel = async (
+    provided: string | undefined,
+    existingEntry: { userId: any } | undefined,
+    notFoundMessage: string
+  ): Promise<{ _id: any; email: string } | null> => {
+    if (provided === undefined) {
+      if (!existingEntry) return null;
+      const existingUser = await getUserByIdRepo(String(existingEntry.userId));
+      return existingUser ? { _id: existingUser._id, email: existingUser.email } : null;
+    }
+
+    const email = provided.trim().toLowerCase();
+    if (!email) return null; // explicitly cleared
+
+    const manager = await getUserByEmailRepo(email);
+    if (!manager) {
+      throw new AppError(notFoundMessage, HTTP_STATUS.BAD_REQUEST);
+    }
+    if (String(manager._id) === id) {
+      throw new AppError(MESSAGES.CANNOT_BE_OWN_MANAGER, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (String(manager.orgId) !== String(employee.orgId)) {
+      throw new AppError(notFoundMessage, HTTP_STATUS.BAD_REQUEST);
+    }
+
+    return { _id: manager._id, email: manager.email };
+  };
+
+  let managerChainEmails: { reportingManagerEmail: string | null; skip1Email: string | null; skip2Email: string | null } | null = null;
+  if (data.reportingManagerEmail !== undefined || data.skip1Email !== undefined || data.skip2Email !== undefined) {
+    const chain: any[] = employee.hierarchy?.managerChain || [];
+    const managerEntry = chain.find((m: any) => m.level === 0);
+    const skip1Entry = chain.find((m: any) => m.level === 1);
+    const skip2Entry = chain.find((m: any) => m.level === 2);
+
+    const reportingManager = await resolveManagerLevel(data.reportingManagerEmail, managerEntry, MESSAGES.REPORTING_MANAGER_NOT_FOUND);
+    const skip1 = await resolveManagerLevel(data.skip1Email, skip1Entry, MESSAGES.SKIP1_MANAGER_NOT_FOUND);
+    const skip2 = await resolveManagerLevel(data.skip2Email, skip2Entry, MESSAGES.SKIP2_MANAGER_NOT_FOUND);
+
+    update.hierarchy = buildManagerChain({ reportingManager, skip1, skip2 });
+    managerChainEmails = {
+      reportingManagerEmail: reportingManager?.email ?? null,
+      skip1Email: skip1?.email ?? null,
+      skip2Email: skip2?.email ?? null,
+    };
+  }
+
+  const trainingDeptTouched = data.trainingDeptJuniorOfficer !== undefined || data.trainingDeptSeniorOfficer !== undefined;
+  const osdTouched = data.osdJuniorOfficer !== undefined || data.osdSeniorOfficer !== undefined;
+
+  if (trainingDeptTouched || osdTouched) {
+
+    const currentTrainingDept = employee.officeRoles?.trainingDept;
+    const currentOsd = employee.officeRoles?.osd;
+    const juniorProvided = data.trainingDeptJuniorOfficer !== undefined;
+    const seniorProvided = data.trainingDeptSeniorOfficer !== undefined;
+    const osdJuniorProvided = data.osdJuniorOfficer !== undefined;
+    const osdSeniorProvided = data.osdSeniorOfficer !== undefined;
+
+    let tdJunior = juniorProvided ? data.trainingDeptJuniorOfficer! : (!!currentTrainingDept?.enabled && currentTrainingDept.level === 1);
+    let tdSenior = seniorProvided ? data.trainingDeptSeniorOfficer! : (!!currentTrainingDept?.enabled && currentTrainingDept.level >= 2);
+    let osdJunior = osdJuniorProvided ? data.osdJuniorOfficer! : (!!currentOsd?.enabled && currentOsd.level === 1);
+    let osdSenior = osdSeniorProvided ? data.osdSeniorOfficer! : (!!currentOsd?.enabled && currentOsd.level >= 2);
+
+
+    if (juniorProvided && tdJunior && !seniorProvided) tdSenior = false;
+    if (seniorProvided && tdSenior && !juniorProvided) tdJunior = false;
+    if (osdJuniorProvided && osdJunior && !osdSeniorProvided) osdSenior = false;
+    if (osdSeniorProvided && osdSenior && !osdJuniorProvided) osdJunior = false;
+
+    update.officeRoles = {
+      trainingDept: trainingDeptTouched
+        ? { enabled: !!(tdJunior || tdSenior), level: tdSenior ? 2 : tdJunior ? 1 : 0 }
+        : currentTrainingDept,
+      osd: osdTouched
+        ? { enabled: !!(osdJunior || osdSenior), level: osdSenior ? 2 : osdJunior ? 1 : 0 }
+        : currentOsd,
+    };
+  }
+
+  const updated = await updateOneUser(toObjectId(id), update as any);
+  if (!updated) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (!managerChainEmails) {
+    managerChainEmails = await resolveManagerChainEmails(updated);
+  }
+
+  return mapEmployeeToDetailDto(updated, managerChainEmails);
+};
+
+/// batch create service
+
+const friendlyBatchRowError = (err: any, row: any): string => {
+  const message: string = err?.message || "Unknown error";
+
+  if (err?.code === 11000 || /E11000/.test(message)) {
+    if (/employeeCode/.test(message)) {
+      const rollNo = row?.["Employee Roll No."] ?? "";
+      return `Employee Roll No. "${rollNo}" is already used by another employee in this org — use a unique Roll No.`;
+    }
+    if (/email/i.test(message)) {
+      return `Email "${row?.Email ?? ""}" is already in use by another employee.`;
+    }
+    return "A duplicate value conflicts with an existing employee record.";
+  }
+
+  return message;
+};
 
 export const batchCreateUsersService = async (
   file: Express.Multer.File, userId: string
@@ -269,7 +518,9 @@ export const batchCreateUsersService = async (
 
   let created = 0;
   let updated = 0;
-  const skipped: { email?: string; error: string }[] = [];
+
+  
+  const skipped: { email?: string; employeeCode?: string; error: string }[] = [];
 
   const defaultPassword = await bcrypt.hash(DEFAULT_PASSWORD_PLAINTEXT, 10);
   const user = await getUserByIdRepo(userId)
@@ -345,7 +596,15 @@ export const batchCreateUsersService = async (
       const existing = await getUserByEmailRepo(payload.email);
 
       if (existing) {
-        await updateOneUser(existing._id, { ...payload, isApproved: true });
+
+        if (existing.orgRole !== ORG_ROLE.EMPLOYEE) {
+          throw new Error(`Email "${payload.email}" belongs to a ${existing.orgRole} account and cannot be modified via bulk upload`);
+        }
+        if (existing.orgId && String(existing.orgId) !== String(org._id)) {
+          throw new Error(`Email "${payload.email}" already belongs to a user in another organization`);
+        }
+        const { passwordHash, mustChangePassword, orgRole, ...detailPayload } = payload;
+        await updateOneUser(existing._id, { ...detailPayload, isApproved: true });
         updated++;
       } else {
         await createUserRepo({ ...payload, isApproved: true });
@@ -358,7 +617,7 @@ export const batchCreateUsersService = async (
           .catch(logMailFailure("welcome-bulk-upload"));
       }
     } catch (err: any) {
-      skipped.push({ email: row.Email, error: err?.message || "Unknown error" });
+      skipped.push({ email: row.Email, employeeCode: row["Employee Roll No."], error: friendlyBatchRowError(err, row) });
     }
   }
 
@@ -406,7 +665,8 @@ export const batchCreateUsersService = async (
     createdCount: created,
     updatedCount: updated,
     skippedCount: skipped.length,
-    skippedEmails: skipped.map((s) => s.email).filter((e): e is string => !!e)
+    skippedEmails: skipped.map((s) => s.email).filter((e): e is string => !!e),
+    skipped,
   };
 };
 

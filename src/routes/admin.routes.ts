@@ -1,13 +1,13 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats } from "../controllers/admin.controller.js";
-import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema } from "../validators/admin.validator.js";
+import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats, getEmployeeById, updateEmployee } from "../controllers/admin.controller.js";
+import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema, updateEmployeeParamsSchema, updateEmployeeBodySchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { bulkUploadOrganizations, createOrganization, getOrganizationStatus, updatePolicy } from "../controllers/organization.controller.js";
-import { createOrganizationSchema, organizationIdParamSchema, updatePolicySchema } from "../validators/organization.validator.js";
+import { bulkUploadOrganizations, createOrganization, getOrganizationById, getOrganizations, getOrganizationStatus, updateOrganizationDetails, updatePolicy } from "../controllers/organization.controller.js";
+import { createOrganizationSchema, organizationIdParamSchema, updateOrganizationDetailsSchema, updatePolicySchema } from "../validators/organization.validator.js";
 import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 
@@ -30,6 +30,17 @@ router.get("/registrations",
 router.get("/users/search",
    validate({ query: searchUsersQuerySchema }),
    searchUsers
+);
+
+
+router.get("/users/:id",
+   validate({ params: updateEmployeeParamsSchema }),
+   getEmployeeById
+);
+
+router.patch("/users/:id/profile",
+   validate({ params: updateEmployeeParamsSchema, body: updateEmployeeBodySchema }),
+   updateEmployee
 );
 
 // dashboard summary counts (org-scoped)
@@ -67,6 +78,11 @@ router.post("/organizations",
    createOrganization
 );
 
+router.get("/organizations",
+   validate({ query: searchUsersQuerySchema }),
+   getOrganizations
+);
+
 router.get("/organizations/status", getOrganizationStatus);
 
 router.post(
@@ -80,6 +96,18 @@ router.patch(
    "/organizations/:organizationId/policy",
    validate({ params: organizationIdParamSchema, body: updatePolicySchema }),
    updatePolicy
+);
+
+router.get(
+   "/organizations/:organizationId",
+   validate({ params: organizationIdParamSchema }),
+   getOrganizationById
+);
+
+router.patch(
+   "/organizations/:organizationId",
+   validate({ params: organizationIdParamSchema, body: updateOrganizationDetailsSchema }),
+   updateOrganizationDetails
 );
 
 export default router;

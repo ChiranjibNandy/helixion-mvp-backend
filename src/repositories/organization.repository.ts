@@ -5,6 +5,7 @@ import { organizationModel } from "../models/organization.model.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { IOrganization } from "../interfaces/organization.interface.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 
 export const createOrganization = async (
@@ -42,6 +43,17 @@ export const updateOrganizationPolicy = async (
          HTTP_STATUS.NOT_FOUND
       );
    }
+};
+
+export const updateOrganizationDetails = async (
+   organizationId: string,
+   data: Partial<Pick<IOrganization, "name" | "slug" | "orgType" | "status">>
+): Promise<IOrganization | null> => {
+   return organizationModel.findByIdAndUpdate(
+      organizationId,
+      { $set: data },
+      { new: true, runValidators: true }
+   );
 };
 
 export const bulkCreateOrganizations = async (
@@ -85,4 +97,38 @@ export const findOrgById = async (
 ): Promise<IOrganization | null> => {
    return organizationModel.findById(id)
 }
+
+export const getOrganizationsRepo = async (
+   page: number,
+   limit: number,
+   search?: string,
+   orgId?: Types.ObjectId
+): Promise<{ organizations: IOrganization[]; total: number }> => {
+   const filter: Record<string, unknown> = {};
+
+   if (orgId) {
+      filter._id = orgId;
+   }
+
+   if (search) {
+      const escaped = escapeRegex(search);
+      filter.$or = [
+         { name: { $regex: escaped, $options: "i" } },
+         { slug: { $regex: escaped, $options: "i" } },
+      ];
+   }
+
+   const [organizations, total] = await Promise.all([
+      organizationModel
+         .find(filter)
+         .select("name slug orgType status createdAt")
+         .sort({ createdAt: -1 })
+         .skip((page - 1) * limit)
+         .limit(limit)
+         .lean(),
+      organizationModel.countDocuments(filter),
+   ]);
+
+   return { organizations: organizations as unknown as IOrganization[], total };
+};
 

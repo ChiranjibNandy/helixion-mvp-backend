@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
+import { objectIdSchema } from "./common.validator.js";
 
 
 export const approveUserParamsSchema = z.object({
@@ -43,6 +44,37 @@ export const createSingleUserSchema = z.object({
   trainingDeptSeniorOfficer: z.boolean().optional(),
   osdJuniorOfficer: z.boolean().optional(),
   osdSeniorOfficer: z.boolean().optional(),
+});
+
+export const updateEmployeeParamsSchema = z.object({
+  id: objectIdSchema,
+});
+
+export const updateEmployeeBodySchema = z.object({
+  name: z.string().trim().min(1, MESSAGES.NAME_REQUIRED).optional(),
+
+  email: z
+    .string()
+    .trim()
+    .min(1, MESSAGES.EMAIL_REQUIRED)
+    .pipe(z.email({ error: MESSAGES.INVALID_EMAIL_FORMAT }))
+    .optional(),
+
+  employeeCode: z.string().trim().optional(),
+  mobile: z.string().trim().optional(),
+  placeOfPosting: z.string().trim().optional(),
+  designation: z.string().trim().optional(),
+  department: z.string().trim().optional(),
+  reportingManagerEmail: z.string().trim().optional(),
+  skip1Email: z.string().trim().optional(),
+  skip2Email: z.string().trim().optional(),
+
+  trainingDeptJuniorOfficer: z.boolean().optional(),
+  trainingDeptSeniorOfficer: z.boolean().optional(),
+  osdJuniorOfficer: z.boolean().optional(),
+  osdSeniorOfficer: z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: MESSAGES.NO_FIELDS_TO_UPDATE,
 });
 
 export const batchCreateUsersBodySchema = z.object({
