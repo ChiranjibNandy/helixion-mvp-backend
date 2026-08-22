@@ -17,20 +17,23 @@ export const createOrganization = async (
 export const updateOrganizationPolicy = async (
    organizationId: string,
    data: {
-      policy: CreateOrganization["policy"];
-      policyAssignments: CreateOrganization["policyAssignments"];
+      policy?: CreateOrganization["policy"];
+      policyAssignments?: CreateOrganization["policyAssignments"];
    }
 ): Promise<void> => {
+ 
+   const setFields: Record<string, unknown> = {};
+   for (const [key, value] of Object.entries(data.policy ?? {})) {
+      setFields[`policy.${key}`] = value;
+   }
+   for (const [key, value] of Object.entries(data.policyAssignments ?? {})) {
+      setFields[`policyAssignments.${key}`] = value;
+   }
+
    const organization =
       await organizationModel.findByIdAndUpdate(
          organizationId,
-         {
-            $set: {
-               policy: data.policy,
-               policyAssignments:
-                  data.policyAssignments,
-            },
-         },
+         { $set: setFields },
          {
             new: true,
             runValidators: true,

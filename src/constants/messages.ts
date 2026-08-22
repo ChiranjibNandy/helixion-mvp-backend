@@ -37,6 +37,7 @@ export const MESSAGES = {
   ACCESS_DENIED: "Access denied",
   USER_ID_REQUIRED: "User Id is required",
   ROLE_REQUIRED: "Role is required",
+  INVALID_ROLE: "Role must be one of: admin, manager, employee, training_provider",
   INVALID_OBJECT: "Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",

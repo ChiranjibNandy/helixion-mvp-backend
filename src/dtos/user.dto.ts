@@ -55,12 +55,11 @@ export interface EmployeeDetailDto {
    designation?: string;
    department?: string;
    orgRole: string;
+   isManager: boolean;
    status: string;
    reportingManagerEmail?: string | null;
    skip1Email?: string | null;
    skip2Email?: string | null;
-   trainingDeptJuniorOfficer: boolean;
    trainingDeptSeniorOfficer: boolean;
-   osdJuniorOfficer: boolean;
    osdSeniorOfficer: boolean;
 }

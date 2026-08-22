@@ -40,10 +40,12 @@ export const createSingleUserSchema = z.object({
   department: z.string().trim().optional(),
   reportingManagerEmail: z.string().trim().optional(),
 
-  trainingDeptJuniorOfficer: z.boolean().optional(),
   trainingDeptSeniorOfficer: z.boolean().optional(),
-  osdJuniorOfficer: z.boolean().optional(),
   osdSeniorOfficer: z.boolean().optional(),
+
+  // Independent of CTD/OSD office roles — toggles orgRole between EMPLOYEE
+  // and MANAGER only. Never used to grant admin/training_provider.
+  isManager: z.boolean().optional(),
 });
 
 export const updateEmployeeParamsSchema = z.object({
@@ -69,10 +71,10 @@ export const updateEmployeeBodySchema = z.object({
   skip1Email: z.string().trim().optional(),
   skip2Email: z.string().trim().optional(),
 
-  trainingDeptJuniorOfficer: z.boolean().optional(),
   trainingDeptSeniorOfficer: z.boolean().optional(),
-  osdJuniorOfficer: z.boolean().optional(),
   osdSeniorOfficer: z.boolean().optional(),
+
+  isManager: z.boolean().optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: MESSAGES.NO_FIELDS_TO_UPDATE,
 });

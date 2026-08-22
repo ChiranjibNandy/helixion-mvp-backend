@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import {  bulkUploadOrganizationService, createOrganizationService, getOrganizationByIdService, getOrganizationsService, getOrganizationStatusService, updateOrganizationDetailsService, updateOrganizationPolicyService } from "../services/organization.service.js";
+import {  bulkUploadOrganizationService, createOrganizationService, getAllOrganizationsService, getOrganizationByIdService, getOrganizationsService, getOrganizationStatusService, updateOrganizationDetailsService, updateOrganizationPolicyService } from "../services/organization.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
 
@@ -69,6 +69,28 @@ export const getOrganizations = async (
       const search = (req.query.search as string) || "";
 
       const result = await getOrganizationsService(page, limit, search, req.userId!);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ORGANIZATIONS_FETCHED,
+         ...result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getAllOrganizations = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = (req.query.search as string) || "";
+
+      const result = await getAllOrganizationsService(page, limit, search, req.userId!);
 
       res.status(HTTP_STATUS.OK).json({
          success: true,

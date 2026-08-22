@@ -19,7 +19,9 @@ import {
   getDistinctManagerIdsRepo,
   getUsersByIdsRepo,
   getOrgUserStatsRepo,
+  clearOtherOfficeRoleHoldersRepo,
 } from "../repositories/user.repository.js";
+import { Types } from "mongoose";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
@@ -32,6 +34,19 @@ import { logMailFailure } from "../utils/notification.util.js";
 // welcome email can actually tell the new user what it is, without
 // re-deriving/guessing it from the hash.
 const DEFAULT_PASSWORD_PLAINTEXT = "Password@123";
+
+const enforceSingleOfficeRoleHolder = async (
+  orgId: Types.ObjectId,
+  userId: Types.ObjectId,
+  officeRoles: { trainingDept: { enabled: boolean }; osd: { enabled: boolean } }
+) => {
+  if (officeRoles.trainingDept.enabled) {
+    await clearOtherOfficeRoleHoldersRepo(orgId, "trainingDept", userId);
+  }
+  if (officeRoles.osd.enabled) {
+    await clearOtherOfficeRoleHoldersRepo(orgId, "osd", userId);
+  }
+};
 import { toObjectId } from "../utils/mongo.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { findOrgById } from "../repositories/organization.repository.js";
@@ -73,13 +88,36 @@ export const getPendingRegistrationsService = async (
 export const approveUserAndAddRoleService = async (
   id: string,
   role: string,
-  description?: string
+  description: string | undefined,
+  approvingAdminId: string
 ) => {
+  if (!Object.values(ORG_ROLE).includes(role as ORG_ROLE)) {
+    throw new AppError(MESSAGES.INVALID_ROLE, HTTP_STATUS.BAD_REQUEST);
+  }
+
+
+  let orgId: Types.ObjectId | undefined;
+  let employeeCode: string | undefined;
+  if (role === ORG_ROLE.EMPLOYEE || role === ORG_ROLE.MANAGER) {
+    const approvingAdmin = await getUserByIdRepo(approvingAdminId);
+    if (!approvingAdmin?.orgId) {
+      throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+    }
+    orgId = approvingAdmin.orgId as Types.ObjectId;
+
+    const pendingUser = await getUserByIdRepo(id);
+    if (!pendingUser?.employeeCode) {
+      employeeCode = `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+  }
+
   const updatedUser =
     await approveUserRepo(
       id,
       role,
-      description
+      description,
+      orgId,
+      employeeCode
     );
 
   if (!updatedUser) {
@@ -163,10 +201,9 @@ export interface CreateSingleUserInput {
   designation?: string;
   department?: string;
   reportingManagerEmail?: string;
-  trainingDeptJuniorOfficer?: boolean;
   trainingDeptSeniorOfficer?: boolean;
-  osdJuniorOfficer?: boolean;
   osdSeniorOfficer?: boolean;
+  isManager?: boolean;
 }
 
 export const createSingleUserService = async (
@@ -198,16 +235,19 @@ export const createSingleUserService = async (
     if (!reportingManager) {
       throw new AppError(MESSAGES.REPORTING_MANAGER_NOT_FOUND, HTTP_STATUS.BAD_REQUEST);
     }
+    if (String(reportingManager.orgId) !== String(org._id)) {
+      throw new AppError(MESSAGES.REPORTING_MANAGER_NOT_FOUND, HTTP_STATUS.BAD_REQUEST);
+    }
   }
 
   const officeRoles = {
     trainingDept: {
-      enabled: !!(data.trainingDeptJuniorOfficer || data.trainingDeptSeniorOfficer),
-      level: data.trainingDeptSeniorOfficer ? 2 : data.trainingDeptJuniorOfficer ? 1 : 0,
+      enabled: !!data.trainingDeptSeniorOfficer,
+      level: data.trainingDeptSeniorOfficer ? 2 : 0,
     },
     osd: {
-      enabled: !!(data.osdJuniorOfficer || data.osdSeniorOfficer),
-      level: data.osdSeniorOfficer ? 2 : data.osdJuniorOfficer ? 1 : 0,
+      enabled: !!data.osdSeniorOfficer,
+      level: data.osdSeniorOfficer ? 2 : 0,
     },
   };
 
@@ -233,12 +273,14 @@ export const createSingleUserService = async (
     passwordHash: defaultPassword,
     mustChangePassword: true,
     isApproved: true,
-    orgRole: ORG_ROLE.EMPLOYEE,
+    orgRole: data.isManager ? ORG_ROLE.MANAGER : ORG_ROLE.EMPLOYEE,
     officeRoles,
     hierarchy: reportingManager
       ? { level: 1, managerId: reportingManager._id, managerChain: [{ userId: reportingManager._id, level: 0 }] }
       : { level: 0, managerChain: [] },
   } as any);
+
+  await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, created._id as Types.ObjectId, officeRoles);
 
   sendWelcomeMail(created.email, created.name, DEFAULT_PASSWORD_PLAINTEXT)
     .catch(logMailFailure("welcome-single-user"));
@@ -265,14 +307,13 @@ const mapEmployeeToDetailDto = (
   designation: employee.designation,
   department: employee.department,
   orgRole: employee.orgRole,
+  isManager: employee.orgRole === ORG_ROLE.MANAGER,
   status: employee.status,
   reportingManagerEmail: managerChainEmails.reportingManagerEmail,
   skip1Email: managerChainEmails.skip1Email,
   skip2Email: managerChainEmails.skip2Email,
-  trainingDeptJuniorOfficer: !!employee.officeRoles?.trainingDept?.enabled && employee.officeRoles.trainingDept.level === 1,
-  trainingDeptSeniorOfficer: !!employee.officeRoles?.trainingDept?.enabled && employee.officeRoles.trainingDept.level >= 2,
-  osdJuniorOfficer: !!employee.officeRoles?.osd?.enabled && employee.officeRoles.osd.level === 1,
-  osdSeniorOfficer: !!employee.officeRoles?.osd?.enabled && employee.officeRoles.osd.level >= 2,
+  trainingDeptSeniorOfficer: !!employee.officeRoles?.trainingDept?.enabled,
+  osdSeniorOfficer: !!employee.officeRoles?.osd?.enabled,
 });
 
 
@@ -317,7 +358,7 @@ export const getEmployeeByIdService = async (
   }
 
 
-  if (employee.orgRole !== ORG_ROLE.EMPLOYEE) {
+  if (employee.orgRole !== ORG_ROLE.EMPLOYEE && employee.orgRole !== ORG_ROLE.MANAGER) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
@@ -336,10 +377,9 @@ export interface UpdateEmployeeInput {
   reportingManagerEmail?: string;
   skip1Email?: string;
   skip2Email?: string;
-  trainingDeptJuniorOfficer?: boolean;
   trainingDeptSeniorOfficer?: boolean;
-  osdJuniorOfficer?: boolean;
   osdSeniorOfficer?: boolean;
+  isManager?: boolean;
 }
 
 export const updateEmployeeService = async (
@@ -362,7 +402,7 @@ export const updateEmployeeService = async (
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
-  if (employee.orgRole !== ORG_ROLE.EMPLOYEE) {
+  if (employee.orgRole !== ORG_ROLE.EMPLOYEE && employee.orgRole !== ORG_ROLE.MANAGER) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
@@ -374,6 +414,9 @@ export const updateEmployeeService = async (
   if (data.placeOfPosting !== undefined) update.placeOfPosting = data.placeOfPosting.trim();
   if (data.designation !== undefined) update.designation = data.designation.trim();
   if (data.department !== undefined) update.department = data.department.trim();
+  if (data.isManager !== undefined) {
+    update.orgRole = data.isManager ? ORG_ROLE.MANAGER : ORG_ROLE.EMPLOYEE;
+  }
 
   if (data.email !== undefined) {
     const email = data.email.trim().toLowerCase();
@@ -436,35 +479,19 @@ export const updateEmployeeService = async (
     };
   }
 
-  const trainingDeptTouched = data.trainingDeptJuniorOfficer !== undefined || data.trainingDeptSeniorOfficer !== undefined;
-  const osdTouched = data.osdJuniorOfficer !== undefined || data.osdSeniorOfficer !== undefined;
+  const trainingDeptTouched = data.trainingDeptSeniorOfficer !== undefined;
+  const osdTouched = data.osdSeniorOfficer !== undefined;
 
   if (trainingDeptTouched || osdTouched) {
-
     const currentTrainingDept = employee.officeRoles?.trainingDept;
     const currentOsd = employee.officeRoles?.osd;
-    const juniorProvided = data.trainingDeptJuniorOfficer !== undefined;
-    const seniorProvided = data.trainingDeptSeniorOfficer !== undefined;
-    const osdJuniorProvided = data.osdJuniorOfficer !== undefined;
-    const osdSeniorProvided = data.osdSeniorOfficer !== undefined;
-
-    let tdJunior = juniorProvided ? data.trainingDeptJuniorOfficer! : (!!currentTrainingDept?.enabled && currentTrainingDept.level === 1);
-    let tdSenior = seniorProvided ? data.trainingDeptSeniorOfficer! : (!!currentTrainingDept?.enabled && currentTrainingDept.level >= 2);
-    let osdJunior = osdJuniorProvided ? data.osdJuniorOfficer! : (!!currentOsd?.enabled && currentOsd.level === 1);
-    let osdSenior = osdSeniorProvided ? data.osdSeniorOfficer! : (!!currentOsd?.enabled && currentOsd.level >= 2);
-
-
-    if (juniorProvided && tdJunior && !seniorProvided) tdSenior = false;
-    if (seniorProvided && tdSenior && !juniorProvided) tdJunior = false;
-    if (osdJuniorProvided && osdJunior && !osdSeniorProvided) osdSenior = false;
-    if (osdSeniorProvided && osdSenior && !osdJuniorProvided) osdJunior = false;
 
     update.officeRoles = {
       trainingDept: trainingDeptTouched
-        ? { enabled: !!(tdJunior || tdSenior), level: tdSenior ? 2 : tdJunior ? 1 : 0 }
+        ? { enabled: !!data.trainingDeptSeniorOfficer, level: data.trainingDeptSeniorOfficer ? 2 : 0 }
         : currentTrainingDept,
       osd: osdTouched
-        ? { enabled: !!(osdJunior || osdSenior), level: osdSenior ? 2 : osdJunior ? 1 : 0 }
+        ? { enabled: !!data.osdSeniorOfficer, level: data.osdSeniorOfficer ? 2 : 0 }
         : currentOsd,
     };
   }
@@ -472,6 +499,14 @@ export const updateEmployeeService = async (
   const updated = await updateOneUser(toObjectId(id), update as any);
   if (!updated) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  if (update.officeRoles && employee.orgId) {
+    await enforceSingleOfficeRoleHolder(
+      employee.orgId as Types.ObjectId,
+      toObjectId(id),
+      update.officeRoles as { trainingDept: { enabled: boolean }; osd: { enabled: boolean } }
+    );
   }
 
   if (!managerChainEmails) {
@@ -547,15 +582,12 @@ export const batchCreateUsersService = async (
       .filter(Boolean)
   );
 
-  // A manager reference is valid if it's blank (no manager required — a
-  // top-of-chain person legitimately has none), matches another row in
-  // this file, or matches a user who already exists in the org from a
-  // prior upload. Anything else doesn't resolve to anyone, ever.
   const managerRefResolves = async (email: unknown): Promise<boolean> => {
     if (!email) return true;
     const normalized = String(email).trim().toLowerCase();
     if (emailsInFile.has(normalized)) return true;
-    return !!(await getUserByEmailRepo(normalized));
+    const match = await getUserByEmailRepo(normalized);
+    return !!match && String(match.orgId) === String(org._id);
   };
 
   //-------------------------------------------------------
@@ -597,18 +629,20 @@ export const batchCreateUsersService = async (
 
       if (existing) {
 
-        if (existing.orgRole !== ORG_ROLE.EMPLOYEE) {
+        if (existing.orgRole !== ORG_ROLE.EMPLOYEE && existing.orgRole !== ORG_ROLE.MANAGER) {
           throw new Error(`Email "${payload.email}" belongs to a ${existing.orgRole} account and cannot be modified via bulk upload`);
         }
         if (existing.orgId && String(existing.orgId) !== String(org._id)) {
           throw new Error(`Email "${payload.email}" already belongs to a user in another organization`);
         }
-        const { passwordHash, mustChangePassword, orgRole, ...detailPayload } = payload;
+        const { passwordHash, mustChangePassword, ...detailPayload } = payload;
         await updateOneUser(existing._id, { ...detailPayload, isApproved: true });
         updated++;
+        await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, existing._id as Types.ObjectId, payload.officeRoles);
       } else {
-        await createUserRepo({ ...payload, isApproved: true });
+        const createdRow = await createUserRepo({ ...payload, isApproved: true });
         created++;
+        await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, createdRow._id as Types.ObjectId, payload.officeRoles);
         // Only brand-new rows get the welcome email — an existing employee
         // being updated (e.g. role/office-role change) already has an
         // account and a real password; resending "here's your password"
@@ -621,6 +655,7 @@ export const batchCreateUsersService = async (
     }
   }
 
+  const inSameOrg = (user: any) => (user && String(user.orgId) === String(org._id) ? user : null);
 
   for (const row of rows) {
     try {
@@ -630,17 +665,17 @@ export const batchCreateUsersService = async (
 
       if (!employee) continue;
 
-      const reportingManager = await getUserByEmailRepo(
+      const reportingManager = inSameOrg(await getUserByEmailRepo(
         row["Reporting Manager Email"]?.toLowerCase()
-      );
+      ));
 
-      const skip1 = await getUserByEmailRepo(
+      const skip1 = inSameOrg(await getUserByEmailRepo(
         row["Skip Level 1 Manager Email"]?.toLowerCase()
-      );
+      ));
 
-      const skip2 = await getUserByEmailRepo(
+      const skip2 = inSameOrg(await getUserByEmailRepo(
         row["Skip Level 2 Manager Email"]?.toLowerCase()
-      );
+      ));
 
       await updateOneUser(employee._id, {
         hierarchy: mapEmployeeHierarchy(
@@ -703,26 +738,22 @@ export const getUsersService = async (
 
 };
 
-// "Manager", "CTD", and "OSD officer" are not orgRole values — every
-// bulk-uploaded person is stored as orgRole: employee regardless of what
-// they actually do (see officeRoles/hierarchy). Sending orgRole straight
-// through here (as this used to) made every single row in the Deactivate
-// Users table show "Employee", with no way to tell a CTD or manager apart
-// from a plain employee. This derives a human-facing label instead —
-// picks one label per user (a person can hold more than one of these at
-// once, e.g. be both a Manager and a CTD; only the highest-priority one
-// is shown).
+
 const deriveDisplayRole = (user: any, managerIds: Set<string>): string => {
-  if (user.orgRole !== ORG_ROLE.EMPLOYEE) {
-    return user.orgRole === ORG_ROLE.TRAINING_PROVIDER ? "Training Provider" : "Admin";
+  if (user.orgRole === ORG_ROLE.ADMIN) {
+    return "Admin";
   }
+  if (user.orgRole === ORG_ROLE.TRAINING_PROVIDER) {
+    return "Training Provider";
+  }
+
   if (user.officeRoles?.trainingDept?.enabled) {
-    return user.officeRoles.trainingDept.level >= 2 ? "CTD" : "Training Dept Officer";
+    return "CTD";
   }
   if (user.officeRoles?.osd?.enabled) {
-    return user.officeRoles.osd.level >= 2 ? "OSD Senior" : "OSD Officer";
+    return "OSD Officer";
   }
-  if (managerIds.has(String(user._id))) {
+  if (user.orgRole === ORG_ROLE.MANAGER || managerIds.has(String(user._id))) {
     return "Manager";
   }
   return "Employee";

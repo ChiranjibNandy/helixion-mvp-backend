@@ -115,7 +115,13 @@ export const updatePasswordRepo = async (userId: string, hashedPassword: string)
 
 // ─── Approval flow (admin approves a pending user) ───────────────────────────
 
-export const approveUserRepo = async (id: string, orgRole: string, placeOfPosting?: string) => {
+export const approveUserRepo = async (
+   id: string,
+   orgRole: string,
+   placeOfPosting?: string,
+   orgId?: Types.ObjectId,
+   employeeCode?: string
+) => {
    return await User.findByIdAndUpdate(
       id,
       {
@@ -123,9 +129,11 @@ export const approveUserRepo = async (id: string, orgRole: string, placeOfPostin
          status: USER_STATUS.ACTIVE,
          mustChangePassword: false,
          ...(placeOfPosting && { placeOfPosting }),
+         ...(orgId && { orgId }),
+         ...(employeeCode && { employeeCode }),
          isApproved: true
       },
-      { new: true }
+      { new: true, runValidators: true }
    );
 };
 
@@ -231,6 +239,21 @@ export const getUsersByOrgRepo = async (
    ]);
 
    return { users, total };
+};
+
+export const clearOtherOfficeRoleHoldersRepo = async (
+   orgId: Types.ObjectId,
+   category: "trainingDept" | "osd",
+   excludeUserId: Types.ObjectId
+): Promise<void> => {
+   await User.updateMany(
+      {
+         orgId,
+         _id: { $ne: excludeUserId },
+         [`officeRoles.${ category }.enabled`]: true,
+      },
+      { $set: { [`officeRoles.${ category }`]: { enabled: false, level: 0 } } }
+   );
 };
 
 /** Find users in an org who hold a specific office role at min level */

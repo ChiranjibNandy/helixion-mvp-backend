@@ -3,7 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -236,6 +236,15 @@ export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
 };
 
 
+// statusSummary.enrollmentStatus only ever holds ENROLLMENT_STATUS_SUMMARY
+// values ("submitted" | "recommended" | "approved" | "rejected") — never
+// ENROLLMENT_STATUS's ("active" | "pending" | ...), which is a different
+// enum for a different field. Checking against the wrong enum here meant
+// this $in clause could never match anything, so the "already enrolled"
+// guard silently never fired: an employee could enroll in the same program
+// any number of times, at any stage, including after already being
+// approved. REJECTED is deliberately excluded — a rejected employee should
+// be able to re-apply.
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
   return await enrollmentModel.findOne({
     $or: [
@@ -243,7 +252,13 @@ export const findExistingEnrollmentRepo = async (userId: string, programId: stri
       { userId: toObjectId(userId) }
     ],
     programId: toObjectId(programId),
-    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+    "statusSummary.enrollmentStatus": {
+      $in: [
+        ENROLLMENT_STATUS_SUMMARY.SUBMITTED,
+        ENROLLMENT_STATUS_SUMMARY.RECOMMENDED,
+        ENROLLMENT_STATUS_SUMMARY.APPROVED,
+      ],
+    },
   });
 };
 
@@ -799,4 +814,27 @@ export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
     orgId: toObjectId(orgId),
     currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
   });
+};
+
+// Distribution of this org's CTD review decisions (there is exactly one CTD
+// per org, so every enrollment that has ever reached training_dept_review
+// belongs to them) — mirrors getManagerApprovalStatsRepo's approved/pending/
+// dismissed shape for the CTD dashboard's own Approval Status donut.
+export const getTrainingDeptApprovalStatsRepo = async (orgId: string) => {
+  const stats = await enrollmentModel.aggregate([
+    { $match: { orgId: toObjectId(orgId), trainingDeptReview: { $exists: true } } },
+    { $group: { _id: "$trainingDeptReview.seniorAction", count: { $sum: 1 } } },
+  ]);
+
+  const result: Record<"approved" | "pending" | "dismissed", number> = {
+    approved: 0, pending: 0, dismissed: 0,
+  };
+
+  stats.forEach((item) => {
+    if (item._id === TRAINING_DEPT_SENIOR_ACTION.APPROVE) result.approved += item.count;
+    else if (item._id === TRAINING_DEPT_SENIOR_ACTION.WAITING) result.pending += item.count;
+    else if (item._id === TRAINING_DEPT_SENIOR_ACTION.REJECT) result.dismissed += item.count;
+  });
+
+  return result;
 };

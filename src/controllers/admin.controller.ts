@@ -91,7 +91,7 @@ export const approveUser = async (
     const { id } = req.params;
     const { role, description } = req.body;
 
-    await approveUserAndAddRoleService(String(id), role, description);
+    await approveUserAndAddRoleService(String(id), role, description, req.userId!);
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -348,7 +348,10 @@ export const searchUsers = async (
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-    const query = (req.query.q as string) || "";
+    // The `search` query-param validator (searchUsersQuerySchema) replaces
+    // req.query wholesale with its own parsed output, which only carries
+    // page/limit/search — a "q" key here would always be undefined.
+    const query = (req.query.search as string) || "";
 
     const result = await searchUsersService(query, page, limit, req.userId!);
 

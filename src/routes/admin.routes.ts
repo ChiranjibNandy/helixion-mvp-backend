@@ -6,7 +6,7 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { bulkUploadOrganizations, createOrganization, getOrganizationById, getOrganizations, getOrganizationStatus, updateOrganizationDetails, updatePolicy } from "../controllers/organization.controller.js";
+import { bulkUploadOrganizations, createOrganization, getAllOrganizations, getOrganizationById, getOrganizations, getOrganizationStatus, updateOrganizationDetails, updatePolicy } from "../controllers/organization.controller.js";
 import { createOrganizationSchema, organizationIdParamSchema, updateOrganizationDetailsSchema, updatePolicySchema } from "../validators/organization.validator.js";
 import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
@@ -84,6 +84,11 @@ router.get("/organizations",
 );
 
 router.get("/organizations/status", getOrganizationStatus);
+
+router.get("/organizations/all",
+   validate({ query: searchUsersQuerySchema }),
+   getAllOrganizations
+);
 
 router.post(
    "/organizations/bulk-upload",

@@ -3,6 +3,10 @@ import { MESSAGES } from "../constants/messages.js";
 import {
    getPendingEnrollmentsForStageRepo,
    getPendingTourApprovalsForCtdRepo,
+   countPendingEnrollmentsForStageRepo,
+   countPendingTourApprovalsForCtdRepo,
+   getTrainingDeptApprovalStatsRepo,
+   getManagerOwnDashboardSummaryRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -34,6 +38,45 @@ export const getPendingEnrollmentsService = async (orgId: string) => {
       orgId,
       ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW
    );
+};
+
+
+export const getTrainingDeptDashboardService = async (userId: string, orgId: string) => {
+   const [ownSummary, pendingReviewsRaw, pendingReviewCount, pendingTourCount, approvalStats] = await Promise.all([
+      getManagerOwnDashboardSummaryRepo(userId),
+
+      getPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
+      countPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
+      countPendingTourApprovalsForCtdRepo(orgId),
+      getTrainingDeptApprovalStatsRepo(orgId),
+   ]);
+
+   const pendingReviews = pendingReviewsRaw.map((enrollment: any) => {
+      const employee = enrollment.employeeId;
+      const program   = enrollment.programId;
+
+      return {
+         _id:          enrollment._id.toString(),
+         employeeName: employee?.name ?? "Unknown",
+         programTitle: program?.title ?? "Untitled Program",
+         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue:        program?.venueName || program?.city || "",
+
+         status:       "Pending Approval",
+      };
+   });
+
+   return {
+
+      summary: {
+         ...ownSummary,
+         pendingApprovals:     pendingReviewCount,
+         pendingTourApprovals: pendingTourCount,
+      },
+      approvalStats,
+      pendingReviews,
+   };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

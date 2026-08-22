@@ -58,8 +58,9 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
       // Capped (see DASHBOARD_LIST_CAP) — this list only backs the dashboard
       // preview panel below, not the "Pending Approvals" count, which comes
       // from the uncapped countDocuments() sibling instead.
-      getPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
-      countPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
+   
+      getPendingEnrollmentsForManagerRepo(managerId, orgId),
+      countPendingEnrollmentsForManagerRepo(managerId, orgId),
    ]);
 
    const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
@@ -119,11 +120,10 @@ export const takeManagerActionService = async (
       );
    }
 
-   // 2. Load enrollment — must have this manager's chain entry in PENDING state
-   //    (idempotency: if already acted, the query returns null → 404/409)
    const enrollment = await enrollmentModel.findOne({
       _id:   toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       managerChain: {
          $elemMatch: {
             userId: toObjectId(managerId),
@@ -280,13 +280,13 @@ export const takeManagerActionService = async (
       }
    }
 
-   // 5. Find the next WAITING chain entry to activate (if any)
+
    const nextWaiting = enrollment.managerChain
       .filter((e) => (e as any).status === MANAGER_CHAIN_STATUS.WAITING)
       .sort((a, b) => a.level - b.level)[0];
 
    // Activate the next waiting manager level atomically
-   if (nextWaiting && action !== MANAGER_ACTION.REJECT) {
+   if (nextWaiting && action !== MANAGER_ACTION.REJECT && nextStage === ENROLLMENT_STAGE.MANAGER_REVIEW) {
       arrayFilters.push({ "waitingElem.userId": nextWaiting.userId });
       updateOps.$set["managerChain.$[waitingElem].status"] =
          MANAGER_CHAIN_STATUS.PENDING;

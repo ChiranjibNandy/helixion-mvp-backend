@@ -13,6 +13,7 @@ import {
    takeSeniorAction,
    getPendingTourApprovals,
    takeTourAction,
+   getTrainingDeptDashboard,
 } from "../controllers/trainingDept.controller.js";
 import {
    tourActionParamsSchema,
@@ -22,7 +23,14 @@ import {
 const router = express.Router();
 
 // All training dept routes require authentication + employee org role
-router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE, ORG_ROLE.MANAGER));
+
+
+router.get(
+   "/dashboard",
+   authorizeOfficeRole("trainingDept", 1),
+   getTrainingDeptDashboard
+);
 
 /**
  * GET /api/training-dept/pending

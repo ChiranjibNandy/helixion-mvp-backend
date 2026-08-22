@@ -10,6 +10,7 @@ import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { toObjectId } from "../utils/mongo.js";
 import { organizationCsvRowSchema } from "../validators/organization.validator.js";
+import { ENV } from "../config/env.js";
 
 //Create org
 export const createOrganizationService = async (
@@ -60,6 +61,34 @@ export const getOrganizationsService = async (
   }
 
   const { organizations, total } = await getOrganizationsRepo(page, limit, search, admin.orgId as Types.ObjectId);
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  return {
+    data: organizations.map((org: any) => ({
+      id: org._id,
+      name: org.name,
+      slug: org.slug,
+      orgType: org.orgType,
+      status: org.status,
+      createdAt: org.createdAt,
+    })),
+    meta: { total, page, limit, totalPages },
+  };
+};
+
+
+export const getAllOrganizationsService = async (
+  page: number,
+  limit: number,
+  search: string,
+  adminUserId: string
+) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.email || !ENV.SUPERADMIN_EMAILS.includes(admin.email.toLowerCase())) {
+    throw new AppError(MESSAGES.USER_NO_PERMISSION, HTTP_STATUS.FORBIDDEN);
+  }
+
+  const { organizations, total } = await getOrganizationsRepo(page, limit, search);
   const totalPages = Math.ceil(total / limit) || 1;
 
   return {
@@ -144,8 +173,8 @@ export const updateOrganizationDetailsService = async (
 export const updateOrganizationPolicyService = async (
   organizationId: string,
   data: {
-    policy: CreateOrganization["policy"];
-    policyAssignments: CreateOrganization["policyAssignments"];
+    policy?: CreateOrganization["policy"];
+    policyAssignments?: CreateOrganization["policyAssignments"];
   },
   adminUserId: string
 ) => {
