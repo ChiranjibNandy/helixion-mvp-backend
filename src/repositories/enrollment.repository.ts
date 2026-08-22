@@ -338,34 +338,6 @@ export const getManagerTeamEnrollmentCountRepo = async (managerId: string) => {
   return await enrollmentModel.countDocuments({ "managerChain.userId": toObjectId(managerId) });
 };
 
-// Distribution of this manager's own chain-entry decisions across their
-// team's enrollments: approved / pending (their turn, not yet acted) /
-// dismissed (rejected) / null (waiting — not yet their turn in the chain).
-export const getManagerApprovalStatsRepo = async (managerId: string) => {
-  const objectId = toObjectId(managerId);
-  const stats = await enrollmentModel.aggregate([
-    { $match: { "managerChain.userId": objectId } },
-    { $unwind: "$managerChain" },
-    { $match: { "managerChain.userId": objectId } },
-    { $group: { _id: "$managerChain.status", count: { $sum: 1 } } },
-  ]);
-
-  const result: Record<"approved" | "pending" | "dismissed", number> = {
-    approved: 0, pending: 0, dismissed: 0,
-  };
-
-  stats.forEach((item) => {
-    if (item._id === MANAGER_CHAIN_STATUS.APPROVED) result.approved += item.count;
-    // WAITING means "not yet this manager's turn in a multi-level chain" —
-    // still fundamentally unresolved from the team's perspective, so it
-    // counts as Pending rather than a hidden fourth bucket the UI (which
-    // only renders Approved/Pending/Rejected) would silently never show.
-    else if (item._id === MANAGER_CHAIN_STATUS.PENDING || item._id === MANAGER_CHAIN_STATUS.WAITING) result.pending += item.count;
-    else if (item._id === MANAGER_CHAIN_STATUS.REJECTED) result.dismissed += item.count;
-  });
-
-  return result;
-};
 
 // ─── Training dept / OSD queues ───────────────────────────────────────────────
 
