@@ -166,8 +166,16 @@ export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
   return await enrollmentModel.create(data);
 };
 
-export const getEmployeeEnrollmentsRepo = async (userId: string) => {
-  return await enrollmentModel.aggregate([
+//search , pagination of enrollment list on logged user
+
+export const getEmployeeEnrollmentsRepo = async (
+  userId: string,
+  page: number,
+  limit: number,
+  search: string
+) => {
+  const skip = (page - 1) * limit;
+  const pipeline: any[] = [
     {
       $match: {
         $or: [
@@ -176,6 +184,7 @@ export const getEmployeeEnrollmentsRepo = async (userId: string) => {
         ]
       }
     },
+
     {
       $lookup: {
         from: "programs",
@@ -184,23 +193,89 @@ export const getEmployeeEnrollmentsRepo = async (userId: string) => {
         as: "programDetails"
       }
     },
+
     {
       $addFields: {
         programDetails: {
           $arrayElemAt: ["$programDetails", 0]
-        },
-        programId: {
-          $arrayElemAt: ["$programDetails", 0]
         }
       }
-    },
+    }
+  ];
+
+  // Search program title/name
+  if (search) {
+    pipeline.push({
+      $match: {
+        "programDetails.title": {
+          $regex: search,
+          $options: "i"
+        }
+      }
+    });
+  }
+
+  pipeline.push(
     {
       $sort: {
         createdAt: -1
       }
+    },
+
+    {
+      $facet: {
+        data: [
+          {
+            $skip: skip
+          },
+          {
+            $limit: limit
+          }
+        ],
+
+        totalCount: [
+          {
+            $count: "count"
+          }
+        ]
+      }
+    },
+
+    {
+      $project: {
+        data: 1,
+        total: {
+          $ifNull: [
+            {
+              $arrayElemAt: ["$totalCount.count", 0]
+            },
+            0
+          ]
+        }
+      }
     }
-  ]);
+  );
+
+  const result = await enrollmentModel.aggregate(pipeline);
+
+  const data = result[0]?.data || [];
+  const total = result[0]?.total || 0;
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1
+    }
+  };
 };
+
 
 export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
   const results = await enrollmentModel.aggregate([

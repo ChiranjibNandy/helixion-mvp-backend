@@ -15,6 +15,7 @@ export const uploadToCloudinary = (
       const stream = cloudinary.uploader.upload_stream(
          {
             folder: "program-brochures",
+            resource_type: "raw",
          },
          (error, result) => {
             if (error) return reject(error);

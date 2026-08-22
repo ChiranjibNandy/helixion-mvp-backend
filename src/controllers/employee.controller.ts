@@ -126,15 +126,32 @@ export const enrollInProgram = async (req: Request, res: Response, next: NextFun
       next(error);
    }
 };
-
-export const getEmployeeEnrollments = async (req: Request, res: Response, next: NextFunction) => {
+//list enrollments based on login employee
+export const getEmployeeEnrollments = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
    try {
       const userId = req.userId;
+
       if (!userId) {
-         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+         throw new AppError(
+            MESSAGES.USER_ID_REQUIRED,
+            HTTP_STATUS.UNAUTHORIZED
+         );
       }
 
-      const enrollments = await getEmployeeEnrollmentsService(userId);
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = String(req.query.search || "").trim();
+
+      const enrollments = await getEmployeeEnrollmentsService(
+         userId,
+         page,
+         limit,
+         search
+      );
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,

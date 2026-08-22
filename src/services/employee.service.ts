@@ -263,8 +263,19 @@ export const enrollInProgramService = async (
 
 };
 
-export const getEmployeeEnrollmentsService = async (userId: string) => {
-   return await getEmployeeEnrollmentsRepo(userId);
+//list enrollments based on login employee
+export const getEmployeeEnrollmentsService = async (
+   userId: string,
+   page: number,
+   limit: number,
+   search: string
+) => {
+   return await getEmployeeEnrollmentsRepo(
+      userId,
+      page,
+      limit,
+      search
+   );
 };
 
 export const getEnrollmentDetailsService = async (id: string, userId: string) => {
