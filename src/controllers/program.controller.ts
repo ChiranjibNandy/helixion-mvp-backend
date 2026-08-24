@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getProgramParticipantsService, getPublishedProgramsService } from "../services/program.service.js";
+import { getProgramParticipantsService, getProgramsService, getPublishedProgramsService } from "../services/program.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -54,6 +54,50 @@ export const getProgramParticipantsController = async (
          success: true,
          message: MESSAGES.PARTICIPANT_FETCH,
          data: participants
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+
+export const getPrograms = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const trainingProviderId = req.userId;
+
+      const page = Math.max(
+         Number(req.query.page) || 1,
+         1
+      );
+
+      const limit = Math.min(
+         Math.max(Number(req.query.limit) || 10, 1),
+         100
+      );
+
+      if (!trainingProviderId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+      const search =
+         typeof req.query.search === "string"
+            ? req.query.search.trim()
+            : undefined;
+
+      const result = await getProgramsService(
+         trainingProviderId,
+         page,
+         limit,
+         search
+      );
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PUBLISHED_PROGRAM_FETCH,
+         ...result,
       });
    } catch (error) {
       next(error);

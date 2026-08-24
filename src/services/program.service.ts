@@ -1,6 +1,6 @@
 import { mapUserBasicDetail } from "../mapper/user.mapper.js";
 import { getProgramParticipantsRepo } from "../repositories/enrollment.repository.js";
-import { getPublishedProgramsRepo, findProgramById } from "../repositories/program.repository.js";
+import { getPublishedProgramsRepo, findProgramById, getPrograms } from "../repositories/program.repository.js";
 import { GetPublishedProgramsServiceParams } from "../types/program.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -54,4 +54,40 @@ export const getProgramParticipantsService = async (
       mapUserBasicDetail(enrollment.employeeId as any)
    );
 
+};
+
+//get published program list that need to training provider dashboard
+//implement search and pagination
+
+export const getProgramsService = async (
+   trainingProviderId: string,
+   page: number,
+   limit: number,
+   search?: string
+) => {
+   if (!trainingProviderId) {
+      throw new AppError("Training provider ID is required", 400);
+   }
+
+   const result = await getPrograms(
+      trainingProviderId,
+      page,
+      limit,
+      search
+   );
+
+   const data = result[0]?.data || [];
+   const total = result[0]?.total || 0;
+
+   const totalPages = Math.ceil(total / limit);
+
+   return {
+      data,
+      meta: {
+         total,
+         page,
+         limit,
+         totalPages,
+      },
+   };
 };
