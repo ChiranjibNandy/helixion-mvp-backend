@@ -100,8 +100,8 @@ export const getEmployeeTrainingHistoryService = async (
 /**
    * Fetches a single enrollment panel record
    */
-export const getEnrollmentPanelDetails = async (enrollmentId: string) => {
-  const enrollment: any = await getEnrollmentPanelById(enrollmentId);
+export const getEnrollmentPanelDetails = async (enrollmentId: string,employeeId:string) => {
+  const enrollment: any = await getEnrollmentPanelById(enrollmentId,employeeId);
 
   if (!enrollment) {
     throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

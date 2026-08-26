@@ -309,7 +309,14 @@ export const submitTourForm = async (req: Request, res: Response, next: NextFunc
 export const getEnrollmentPanelById = async (req: Request, res: Response, next: NextFunction) => {
    try {
       const { id } = req.params;
-      const data = await getEnrollmentPanelDetails(String(id));
+      const userId = req.userId
+      if (!userId) {
+         throw new AppError(
+            MESSAGES.USER_ID_REQUIRED,
+            HTTP_STATUS.UNAUTHORIZED
+         );
+      }
+      const data = await getEnrollmentPanelDetails(String(id), userId);
 
       res.status(200).json({
          success: true,

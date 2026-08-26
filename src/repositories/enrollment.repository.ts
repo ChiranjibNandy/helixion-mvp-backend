@@ -877,8 +877,11 @@ export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
 };
 
 
-export const getEnrollmentPanelById = async (enrollmentId: string) => {
-  return await enrollmentModel.findById(enrollmentId)
+export const getEnrollmentPanelById = async (enrollmentId: string, employeeId: string) => {
+  return await enrollmentModel.findOne({
+    _id: enrollmentId,
+    employeeId,
+  })
     .select("notes currentStage providerOrgId programId")
     .populate({
       path: "providerOrgId",
