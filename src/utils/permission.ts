@@ -5,7 +5,8 @@ import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user
 
 export const canEnroll = (user: IUser): boolean => {
    if(!user.orgRole) return false
-   return user.orgRole === ORG_ROLE.EMPLOYEE;
+  
+   return user.orgRole === ORG_ROLE.EMPLOYEE || user.orgRole === ORG_ROLE.MANAGER;
 };
 
 export const canRecommend = async (user: IUser) => {

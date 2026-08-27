@@ -6,7 +6,32 @@ import {
    takeSeniorActionService,
    getPendingTourCtdApprovalsService,
    takeTourCtdActionService,
+   getTrainingDeptDashboardService,
 } from "../services/trainingDept.service.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/training-dept/dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+export const getTrainingDeptDashboard = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const officerId = req.userId!;
+      const orgId     = req.orgId!;
+
+      const data = await getTrainingDeptDashboardService(officerId, orgId);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: "Dashboard data fetched successfully",
+         data,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/training-dept/pending
