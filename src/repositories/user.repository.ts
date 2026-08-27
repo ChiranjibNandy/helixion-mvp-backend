@@ -211,6 +211,14 @@ export const getOrgUserStatsRepo = async (orgId: string) => {
    };
 };
 
+export const getRecentlyAddedUsersRepo = async (orgId: string, limit: number) => {
+   return await User.find({ orgId: new Types.ObjectId(orgId) })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select("name email orgRole officeRoles hierarchy status createdAt")
+      .lean();
+};
+
 /** Get all users belonging to a specific org (tenant-scoped) */
 export const getUsersByOrgRepo = async (
    orgId: string,

@@ -10,6 +10,7 @@ import {
    getManagerTeamEnrollmentCountRepo,
    getManagerApprovalStatsRepo,
    getPendingTourApprovalsForManagerRepo,
+   countPendingTourApprovalsForManagerRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -51,19 +52,21 @@ export const getPendingEnrollmentsService = async (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getManagerDashboardService = async (managerId: string, orgId: string) => {
-   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount] = await Promise.all([
+   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount, pendingTourApprovalsRaw, pendingTourCount] = await Promise.all([
       getManagerOwnDashboardSummaryRepo(managerId),
       getManagerTeamEnrollmentCountRepo(managerId),
       getManagerApprovalStatsRepo(managerId),
       // Capped (see DASHBOARD_LIST_CAP) — this list only backs the dashboard
       // preview panel below, not the "Pending Approvals" count, which comes
       // from the uncapped countDocuments() sibling instead.
-   
+
       getPendingEnrollmentsForManagerRepo(managerId, orgId),
       countPendingEnrollmentsForManagerRepo(managerId, orgId),
+      getPendingTourApprovalsForManagerRepo(managerId, orgId),
+      countPendingTourApprovalsForManagerRepo(managerId, orgId),
    ]);
 
-   const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
+   const mapPendingRow = (enrollment: any) => {
       const employee = enrollment.employeeId;
       const program   = enrollment.programId;
 
@@ -76,16 +79,20 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
          venue:        program?.venueName || program?.city || "",
          status:       "Pending Approval",
       };
-   });
+   };
+
+   const pendingTeamEnrollments = pendingEnrollments.map(mapPendingRow);
+   const pendingTourApprovals = pendingTourApprovalsRaw.map(mapPendingRow);
 
    return {
       // "Pending Approvals" reflects team enrollments awaiting this manager's
       // action (matches the "Pending Team Enrollments" badge/donut below it),
       // not ownSummary's personal-employee pendingApprovals count. Uses the
       // true count, not pendingTeamEnrollments.length, since that list is capped.
-      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount },
+      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
       approvalStats,
       pendingTeamEnrollments,
+      pendingTourApprovals,
    };
 };
 

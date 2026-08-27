@@ -74,7 +74,7 @@ export const getTrainingDeptDashboardService = async (userId: string, orgId: str
          pendingApprovals:     pendingReviewCount,
          pendingTourApprovals: pendingTourCount,
       },
-      approvalStats,
+      approvalStats: { ...approvalStats, pending: pendingReviewCount },
       pendingReviews,
    };
 };

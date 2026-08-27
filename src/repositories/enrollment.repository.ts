@@ -793,7 +793,19 @@ export const getPendingTourApprovalsForManagerRepo = async (
     })
     .populate("employeeId", "name email employeeCode designation department placeOfPosting")
     .populate("programId", "title startDate endDate city venueName")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(DASHBOARD_LIST_CAP);
+};
+
+export const countPendingTourApprovalsForManagerRepo = async (
+  managerId: string,
+  orgId: string
+) => {
+  return await enrollmentModel.countDocuments({
+    orgId: toObjectId(orgId),
+    currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+    "managerApproval.assignedApproverId": toObjectId(managerId),
+  });
 };
 
 export const getPendingTourApprovalsForCtdRepo = async (orgId: string) => {
@@ -822,7 +834,12 @@ export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
 // dismissed shape for the CTD dashboard's own Approval Status donut.
 export const getTrainingDeptApprovalStatsRepo = async (orgId: string) => {
   const stats = await enrollmentModel.aggregate([
-    { $match: { orgId: toObjectId(orgId), trainingDeptReview: { $exists: true } } },
+    {
+      $match: {
+        orgId: toObjectId(orgId),
+        "trainingDeptReview.seniorAction": { $in: [TRAINING_DEPT_SENIOR_ACTION.APPROVE, TRAINING_DEPT_SENIOR_ACTION.REJECT] },
+      },
+    },
     { $group: { _id: "$trainingDeptReview.seniorAction", count: { $sum: 1 } } },
   ]);
 
@@ -832,7 +849,6 @@ export const getTrainingDeptApprovalStatsRepo = async (orgId: string) => {
 
   stats.forEach((item) => {
     if (item._id === TRAINING_DEPT_SENIOR_ACTION.APPROVE) result.approved += item.count;
-    else if (item._id === TRAINING_DEPT_SENIOR_ACTION.WAITING) result.pending += item.count;
     else if (item._id === TRAINING_DEPT_SENIOR_ACTION.REJECT) result.dismissed += item.count;
   });
 

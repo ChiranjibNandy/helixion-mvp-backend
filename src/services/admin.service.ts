@@ -20,6 +20,7 @@ import {
   getUsersByIdsRepo,
   getOrgUserStatsRepo,
   clearOtherOfficeRoleHoldersRepo,
+  getRecentlyAddedUsersRepo,
 } from "../repositories/user.repository.js";
 import { Types } from "mongoose";
 import { AppError } from "../utils/appError.js";
@@ -839,8 +840,28 @@ export const getAdminDashboardStatsService = async (adminUserId: string) => {
   if (!admin?.orgId) {
     throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
   }
+  const orgId = String(admin.orgId);
 
-  // Counted in the DB via a single aggregation — no user docs loaded here.
-  return await getOrgUserStatsRepo(String(admin.orgId));
+  // recentActivity is scoped to "recently onboarded" only — see the doc
+  // comment on getRecentlyAddedUsersRepo for why (no audit-log collection
+  // exists to say what changed on a status update, only when a user was
+  // created is unambiguous). Reuses deriveDisplayRole (below) so the label
+  // matches exactly what the Deactivate/Employee Directory table already
+  // calls that person, rather than a second, possibly-drifting role string.
+  const [stats, recentUsers, managerIdList] = await Promise.all([
+    getOrgUserStatsRepo(orgId),
+    getRecentlyAddedUsersRepo(orgId, 8),
+    getDistinctManagerIdsRepo(orgId),
+  ]);
+
+  const managerIds = new Set(managerIdList);
+  const recentActivity = recentUsers.map((user: any) => ({
+    id: String(user._id),
+    title: `${user.name} joined as ${deriveDisplayRole(user, managerIds)}`,
+    time: user.createdAt,
+    type: "success" as const,
+  }));
+
+  return { ...stats, recentActivity };
 };
 
