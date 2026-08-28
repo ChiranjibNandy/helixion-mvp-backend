@@ -6,7 +6,7 @@ import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
-import { getProgramParticipantsController, searchPublishedProgramsController } from "../controllers/program.controller.js";
+import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 import { getProgramAttendanceController, takeAttendanceController, updateParticipantAttendanceController } from "../controllers/attendance.controller.js";
 import { takeAttendanceBodySchema } from "../validators/attendance.validator.js";
@@ -42,6 +42,13 @@ router.get(
   "/programs",
   validate({ query: searchUsersQuerySchema }),
   searchPublishedProgramsController
+);
+
+
+router.get(
+  "/programs/list",
+  validate({ query: searchUsersQuerySchema }),
+  getPrograms
 );
 
 router.get(

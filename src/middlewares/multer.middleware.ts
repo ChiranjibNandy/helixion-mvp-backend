@@ -1,7 +1,6 @@
 import multer from "multer";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
-import { MESSAGES } from "../constants/messages.js";
 import path from "path";
 
 export const upload = multer({

@@ -18,27 +18,27 @@ export const getAvailableProgramsRepo = async () => {
 };
 
 export interface ProgramFilterParams {
-  page:      number;
-  limit:     number;
-  search?:   string;   
-  venue?:    string;   
-  fromDate?: string;   
-  toDate?:   string;  
+  page: number;
+  limit: number;
+  search?: string;
+  venue?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 // paginated + filter program list for the employee browse view
 export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterParams) => {
   const { page, limit, search, venue, fromDate, toDate } = params;
-  const skip   = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   const filter: any = { status: PROGRAM_SAVED_STATUS.PUBLISHED };
 
-  if (search)   filter.title = { $regex: search, $options: "i" };
-  if (venue)    filter.venue = { $regex: venue,  $options: "i" };
+  if (search) filter.title = { $regex: search, $options: "i" };
+  if (venue) filter.venue = { $regex: venue, $options: "i" };
 
   if (fromDate || toDate) {
     filter.startDate = {};
     if (fromDate) filter.startDate.$gte = new Date(fromDate);
-    if (toDate)   filter.startDate.$lte = new Date(toDate);
+    if (toDate) filter.startDate.$lte = new Date(toDate);
   }
 
   const [programs, total] = await Promise.all([
@@ -351,7 +351,7 @@ export const getDraftActivities = async (
   trainingProviderId: string
 ) => {
 
-  const todayStart =  getUTCStartOfDay()
+  const todayStart = getUTCStartOfDay()
 
   const programs = await Program.find({
 
@@ -377,7 +377,7 @@ export const getBulkUploadActivities = async (
   trainingProviderId: string
 ) => {
 
-  const todayStart =  getUTCStartOfDay()
+  const todayStart = getUTCStartOfDay()
 
   const result = await Program.aggregate([
 
@@ -425,65 +425,174 @@ export const findProgramById = async (id: string) => {
 };
 
 export const getEmployeeProgramByIdRepo = async (id: string) => {
-   return await programModel.findOne({
-      _id: toObjectId(id),
-      status: PROGRAM_SAVED_STATUS.PUBLISHED
-   }).populate("createdBy", "name");
+  return await programModel.findOne({
+    _id: toObjectId(id),
+    status: PROGRAM_SAVED_STATUS.PUBLISHED
+  }).populate("createdBy", "name");
 };
 
 export const getEmployeeProgramsListRepo = async ({
-   page,
-   limit,
-   search,
-   venue,
-   fromDate,
-   toDate
+  page,
+  limit,
+  search,
+  venue,
+  fromDate,
+  toDate
 }: {
-   page: number;
-   limit: number;
-   search?: string;
-   venue?: string;
-   fromDate?: string;
-   toDate?: string;
+  page: number;
+  limit: number;
+  search?: string;
+  venue?: string;
+  fromDate?: string;
+  toDate?: string;
 }) => {
-   const skip = (page - 1) * limit;
-   const filter: any = {
-      status: PROGRAM_SAVED_STATUS.PUBLISHED
-   };
+  const skip = (page - 1) * limit;
+  const filter: any = {
+    status: PROGRAM_SAVED_STATUS.PUBLISHED
+  };
 
-   if (search) {
-      filter.title = { $regex: search, $options: "i" };
-   }
-   if (venue) {
-      filter.venueName = { $regex: venue, $options: "i" };
-   }
-   if (fromDate || toDate) {
-      filter.startDate = {};
-      if (fromDate) {
-         filter.startDate.$gte = new Date(fromDate);
-      }
-      if (toDate) {
-         filter.startDate.$lte = new Date(toDate);
-      }
-   }
+  if (search) {
+    filter.title = { $regex: search, $options: "i" };
+  }
+  if (venue) {
+    filter.venueName = { $regex: venue, $options: "i" };
+  }
+  if (fromDate || toDate) {
+    filter.startDate = {};
+    if (fromDate) {
+      filter.startDate.$gte = new Date(fromDate);
+    }
+    if (toDate) {
+      filter.startDate.$lte = new Date(toDate);
+    }
+  }
 
-   const [programs, total] = await Promise.all([
-      programModel.find(filter)
-         .sort({ startDate: 1 })
-         .skip(skip)
-         .limit(limit)
-         .populate("createdBy", "name")
-         .lean(),
-      programModel.countDocuments(filter)
-   ]);
+  const [programs, total] = await Promise.all([
+    programModel.find(filter)
+      .sort({ startDate: 1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("createdBy", "name")
+      .lean(),
+    programModel.countDocuments(filter)
+  ]);
 
-   return {
-      programs,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-   };
+  return {
+    programs,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit)
+  };
+}
+
+
+//get published program list that need to training provider dashboard
+//implement search and pagination
+
+export const getPrograms = async (
+  trainingProviderId: string,
+  page: number,
+  limit: number,
+  search?: string
+) => {
+  const skip = (page - 1) * limit;
+
+  const matchStage: any = {
+    createdBy: toObjectId(trainingProviderId),
+    status: PROGRAM_SAVED_STATUS.PUBLISHED,
+  };
+
+  if (search?.trim()) {
+    matchStage.title = {
+      $regex: search.trim(),
+      $options: "i",
+    };
+  }
+
+  return await Program.aggregate([
+    {
+      $match: matchStage,
+    },
+
+    {
+      $lookup: {
+        from: "enrollments",
+        localField: "_id",
+        foreignField: "programId",
+        as: "enrollments",
+      },
+    },
+
+    {
+      $addFields: {
+        enrolledCount: {
+          $size: "$enrollments",
+        },
+
+        fillRate: {
+          $cond: [
+            { $gt: ["$maxParticipants", 0] },
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $size: "$enrollments" },
+                    "$maxParticipants",
+                  ],
+                },
+                100,
+              ],
+            },
+            0,
+          ],
+        },
+      },
+    },
+
+    {
+      $project: {
+        title: 1,
+        startDate: 1,
+        enrolledCount: 1,
+        maxParticipants: 1,
+        fillRate: {
+          $round: ["$fillRate", 0],
+        },
+      },
+    },
+
+    {
+      $sort: {
+        enrolledCount: -1,
+      },
+    },
+
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+        ],
+
+        totalCount: [
+          { $count: "count" },
+        ],
+      },
+    },
+
+    {
+      $project: {
+        data: 1,
+        total: {
+          $ifNull: [
+            { $arrayElemAt: ["$totalCount.count", 0] },
+            0,
+          ],
+        },
+      },
+    },
+  ]);
 };
 
 

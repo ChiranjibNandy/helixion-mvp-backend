@@ -21,10 +21,10 @@ import {
 const managerChainItemSchema = new Schema(
    {
       userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-      level:  { type: Number, required: true },
+      level: { type: Number, required: true },
       status: {
-         type:    String,
-         enum:    Object.values(MANAGER_CHAIN_STATUS),
+         type: String,
+         enum: Object.values(MANAGER_CHAIN_STATUS),
          default: MANAGER_CHAIN_STATUS.WAITING,
       },
    },
@@ -33,24 +33,24 @@ const managerChainItemSchema = new Schema(
 
 const bookingDetailSchema = new Schema(
    {
-      from:          { type: String, trim: true },
-      to:            { type: String, trim: true },
-      refNo:         { type: String, trim: true },
+      from: { type: String, trim: true },
+      to: { type: String, trim: true },
+      refNo: { type: String, trim: true },
       departureTime: { type: String, trim: true },
-      travelDate:    { type: Date },
-      travelClass:   { type: String, trim: true },
+      travelDate: { type: Date },
+      travelClass: { type: String, trim: true },
    },
    { _id: false }
 );
 
 const timelineSchema = new Schema(
    {
-      stage:     { type: String, required: true },
-      actorId:   { type: Schema.Types.ObjectId, ref: "User" },
+      stage: { type: String, required: true },
+      actorId: { type: Schema.Types.ObjectId, ref: "User" },
       actorType: { type: String, enum: Object.values(ACTOR_TYPE), required: true },
-      action:    { type: String, required: true },
-      note:      { type: String, default: "" },
-      at:        { type: Date, default: Date.now },
+      action: { type: String, required: true },
+      note: { type: String, default: "" },
+      at: { type: Date, default: Date.now },
    },
    { _id: false }
 );
@@ -60,26 +60,27 @@ const timelineSchema = new Schema(
 const enrollmentSchema = new Schema<IEnrollment>(
    {
       orgId: {
-         type:  Schema.Types.ObjectId,
+         type: Schema.Types.ObjectId,
          index: true,
       },
 
       employeeId: {
-         type:     Schema.Types.ObjectId,
-         ref:      "User",
+         type: Schema.Types.ObjectId,
+         ref: "User",
          required: true,
-         index:    true,
+         index: true,
       },
 
       programId: {
-         type:     Schema.Types.ObjectId,
-         ref:      "Program",
+         type: Schema.Types.ObjectId,
+         ref: "Program",
          required: true,
-         index:    true,
+         index: true,
       },
 
       providerOrgId: {
-         type:  Schema.Types.ObjectId,
+         type: Schema.Types.ObjectId,
+         ref: "User",
          index: true,
       },
 
@@ -90,10 +91,10 @@ const enrollmentSchema = new Schema<IEnrollment>(
        * Never update sub-document action fields without also updating currentStage.
        */
       currentStage: {
-         type:    String,
-         enum:    Object.values(ENROLLMENT_STAGE),
+         type: String,
+         enum: Object.values(ENROLLMENT_STAGE),
          default: ENROLLMENT_STAGE.SUBMITTED,
-         index:   true,
+         index: true,
       },
 
       /**
@@ -106,25 +107,25 @@ const enrollmentSchema = new Schema<IEnrollment>(
        * at each step; the workflow position is always currentStage.
        */
       statusSummary: {
-         enrollmentStatus:   { type: String, default: ENROLLMENT_STATUS.SUBMITTED },
-         tourStatus:         { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
-         attendanceStatus:   { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
+         enrollmentStatus: { type: String, default: ENROLLMENT_STATUS.SUBMITTED },
+         tourStatus: { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
+         attendanceStatus: { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
          reimbursementStatus: { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED },
       },
 
       policySnapshot: {
          managerApproval: {
-            levels:            { type: Number },
+            levels: { type: Number },
             minLevelToApprove: { type: Number },
          },
          trainingDeptApproval: {
-            enabled:           { type: Boolean },
-            levels:            { type: Number },
+            enabled: { type: Boolean },
+            levels: { type: Number },
             minLevelToApprove: { type: Number },
          },
          osdReview: {
-            enabled:           { type: Boolean },
-            levels:            { type: Number },
+            enabled: { type: Boolean },
+            levels: { type: Number },
             minLevelToApprove: { type: Number },
          },
          tourApproval: {
@@ -145,7 +146,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
        *   { "managerChain.userId": req.userId, "managerChain.status": "pending" }
        */
       managerChain: {
-         type:    [managerChainItemSchema],
+         type: [managerChainItemSchema],
          default: [],
       },
 
@@ -162,83 +163,83 @@ const enrollmentSchema = new Schema<IEnrollment>(
        */
       managerApproval: {
          assignedApproverId: { type: Schema.Types.ObjectId, ref: "User" },
-         action:    { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },
-         note:      { type: String, default: "" },
-         actedAt:   { type: Date },
+         action: { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },
+         note: { type: String, default: "" },
+         actedAt: { type: Date },
       },
 
       trainingDeptReview: {
          juniorOfficerId: { type: Schema.Types.ObjectId, ref: "User" },
-         juniorAction:    { type: String, enum: Object.values(TRAINING_DEPT_JUNIOR_ACTION), default: TRAINING_DEPT_JUNIOR_ACTION.PENDING },
-         juniorNote:      { type: String, default: "" },
-         juniorActedAt:   { type: Date },
+         juniorAction: { type: String, enum: Object.values(TRAINING_DEPT_JUNIOR_ACTION), default: TRAINING_DEPT_JUNIOR_ACTION.PENDING },
+         juniorNote: { type: String, default: "" },
+         juniorActedAt: { type: Date },
          seniorOfficerId: { type: Schema.Types.ObjectId, ref: "User" },
-         seniorAction:    { type: String, enum: Object.values(TRAINING_DEPT_SENIOR_ACTION), default: TRAINING_DEPT_SENIOR_ACTION.WAITING },
-         seniorNote:      { type: String, default: "" },
-         seniorActedAt:   { type: Date },
+         seniorAction: { type: String, enum: Object.values(TRAINING_DEPT_SENIOR_ACTION), default: TRAINING_DEPT_SENIOR_ACTION.WAITING },
+         seniorNote: { type: String, default: "" },
+         seniorActedAt: { type: Date },
       },
 
       travelAndStay: {
-         stayType:               { type: String },
-         placeOfTour:            { type: String },
-         frequentFlyerNo:        { type: String, default: "" },
-         modeOfTravel:           { type: String },
-         purpose:                { type: String, default: "To Attend Training Program" },
-         bookingDetails:         { type: [bookingDetailSchema], default: [] },
+         stayType: { type: String },
+         placeOfTour: { type: String },
+         frequentFlyerNo: { type: String, default: "" },
+         modeOfTravel: { type: String },
+         purpose: { type: String, default: "To Attend Training Program" },
+         bookingDetails: { type: [bookingDetailSchema], default: [] },
          advancePaymentRequired: { type: Number, default: 0 },
-         status:                 { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
-         managerAction:          { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },
-         managerReason:          { type: String, default: "" },
+         status: { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.SUBMITTED },
+         managerAction: { type: String, enum: Object.values(MANAGER_ACTION), default: MANAGER_ACTION.PENDING },
+         managerReason: { type: String, default: "" },
       },
 
       tour: {
          travelType: { type: String, enum: Object.values(TRAVEL_TYPE) },
-         status:     { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.NOT_REQUIRED },
+         status: { type: String, enum: Object.values(TOUR_STATUS), default: TOUR_STATUS.NOT_REQUIRED },
          details: {
-            placeOfTour:            { type: String },
-            frequentFlyerNo:        { type: String, default: "" },
-            modeOfTravel:           { type: String },
-            purpose:                { type: String },
+            placeOfTour: { type: String },
+            frequentFlyerNo: { type: String, default: "" },
+            modeOfTravel: { type: String },
+            purpose: { type: String },
             advancePaymentRequired: { type: Number, default: 0 },
-            bookingDetails:         { type: [bookingDetailSchema], default: [] },
+            bookingDetails: { type: [bookingDetailSchema], default: [] },
          },
          managerApproval: {
-            action:  { type: String, enum: Object.values(MANAGER_ACTION) },
-            note:    { type: String, default: "" },
+            action: { type: String, enum: Object.values(MANAGER_ACTION) },
+            note: { type: String, default: "" },
             actedAt: { type: Date },
          },
          ctdApproval: {
             officerId: { type: Schema.Types.ObjectId, ref: "User" },
-            action:    { type: String, enum: Object.values(TOUR_CTD_ACTION) },
-            note:      { type: String, default: "" },
-            actedAt:   { type: Date },
+            action: { type: String, enum: Object.values(TOUR_CTD_ACTION) },
+            note: { type: String, default: "" },
+            actedAt: { type: Date },
          },
       },
 
       attendance: {
          uploadedByProvider: { type: Boolean, default: false },
-         uploadedAt:         { type: Date },
-         status:             { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
+         uploadedAt: { type: Date },
+         status: { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
       },
 
       reimbursement: {
          enabled: { type: Boolean, default: false },
-         status:  { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED },
+         status: { type: String, enum: Object.values(REIMBURSEMENT_STATUS), default: REIMBURSEMENT_STATUS.NOT_STARTED },
          expenses: {
-            travelCost:         { type: Number, default: 0 },
-            accommodationCost:  { type: Number, default: 0 },
-            foodCost:           { type: Number, default: 0 },
+            travelCost: { type: Number, default: 0 },
+            accommodationCost: { type: Number, default: 0 },
+            foodCost: { type: Number, default: 0 },
          },
-         receipts:    [{ type: String }],
+         receipts: [{ type: String }],
          totalAmount: { type: Number, default: 0 },
          managerApproval: {
-            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.PENDING },
-            note:    { type: String, default: "" },
+            action: { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.PENDING },
+            note: { type: String, default: "" },
             actedAt: { type: Date },
          },
          osdApproval: {
-            action:  { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.WAITING },
-            note:    { type: String, default: "" },
+            action: { type: String, enum: Object.values(REIMBURSEMENT_ACTION), default: REIMBURSEMENT_ACTION.WAITING },
+            note: { type: String, default: "" },
             actedAt: { type: Date },
          },
       },

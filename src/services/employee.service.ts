@@ -111,6 +111,10 @@ export const enrollInProgramService = async (
    if (!program) {
       throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+   let now = new Date()
+   if(program.startDate < now){
+      throw new AppError(MESSAGES.ENROLLDATE_LESSTHAN_STARTDATE,HTTP_STATUS.CONFLICT)
+   }
 
    // 2. Check if already enrolled (active or pending)
    const existing = await findExistingEnrollmentRepo(userId, programId);
@@ -259,8 +263,19 @@ export const enrollInProgramService = async (
 
 };
 
-export const getEmployeeEnrollmentsService = async (userId: string) => {
-   return await getEmployeeEnrollmentsRepo(userId);
+//list enrollments based on login employee
+export const getEmployeeEnrollmentsService = async (
+   userId: string,
+   page: number,
+   limit: number,
+   search: string
+) => {
+   return await getEmployeeEnrollmentsRepo(
+      userId,
+      page,
+      limit,
+      search
+   );
 };
 
 export const getEnrollmentDetailsService = async (id: string, userId: string) => {
