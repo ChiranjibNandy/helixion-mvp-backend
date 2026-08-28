@@ -8,10 +8,10 @@ import {
    takeReimbursementManagerActionRepo,
    getManagerOwnDashboardSummaryRepo,
    getManagerTeamEnrollmentCountRepo,
-   getManagerApprovalStatsRepo,
    getPendingTourApprovalsForManagerRepo,
    countPendingTourApprovalsForManagerRepo,
 } from "../repositories/enrollment.repository.js";
+import { getApprovalStatsRepo } from "../repositories/employee.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -55,7 +55,11 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
    const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount, pendingTourApprovalsRaw, pendingTourCount] = await Promise.all([
       getManagerOwnDashboardSummaryRepo(managerId),
       getManagerTeamEnrollmentCountRepo(managerId),
-      getManagerApprovalStatsRepo(managerId),
+      // "Approval Status" mirrors the employee dashboard's meaning here — the
+      // manager's own submitted enrollments' approved/pending/rejected
+      // breakdown, not their team's decisions (a manager with no direct
+      // reports would otherwise see this permanently stuck at all-zero).
+      getApprovalStatsRepo(managerId),
       // Capped (see DASHBOARD_LIST_CAP) — this list only backs the dashboard
       // preview panel below, not the "Pending Approvals" count, which comes
       // from the uncapped countDocuments() sibling instead.
