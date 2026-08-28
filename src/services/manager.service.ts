@@ -10,6 +10,7 @@ import {
    getManagerTeamEnrollmentCountRepo,
    getManagerApprovalStatsRepo,
    getPendingTourApprovalsForManagerRepo,
+   countPendingTourApprovalsForManagerRepo,
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
@@ -51,18 +52,21 @@ export const getPendingEnrollmentsService = async (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getManagerDashboardService = async (managerId: string, orgId: string) => {
-   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount] = await Promise.all([
+   const [ownSummary, teamEnrollments, approvalStats, pendingEnrollments, pendingTeamCount, pendingTourApprovalsRaw, pendingTourCount] = await Promise.all([
       getManagerOwnDashboardSummaryRepo(managerId),
       getManagerTeamEnrollmentCountRepo(managerId),
       getManagerApprovalStatsRepo(managerId),
       // Capped (see DASHBOARD_LIST_CAP) — this list only backs the dashboard
       // preview panel below, not the "Pending Approvals" count, which comes
       // from the uncapped countDocuments() sibling instead.
-      getPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
-      countPendingEnrollmentsForManagerRepo(managerId, orgId, { level: 1 }),
+
+      getPendingEnrollmentsForManagerRepo(managerId, orgId),
+      countPendingEnrollmentsForManagerRepo(managerId, orgId),
+      getPendingTourApprovalsForManagerRepo(managerId, orgId),
+      countPendingTourApprovalsForManagerRepo(managerId, orgId),
    ]);
 
-   const pendingTeamEnrollments = pendingEnrollments.map((enrollment: any) => {
+   const mapPendingRow = (enrollment: any) => {
       const employee = enrollment.employeeId;
       const program   = enrollment.programId;
 
@@ -75,16 +79,20 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
          venue:        program?.venueName || program?.city || "",
          status:       "Pending Approval",
       };
-   });
+   };
+
+   const pendingTeamEnrollments = pendingEnrollments.map(mapPendingRow);
+   const pendingTourApprovals = pendingTourApprovalsRaw.map(mapPendingRow);
 
    return {
       // "Pending Approvals" reflects team enrollments awaiting this manager's
       // action (matches the "Pending Team Enrollments" badge/donut below it),
       // not ownSummary's personal-employee pendingApprovals count. Uses the
       // true count, not pendingTeamEnrollments.length, since that list is capped.
-      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount },
+      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
       approvalStats,
       pendingTeamEnrollments,
+      pendingTourApprovals,
    };
 };
 
@@ -119,11 +127,10 @@ export const takeManagerActionService = async (
       );
    }
 
-   // 2. Load enrollment — must have this manager's chain entry in PENDING state
-   //    (idempotency: if already acted, the query returns null → 404/409)
    const enrollment = await enrollmentModel.findOne({
       _id:   toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       managerChain: {
          $elemMatch: {
             userId: toObjectId(managerId),
@@ -280,13 +287,13 @@ export const takeManagerActionService = async (
       }
    }
 
-   // 5. Find the next WAITING chain entry to activate (if any)
+
    const nextWaiting = enrollment.managerChain
       .filter((e) => (e as any).status === MANAGER_CHAIN_STATUS.WAITING)
       .sort((a, b) => a.level - b.level)[0];
 
    // Activate the next waiting manager level atomically
-   if (nextWaiting && action !== MANAGER_ACTION.REJECT) {
+   if (nextWaiting && action !== MANAGER_ACTION.REJECT && nextStage === ENROLLMENT_STAGE.MANAGER_REVIEW) {
       arrayFilters.push({ "waitingElem.userId": nextWaiting.userId });
       updateOps.$set["managerChain.$[waitingElem].status"] =
          MANAGER_CHAIN_STATUS.PENDING;

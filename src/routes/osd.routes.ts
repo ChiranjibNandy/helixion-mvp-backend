@@ -36,7 +36,7 @@ const router = express.Router();
  * Precedence rule: ORG_ROLE check (step 3) is a coarse gate; OFFICE_ROLE check
  * (step 4) is the fine-grained gate. Both must pass.
  */
-router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE, ORG_ROLE.MANAGER));
 
 /**
  * GET /api/osd/reimbursements/pending

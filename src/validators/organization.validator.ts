@@ -174,3 +174,15 @@ export const organizationCsvRowSchema = z.object({
 export const organizationIdParamSchema = z.object({
   organizationId: objectIdSchema,
 });
+
+
+export const updateOrganizationDetailsSchema = z
+  .object({
+    name: z.string().min(2).optional(),
+    slug: z.string().min(2).optional(),
+    orgType: z.enum(Object.values(OrganizationType)).optional(),
+    status: z.enum(Object.values(OrganizationStatus)).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: MESSAGES.NO_FIELDS_TO_UPDATE,
+  });

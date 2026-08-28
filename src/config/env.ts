@@ -25,4 +25,8 @@ export const ENV = {
   CLOUDINARY_API_KEY: requireEnv("CLOUDINARY_API_KEY"),
   CLOUDINARY_API_SECRET: requireEnv("CLOUDINARY_API_SECRET"),
   DEFAULT_PASSWORD: process.env.DEFAULT_PASSWORD || "Helixon@123",
+  SUPERADMIN_EMAILS: (process.env.SUPERADMIN_EMAILS || "testadmin8@mailinator.com")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
 };

@@ -18,17 +18,7 @@ export const mapSpreadsheetEmployee = (
   };
 
   if (
-    row["Training Department Junior Officer"]
-      ?.toString()
-      .trim()
-      .toLowerCase() === "yes"
-  ) {
-    officeRoles.trainingDept.enabled = true;
-    officeRoles.trainingDept.level = 1;
-  }
-
-  if (
-    row["Training Department Senior Officer"]
+    row["Training Department Officer (CTD)"]
       ?.toString()
       .trim()
       .toLowerCase() === "yes"
@@ -38,17 +28,7 @@ export const mapSpreadsheetEmployee = (
   }
 
   if (
-    row["OSD Team Junior Officer"]
-      ?.toString()
-      .trim()
-      .toLowerCase() === "yes"
-  ) {
-    officeRoles.osd.enabled = true;
-    officeRoles.osd.level = 1;
-  }
-
-  if (
-    row["OSD Team Senior Officer"]
+    row["OSD Officer"]
       ?.toString()
       .trim()
       .toLowerCase() === "yes"
@@ -56,6 +36,10 @@ export const mapSpreadsheetEmployee = (
     officeRoles.osd.enabled = true;
     officeRoles.osd.level = 2;
   }
+
+
+  const isManager =
+    row["Manager"]?.toString().trim().toLowerCase() === "yes";
 
   return {
     orgId: org._id,
@@ -82,7 +66,7 @@ export const mapSpreadsheetEmployee = (
     // leaving this true would lock every bulk-uploaded user out after login.
     mustChangePassword: false,
 
-    orgRole: ORG_ROLE.EMPLOYEE,
+    orgRole: isManager ? ORG_ROLE.MANAGER : ORG_ROLE.EMPLOYEE,
 
     officeRoles,
   };

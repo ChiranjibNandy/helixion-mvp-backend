@@ -12,6 +12,8 @@ export const MESSAGES = {
   USERNAME_REQUIRED: "Username is required",
   NAME_REQUIRED: "Name is required",
   REPORTING_MANAGER_NOT_FOUND: "The specified reporting manager does not exist",
+  SKIP1_MANAGER_NOT_FOUND: "The specified Skip Level 1 manager does not exist",
+  SKIP2_MANAGER_NOT_FOUND: "The specified Skip Level 2 manager does not exist",
   PASSWORD_REQUIRED: "Password is required",
   PASSWORD_MIN_LENGTH: "Password must be at least 6 characters",
   PASSWORD_COMPLEXITY: "Password must contain at least one letter, one number, and one special character",
@@ -35,6 +37,7 @@ export const MESSAGES = {
   ACCESS_DENIED: "Access denied",
   USER_ID_REQUIRED: "User Id is required",
   ROLE_REQUIRED: "Role is required",
+  INVALID_ROLE: "Role must be one of: admin, manager, employee, training_provider",
   INVALID_OBJECT: "Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
@@ -45,6 +48,9 @@ export const MESSAGES = {
   USER_ALREADY_ACTIVE: "User is already active",
   CANNOT_DEACTIVATE_SELF: "Cannot deactivate your own account",
   NOT_ACTIVE_USER: "Your account is not active. Please contact the administrator.",
+  USER_UPDATED_SUCCESSFULLY: "Employee updated successfully",
+  CANNOT_BE_OWN_MANAGER: "An employee cannot be their own reporting manager",
+  NO_FIELDS_TO_UPDATE: "At least one field is required to update",
 
   BATCH_USERS_PROCESSED: "Bulk users processed successfully",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
@@ -107,8 +113,10 @@ export const MESSAGES = {
 
   MIN_POLICY: "At least one policy section is required",
   ORG_CREATE: "Organization created successfully",
+  ORG_DETAILS_UPDATED: "Organization details updated successfully",
   POLICY_UPDATE: "Policy updated successfully",
   ORG_BULK_UPLOAD_SUCCESS: "Organizations uploaded successfully",
+  ORGANIZATIONS_FETCHED: "Organizations fetched successfully",
   ORG_NOT_FOUND: "Organization not found",
   ORG_EXIST: "Organization already exists",
   DUP_SLUG_FOUND: "Duplicate slugs found in CSV",

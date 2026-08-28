@@ -1,7 +1,8 @@
+import { Types } from "mongoose";
 import { OrganizationStatus } from "../constants/enum.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
-import { bulkCreateOrganizations, createOrganization, findOneOrgBySlug, updateOrganizationPolicy } from "../repositories/organization.repository.js";
+import { bulkCreateOrganizations, createOrganization, findOneOrgBySlug, findOrgById, getOrganizationsRepo, updateOrganizationDetails, updateOrganizationPolicy } from "../repositories/organization.repository.js";
 import { getUserByIdRepo, updateOneUser } from "../repositories/user.repository.js";
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
@@ -9,6 +10,7 @@ import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
 import { parseCsvBuffer } from "../utils/csvParser.js";
 import { toObjectId } from "../utils/mongo.js";
 import { organizationCsvRowSchema } from "../validators/organization.validator.js";
+import { ENV } from "../config/env.js";
 
 //Create org
 export const createOrganizationService = async (
@@ -43,7 +45,127 @@ export const createOrganizationService = async (
 // surfaced later at actual upload time.
 export const getOrganizationStatusService = async (adminId: string) => {
   const admin = await getUserByIdRepo(adminId);
-  return { hasOrgPolicySetup: !!admin?.orgId };
+  return { hasOrgPolicySetup: !!admin?.orgId, orgId: admin?.orgId ? String(admin.orgId) : null };
+};
+
+export const getOrganizationsService = async (
+  page: number,
+  limit: number,
+  search: string,
+  adminUserId: string
+) => {
+  const admin = await getUserByIdRepo(adminUserId);
+
+  if (!admin?.orgId) {
+    return { data: [], meta: { total: 0, page, limit, totalPages: 1 } };
+  }
+
+  const { organizations, total } = await getOrganizationsRepo(page, limit, search, admin.orgId as Types.ObjectId);
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  return {
+    data: organizations.map((org: any) => ({
+      id: org._id,
+      name: org.name,
+      slug: org.slug,
+      orgType: org.orgType,
+      status: org.status,
+      createdAt: org.createdAt,
+    })),
+    meta: { total, page, limit, totalPages },
+  };
+};
+
+
+export const getAllOrganizationsService = async (
+  page: number,
+  limit: number,
+  search: string,
+  adminUserId: string
+) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.email || !ENV.SUPERADMIN_EMAILS.includes(admin.email.toLowerCase())) {
+    throw new AppError(MESSAGES.USER_NO_PERMISSION, HTTP_STATUS.FORBIDDEN);
+  }
+
+  const { organizations, total } = await getOrganizationsRepo(page, limit, search);
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  return {
+    data: organizations.map((org: any) => ({
+      id: org._id,
+      name: org.name,
+      slug: org.slug,
+      orgType: org.orgType,
+      status: org.status,
+      createdAt: org.createdAt,
+    })),
+    meta: { total, page, limit, totalPages },
+  };
+};
+
+const assertAdminOwnsOrg = async (organizationId: string, adminUserId: string) => {
+  const admin = await getUserByIdRepo(adminUserId);
+  if (!admin?.orgId || String(admin.orgId) !== String(organizationId)) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+};
+
+const mapOrgToDetailDto = (org: any) => ({
+  id: String(org._id),
+  name: org.name,
+  slug: org.slug,
+  orgType: org.orgType,
+  status: org.status,
+  policy: org.policy,
+  policyAssignments: org.policyAssignments,
+  createdAt: org.createdAt,
+});
+
+export const getOrganizationByIdService = async (organizationId: string, adminUserId: string) => {
+  await assertAdminOwnsOrg(organizationId, adminUserId);
+
+  const org = await findOrgById(toObjectId(organizationId));
+  if (!org) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  return mapOrgToDetailDto(org);
+};
+
+export interface UpdateOrganizationDetailsInput {
+  name?: string;
+  slug?: string;
+  orgType?: CreateOrganization["orgType"];
+  status?: CreateOrganization["status"];
+}
+
+export const updateOrganizationDetailsService = async (
+  organizationId: string,
+  data: UpdateOrganizationDetailsInput,
+  adminUserId: string
+) => {
+  await assertAdminOwnsOrg(organizationId, adminUserId);
+
+  const update: UpdateOrganizationDetailsInput = { ...data };
+  if (update.slug !== undefined) {
+    const slug = update.slug.trim().toLowerCase();
+    const existing = await findOneOrgBySlug(slug);
+    if (existing && String((existing as any)._id) !== organizationId) {
+      throw new AppError(MESSAGES.ORG_EXIST, HTTP_STATUS.CONFLICT);
+    }
+    update.slug = slug;
+  }
+  if (update.name !== undefined) {
+    update.name = update.name.trim();
+  }
+
+  const updated = await updateOrganizationDetails(organizationId, update);
+  if (!updated) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  return mapOrgToDetailDto(updated);
 };
 
 // update organization policy
@@ -51,10 +173,13 @@ export const getOrganizationStatusService = async (adminId: string) => {
 export const updateOrganizationPolicyService = async (
   organizationId: string,
   data: {
-    policy: CreateOrganization["policy"];
-    policyAssignments: CreateOrganization["policyAssignments"];
-  }
+    policy?: CreateOrganization["policy"];
+    policyAssignments?: CreateOrganization["policyAssignments"];
+  },
+  adminUserId: string
 ) => {
+  await assertAdminOwnsOrg(organizationId, adminUserId);
+
   await updateOrganizationPolicy(
     organizationId,
     data

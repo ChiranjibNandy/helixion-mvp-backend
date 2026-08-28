@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import {  bulkUploadOrganizationService, createOrganizationService, getOrganizationStatusService, updateOrganizationPolicyService } from "../services/organization.service.js";
+import {  bulkUploadOrganizationService, createOrganizationService, getAllOrganizationsService, getOrganizationByIdService, getOrganizationsService, getOrganizationStatusService, updateOrganizationDetailsService, updateOrganizationPolicyService } from "../services/organization.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
 
@@ -58,6 +58,50 @@ export const getOrganizationStatus = async (
    }
 };
 
+export const getOrganizations = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = (req.query.search as string) || "";
+
+      const result = await getOrganizationsService(page, limit, search, req.userId!);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ORGANIZATIONS_FETCHED,
+         ...result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getAllOrganizations = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = (req.query.search as string) || "";
+
+      const result = await getAllOrganizationsService(page, limit, search, req.userId!);
+
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ORGANIZATIONS_FETCHED,
+         ...result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
 export const updatePolicy = async (
    req: Request,
    res: Response,
@@ -68,7 +112,8 @@ export const updatePolicy = async (
 
       await updateOrganizationPolicyService(
          String(organizationId),
-         req.body.policy
+         req.body,
+         req.userId!
       );
       res.status(HTTP_STATUS.OK).json({
          success: true,
@@ -76,5 +121,40 @@ export const updatePolicy = async (
       });
    } catch (error) {
       next(error)
+   }
+};
+
+export const getOrganizationById = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const { organizationId } = req.params;
+      const data = await getOrganizationByIdService(String(organizationId), req.userId!);
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         data
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const updateOrganizationDetails = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const { organizationId } = req.params;
+      const data = await updateOrganizationDetailsService(String(organizationId), req.body, req.userId!);
+      res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ORG_DETAILS_UPDATED,
+         data
+      });
+   } catch (error) {
+      next(error);
    }
 };

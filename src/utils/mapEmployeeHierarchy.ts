@@ -1,8 +1,11 @@
-export const mapEmployeeHierarchy = (
-  reportingManager: any,
-  skip1: any,
-  skip2: any
-) => {
+export interface ManagerChainInput {
+  reportingManager?: { _id: any } | null;
+  skip1?: { _id: any } | null;
+  skip2?: { _id: any } | null;
+}
+
+
+export const buildManagerChain = ({ reportingManager, skip1, skip2 }: ManagerChainInput) => {
   const managerChain = [];
 
   if (reportingManager) {
@@ -32,3 +35,9 @@ export const mapEmployeeHierarchy = (
     managerChain,
   };
 };
+
+export const mapEmployeeHierarchy = (
+  reportingManager: any,
+  skip1: any,
+  skip2: any
+) => buildManagerChain({ reportingManager, skip1, skip2 });
