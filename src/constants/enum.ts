@@ -2,6 +2,7 @@
 export enum ORG_ROLE {
   ADMIN = "admin",
   EMPLOYEE = "employee",
+  MANAGER = "manager",
   TRAINING_PROVIDER = "training_provider",
 }
 

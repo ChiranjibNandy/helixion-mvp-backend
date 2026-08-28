@@ -23,7 +23,7 @@ import {
 
 const router = express.Router();
 
-router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE, ORG_ROLE.MANAGER));
 
 router.get("/dashboard", getManagerDashboard);
 

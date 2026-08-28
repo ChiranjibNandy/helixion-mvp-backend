@@ -10,6 +10,8 @@ import {
   searchUsersService,
   createSingleUserService,
   getAdminDashboardStatsService,
+  getEmployeeByIdService,
+  updateEmployeeService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
@@ -89,7 +91,7 @@ export const approveUser = async (
     const { id } = req.params;
     const { role, description } = req.body;
 
-    await approveUserAndAddRoleService(String(id), role, description);
+    await approveUserAndAddRoleService(String(id), role, description, req.userId!);
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -187,6 +189,44 @@ export const createSingleUser = async (
   }
 };
 
+
+export const getEmployeeById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const data = await getEmployeeByIdService(String(id), req.userId!);
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USERS_FETCHED,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const updateEmployee = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const data = await updateEmployeeService(String(id), req.body, req.userId!);
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USER_UPDATED_SUCCESSFULLY,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Bulk import users from CSV upload.
  *
@@ -230,6 +270,7 @@ export const batchCreateUsers = async (
         updatedCount: result.updatedCount,
         skippedCount: result.skippedCount,
         skippedEmails: result.skippedEmails,
+        skipped: result.skipped,
       },
     });
   } catch (error) {
@@ -307,7 +348,10 @@ export const searchUsers = async (
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-    const query = (req.query.q as string) || "";
+    // The `search` query-param validator (searchUsersQuerySchema) replaces
+    // req.query wholesale with its own parsed output, which only carries
+    // page/limit/search — a "q" key here would always be undefined.
+    const query = (req.query.search as string) || "";
 
     const result = await searchUsersService(query, page, limit, req.userId!);
 

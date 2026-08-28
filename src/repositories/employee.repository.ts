@@ -5,11 +5,23 @@ import { ApprovalStatus } from "../types/enrollment.js";
 import Program from '../models/program.model.js'
 import { toObjectId } from "../utils/mongo.js";
 
-// Stages where the enrollment hasn't yet cleared its core (manager/CTD) approval gate.
+// Stages where the enrollment hasn't yet reached a resolved state (approved/
+// rejected/completed) — still actively awaiting someone else's action.
+// Includes the tour sub-stages (an outstation enrollment clears the core
+// manager/CTD gate and moves into tour_pending_employee/tour_manager_review/
+// tour_ctd_review, which are none of SUBMITTED/MANAGER_REVIEW/
+// TRAINING_DEPT_REVIEW and don't equal APPROVED either) — without them here,
+// every $switch below that defaults to "approved"/"Enrolled" for anything
+// not explicitly listed treated a mid-tour-review enrollment as fully
+// approved, even while it was still waiting on the manager (or CTD) to act
+// on the tour.
 const PRE_APPROVAL_STAGES = [
   ENROLLMENT_STAGE.SUBMITTED,
   ENROLLMENT_STAGE.MANAGER_REVIEW,
   ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+  ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+  ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+  ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
 ];
 
 //employee dasboard summary data

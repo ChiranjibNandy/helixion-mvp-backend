@@ -44,3 +44,22 @@ export interface BulkUploadUserDto {
    osdLevel?: number | string;
    action?: string;           // "approve" | "update"
 }
+
+export interface EmployeeDetailDto {
+   id: string;
+   name: string;
+   email: string;
+   employeeCode?: string;
+   mobile?: string;
+   placeOfPosting?: string;
+   designation?: string;
+   department?: string;
+   orgRole: string;
+   isManager: boolean;
+   status: string;
+   reportingManagerEmail?: string | null;
+   skip1Email?: string | null;
+   skip2Email?: string | null;
+   trainingDeptSeniorOfficer: boolean;
+   osdSeniorOfficer: boolean;
+}

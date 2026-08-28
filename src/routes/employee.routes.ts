@@ -10,7 +10,8 @@ import {
    submitEnrollment,
    submitReimbursement,
    getEmployeeNotifications,
-   submitTourForm
+   submitTourForm,
+   getEnrollmentPanelById
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -27,7 +28,7 @@ import {
 
 const router = express.Router();
 
-router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE));
+router.use(authenticate, requirePasswordChange, authorizeRole(ORG_ROLE.EMPLOYEE, ORG_ROLE.MANAGER));
 
 
 router.get("/dashboard", getEmployeeDashboard);
@@ -49,6 +50,8 @@ router.post(
 router.get("/notifications", getEmployeeNotifications);
 
 router.get("/enrollments", getEmployeeEnrollments);
+
+router.get("/enrollments/panel/:id", getEnrollmentPanelById);
 
 router.get("/enrollments/:id", getEnrollmentDetails);
 

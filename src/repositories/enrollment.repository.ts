@@ -3,7 +3,7 @@ import enrollmentModel from "../models/enrollment.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, APPROVAL_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -166,8 +166,16 @@ export const createEnrollmentRepo = async (data: Partial<IEnrollment>) => {
   return await enrollmentModel.create(data);
 };
 
-export const getEmployeeEnrollmentsRepo = async (userId: string) => {
-  return await enrollmentModel.aggregate([
+//search , pagination of enrollment list on logged user
+
+export const getEmployeeEnrollmentsRepo = async (
+  userId: string,
+  page: number,
+  limit: number,
+  search: string
+) => {
+  const skip = (page - 1) * limit;
+  const pipeline: any[] = [
     {
       $match: {
         $or: [
@@ -176,6 +184,7 @@ export const getEmployeeEnrollmentsRepo = async (userId: string) => {
         ]
       }
     },
+
     {
       $lookup: {
         from: "programs",
@@ -184,23 +193,89 @@ export const getEmployeeEnrollmentsRepo = async (userId: string) => {
         as: "programDetails"
       }
     },
+
     {
       $addFields: {
         programDetails: {
           $arrayElemAt: ["$programDetails", 0]
-        },
-        programId: {
-          $arrayElemAt: ["$programDetails", 0]
         }
       }
-    },
+    }
+  ];
+
+  // Search program title/name
+  if (search) {
+    pipeline.push({
+      $match: {
+        "programDetails.title": {
+          $regex: search,
+          $options: "i"
+        }
+      }
+    });
+  }
+
+  pipeline.push(
     {
       $sort: {
         createdAt: -1
       }
+    },
+
+    {
+      $facet: {
+        data: [
+          {
+            $skip: skip
+          },
+          {
+            $limit: limit
+          }
+        ],
+
+        totalCount: [
+          {
+            $count: "count"
+          }
+        ]
+      }
+    },
+
+    {
+      $project: {
+        data: 1,
+        total: {
+          $ifNull: [
+            {
+              $arrayElemAt: ["$totalCount.count", 0]
+            },
+            0
+          ]
+        }
+      }
     }
-  ]);
+  );
+
+  const result = await enrollmentModel.aggregate(pipeline);
+
+  const data = result[0]?.data || [];
+  const total = result[0]?.total || 0;
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1
+    }
+  };
 };
+
 
 export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
   const results = await enrollmentModel.aggregate([
@@ -236,6 +311,15 @@ export const getEnrollmentDetailsRepo = async (id: string, userId: string) => {
 };
 
 
+// statusSummary.enrollmentStatus only ever holds ENROLLMENT_STATUS_SUMMARY
+// values ("submitted" | "recommended" | "approved" | "rejected") — never
+// ENROLLMENT_STATUS's ("active" | "pending" | ...), which is a different
+// enum for a different field. Checking against the wrong enum here meant
+// this $in clause could never match anything, so the "already enrolled"
+// guard silently never fired: an employee could enroll in the same program
+// any number of times, at any stage, including after already being
+// approved. REJECTED is deliberately excluded — a rejected employee should
+// be able to re-apply.
 export const findExistingEnrollmentRepo = async (userId: string, programId: string) => {
   return await enrollmentModel.findOne({
     $or: [
@@ -243,7 +327,13 @@ export const findExistingEnrollmentRepo = async (userId: string, programId: stri
       { userId: toObjectId(userId) }
     ],
     programId: toObjectId(programId),
-    "statusSummary.enrollmentStatus": { $in: [ENROLLMENT_STATUS.ACTIVE, ENROLLMENT_STATUS.PENDING] }
+    "statusSummary.enrollmentStatus": {
+      $in: [
+        ENROLLMENT_STATUS_SUMMARY.SUBMITTED,
+        ENROLLMENT_STATUS_SUMMARY.RECOMMENDED,
+        ENROLLMENT_STATUS_SUMMARY.APPROVED,
+      ],
+    },
   });
 };
 
@@ -750,7 +840,19 @@ export const getPendingTourApprovalsForManagerRepo = async (
     })
     .populate("employeeId", "name email employeeCode designation department placeOfPosting")
     .populate("programId", "title startDate endDate city venueName")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(DASHBOARD_LIST_CAP);
+};
+
+export const countPendingTourApprovalsForManagerRepo = async (
+  managerId: string,
+  orgId: string
+) => {
+  return await enrollmentModel.countDocuments({
+    orgId: toObjectId(orgId),
+    currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+    "managerApproval.assignedApproverId": toObjectId(managerId),
+  });
 };
 
 export const getPendingTourApprovalsForCtdRepo = async (orgId: string) => {
@@ -772,3 +874,48 @@ export const countPendingTourApprovalsForCtdRepo = async (orgId: string) => {
     currentStage: ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
   });
 };
+
+
+export const getEnrollmentPanelById = async (enrollmentId: string, employeeId: string) => {
+  return await enrollmentModel.findOne({
+    _id: enrollmentId,
+    employeeId,
+  })
+    .select("notes currentStage providerOrgId programId")
+    .populate({
+      path: "providerOrgId",
+      select: "name email",
+    })
+    .populate({
+      path: "programId",
+      select: "brochureUrl title",
+    })
+    .lean();
+}
+// Distribution of this org's CTD review decisions (there is exactly one CTD
+// per org, so every enrollment that has ever reached training_dept_review
+// belongs to them) — mirrors getManagerApprovalStatsRepo's approved/pending/
+// dismissed shape for the CTD dashboard's own Approval Status donut.
+export const getTrainingDeptApprovalStatsRepo = async (orgId: string) => {
+  const stats = await enrollmentModel.aggregate([
+    {
+      $match: {
+        orgId: toObjectId(orgId),
+        "trainingDeptReview.seniorAction": { $in: [TRAINING_DEPT_SENIOR_ACTION.APPROVE, TRAINING_DEPT_SENIOR_ACTION.REJECT] },
+      },
+    },
+    { $group: { _id: "$trainingDeptReview.seniorAction", count: { $sum: 1 } } },
+  ]);
+
+  const result: Record<"approved" | "pending" | "dismissed", number> = {
+    approved: 0, pending: 0, dismissed: 0,
+  };
+
+  stats.forEach((item) => {
+    if (item._id === TRAINING_DEPT_SENIOR_ACTION.APPROVE) result.approved += item.count;
+    else if (item._id === TRAINING_DEPT_SENIOR_ACTION.REJECT) result.dismissed += item.count;
+  });
+
+  return result;
+};
+
