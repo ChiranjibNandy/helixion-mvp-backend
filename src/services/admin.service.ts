@@ -24,6 +24,7 @@ import {
   bulkWriteUsersRepo,
 } from "../repositories/user.repository.js";
 import UploadJob from "../models/uploadJob.model.js";
+import { uploadQueue } from "../queue/bullConfig.js";
 import { Types } from "mongoose";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -846,9 +847,7 @@ export const createBulkUploadJobService = async (file: Express.Multer.File, user
     orgId: org._id,
   });
 
-  processBulkUploadJobService(String(job._id), rows).catch((err) => {
-    console.error(`[bulkUploadJob:${job._id}] processing failed to start:`, err?.message || err);
-  });
+  await uploadQueue.add({ jobId: String(job._id) }, { attempts: 1 });
 
   return { jobId: job._id };
 };
