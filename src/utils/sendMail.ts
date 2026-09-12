@@ -220,6 +220,23 @@ export const sendEnrollmentRejectedByTrainingDeptMail = notificationMail(
   `
 );
 
+// Fires when the program's attendance quota fills up and this enrollment,
+// still pending Manager or Training Dept review, is auto-rejected as part
+// of clearing the rest of the backlog.
+export const sendEnrollmentAutoRejectedQuotaFullMail = notificationMail(
+  "Training Enrollment Rejected",
+  "Enrollment Rejected",
+  ({ username, programTitle }) => `
+    <p>Hello, ${username}</p>
+    <p>
+      Your enrollment request for <strong>${programTitle}</strong> could not
+      be approved because the program has reached its maximum attendance
+      capacity.
+    </p>
+    <p>Please contact the Training Provider for further assistance.</p>
+  `
+);
+
 export const sendEnrollmentApprovedLocalMail = notificationMail(
   "Enrollment Approved",
   "Enrollment Approved",

@@ -251,6 +251,13 @@ export enum ENROLLMENT_STATUS {
   PENDING = "pending",
 }
 
+// ─── Rejection reasons (why currentStage became REJECTED) ─────────────────────
+export enum ENROLLMENT_REJECTION_REASON {
+  MANAGER = "manager",
+  TRAINING_DEPT = "training_dept",
+  QUOTA_FULL = "quota_full",
+}
+
 export enum ENROLLMENT_APPROVAL_STATUS {
   PENDING_APPROVAL = "pending_approval",
   APPROVED = "approved",
