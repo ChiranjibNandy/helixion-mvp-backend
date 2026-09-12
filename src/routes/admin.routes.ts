@@ -1,7 +1,7 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats, getEmployeeById, updateEmployee } from "../controllers/admin.controller.js";
-import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema, updateEmployeeParamsSchema, updateEmployeeBodySchema } from "../validators/admin.validator.js";
+import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, createBulkUploadJob, getBulkUploadJobStatus, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats, getEmployeeById, updateEmployee } from "../controllers/admin.controller.js";
+import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema, updateEmployeeParamsSchema, updateEmployeeBodySchema, bulkUploadJobParamsSchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
@@ -49,6 +49,16 @@ router.get("/dashboard/stats", getAdminDashboardStats);
 router.post("/users/batch",
    uploadCsv.single("file"),
    batchCreateUsers
+);
+
+router.post("/users/batch-async",
+   uploadCsv.single("file"),
+   createBulkUploadJob
+);
+
+router.get("/users/batch/:jobId",
+   validate({ params: bulkUploadJobParamsSchema }),
+   getBulkUploadJobStatus
 );
 
 // Single-employee creation — the only path that can create someone with no

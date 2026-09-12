@@ -21,7 +21,9 @@ import {
   getOrgUserStatsRepo,
   clearOtherOfficeRoleHoldersRepo,
   getRecentlyAddedUsersRepo,
+  bulkWriteUsersRepo,
 } from "../repositories/user.repository.js";
+import UploadJob from "../models/uploadJob.model.js";
 import { Types } from "mongoose";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -536,161 +538,263 @@ const friendlyBatchRowError = (err: any, row: any): string => {
   return message;
 };
 
-export const batchCreateUsersService = async (
-  file: Express.Multer.File, userId: string
-) => {
-  let rows;
-
+const parseBulkUploadFile = async (file: { originalname: string; buffer: Buffer }) => {
   if (file.originalname.endsWith(".csv")) {
-    rows = await parseCsvBuffer(file.buffer);
-  } else if (
-    file.originalname.endsWith(".xlsx") ||
-    file.originalname.endsWith(".xls")
-  ) {
-    rows = await parseExcelBuffer(file.buffer);
-  } else {
-    throw new AppError("Unsupported file type", 400);
+    return await parseCsvBuffer(file.buffer);
   }
+  if (file.originalname.endsWith(".xlsx") || file.originalname.endsWith(".xls")) {
+    return await parseExcelBuffer(file.buffer);
+  }
+  throw new AppError("Unsupported file type", 400);
+};
 
-  let created = 0;
-  let updated = 0;
+const MANAGER_EMAIL_COLUMNS = [
+  ["Reporting Manager Email", true],
+  ["Skip Level 1 Manager Email", false],
+  ["Skip Level 2 Manager Email", false],
+] as const;
 
-  
+const BULK_WRITE_CHUNK_SIZE = 200;
+
+const chunkArray = <T,>(arr: T[], size: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+};
+
+type BulkRowPlan = {
+  row: any;
+  payload: ReturnType<typeof mapSpreadsheetEmployee>;
+  isUpdate: boolean;
+  existingId?: any;
+};
+
+export const processBulkUserRows = async (
+  rows: any[],
+  org: any,
+  onProgress?: (progressPercent: number) => Promise<void>
+) => {
+  const defaultPassword = await bcrypt.hash(DEFAULT_PASSWORD_PLAINTEXT, 10);
   const skipped: { email?: string; employeeCode?: string; error: string }[] = [];
 
-  const defaultPassword = await bcrypt.hash(DEFAULT_PASSWORD_PLAINTEXT, 10);
-  const user = await getUserByIdRepo(userId)
-  if (!user) {
-    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
-  }
-  if (!user.orgId) {
-    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND)
-  }
-
-  const org = await findOrgById(user.orgId)
-  if (!org) {
-    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
-  }
-
-
-  // Every email in this file, collected up front — lets a manager
-  // reference resolve to another row in the SAME upload regardless of
-  // which order the rows appear in (Pass 1 hasn't created that row yet
-  // if it comes later in the file, but its email is already known here).
   const emailsInFile = new Set(
-    rows
-      .map((r: any) => r.Email?.toString().trim().toLowerCase())
-      .filter(Boolean)
+    rows.map((r: any) => r.Email?.toString().trim().toLowerCase()).filter(Boolean)
   );
 
-  const managerRefResolves = async (email: unknown): Promise<boolean> => {
+  const referencedEmails = new Set<string>();
+  for (const row of rows) {
+    const own = row.Email?.toString().trim().toLowerCase();
+    if (own) referencedEmails.add(own);
+    for (const [column] of MANAGER_EMAIL_COLUMNS) {
+      const email = row[column]?.toString().trim().toLowerCase();
+      if (email) referencedEmails.add(email);
+    }
+  }
+
+  const existingUsers = referencedEmails.size > 0 ? await getUsersByEmailsRepo([...referencedEmails]) : [];
+  const byEmail = new Map<string, any>(existingUsers.map((u) => [u.email, u]));
+
+  const managerRefResolves = (email: unknown): boolean => {
     if (!email) return true;
     const normalized = String(email).trim().toLowerCase();
     if (emailsInFile.has(normalized)) return true;
-    const match = await getUserByEmailRepo(normalized);
+    const match = byEmail.get(normalized);
     return !!match && String(match.orgId) === String(org._id);
   };
 
-  //-------------------------------------------------------
-  // PASS 1 — one row failing (duplicate employeeCode, missing/invalid
-  // email, unresolvable manager reference, etc.) must not abort every row
-  // after it in the same file.
-  //-------------------------------------------------------
+  const plans: BulkRowPlan[] = [];
+  const seenNewEmails = new Set<string>();
+  const updatePlansByEmail = new Map<string, BulkRowPlan>();
 
   for (const row of rows) {
     try {
-      const payload = mapSpreadsheetEmployee(
-        row,
-        org,
-        defaultPassword
-      );
+      const payload = mapSpreadsheetEmployee(row, org, defaultPassword);
 
       if (!payload.email) {
         throw new Error("Missing or invalid email");
+      }
+      if (!payload.name) {
+        throw new Error("Name of the employee is required");
       }
 
       // Reporting Manager Email is mandatory — every uploaded person must
       // have a direct manager, no top-of-chain exceptions via bulk upload.
       // Skip Level 1/2 remain optional, but must resolve if given.
-      if (!row["Reporting Manager Email"]) {
-        throw new Error("Reporting Manager Email is required");
-      }
-
-      for (const [label, managerEmail] of [
-        ["Reporting Manager Email", row["Reporting Manager Email"]],
-        ["Skip Level 1 Manager Email", row["Skip Level 1 Manager Email"]],
-        ["Skip Level 2 Manager Email", row["Skip Level 2 Manager Email"]],
-      ] as const) {
-        if (managerEmail && !(await managerRefResolves(managerEmail))) {
-          throw new Error(`${label} "${managerEmail}" does not match any existing user or row in this file`);
+      for (const [column, required] of MANAGER_EMAIL_COLUMNS) {
+        const managerEmail = row[column];
+        if (!managerEmail) {
+          if (required) throw new Error(`${column} is required`);
+          continue;
+        }
+        if (!managerRefResolves(managerEmail)) {
+          throw new Error(`${column} "${managerEmail}" does not match any existing user or row in this file`);
         }
       }
 
-      const existing = await getUserByEmailRepo(payload.email);
-
+      const existing = byEmail.get(payload.email);
       if (existing) {
-
         if (existing.orgRole !== ORG_ROLE.EMPLOYEE && existing.orgRole !== ORG_ROLE.MANAGER) {
           throw new Error(`Email "${payload.email}" belongs to a ${existing.orgRole} account and cannot be modified via bulk upload`);
         }
         if (existing.orgId && String(existing.orgId) !== String(org._id)) {
           throw new Error(`Email "${payload.email}" already belongs to a user in another organization`);
         }
-        const { passwordHash, mustChangePassword, ...detailPayload } = payload;
-        await updateOneUser(existing._id, { ...detailPayload, isApproved: true });
-        updated++;
-        await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, existing._id as Types.ObjectId, payload.officeRoles);
+        const priorDuplicate = updatePlansByEmail.get(payload.email);
+        if (priorDuplicate) {
+          skipped.push({
+            email: priorDuplicate.row.Email,
+            employeeCode: priorDuplicate.row["Employee Roll No."],
+            error: `Email "${payload.email}" appears more than once in this file — only the last occurrence was applied`,
+          });
+        }
+        updatePlansByEmail.set(payload.email, { row, payload, isUpdate: true, existingId: existing._id });
       } else {
-        const createdRow = await createUserRepo({ ...payload, isApproved: true });
-        created++;
-        await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, createdRow._id as Types.ObjectId, payload.officeRoles);
-        // Only brand-new rows get the welcome email — an existing employee
-        // being updated (e.g. role/office-role change) already has an
-        // account and a real password; resending "here's your password"
-        // would be wrong for them.
-        sendWelcomeMail(payload.email, payload.name || payload.email, DEFAULT_PASSWORD_PLAINTEXT)
-          .catch(logMailFailure("welcome-bulk-upload"));
+        if (seenNewEmails.has(payload.email)) {
+          throw new Error(`Email "${payload.email}" appears more than once in this file for a new employee — only the first occurrence was processed`);
+        }
+        seenNewEmails.add(payload.email);
+        plans.push({ row, payload, isUpdate: false });
       }
     } catch (err: any) {
       skipped.push({ email: row.Email, employeeCode: row["Employee Roll No."], error: friendlyBatchRowError(err, row) });
     }
   }
+  plans.push(...updatePlansByEmail.values());
 
-  const inSameOrg = (user: any) => (user && String(user.orgId) === String(org._id) ? user : null);
+  const resolvedIds = new Map<string, any>(existingUsers.map((u) => [u.email, u._id]));
+  const succeeded: BulkRowPlan[] = [];
+  let createdCount = 0;
+  let updatedCount = 0;
 
-  for (const row of rows) {
+  const applyChunkResult = (
+    batch: BulkRowPlan[],
+    result: any,
+    writeErrorsByIndex: Map<number, any>
+  ) => {
+    const validationResults: any[] = result?.mongoose?.results ?? [];
+    const insertedIds: Record<number, any> = result?.insertedIds ?? {};
+
+    let sentIndex = 0;   
+    let insertCursor = 0;
+
+    batch.forEach((plan, originalIndex) => {
+      const validationError = validationResults[originalIndex];
+      if (validationError) {
+        skipped.push({ email: plan.row.Email, employeeCode: plan.row["Employee Roll No."], error: friendlyBatchRowError(validationError, plan.row) });
+        return;
+      }
+
+      const writeError = writeErrorsByIndex.get(sentIndex++);
+      if (writeError) {
+        skipped.push({ email: plan.row.Email, employeeCode: plan.row["Employee Roll No."], error: friendlyBatchRowError(writeError, plan.row) });
+        return;
+      }
+
+      if (plan.isUpdate) {
+        updatedCount++;
+        resolvedIds.set(plan.payload.email, plan.existingId);
+      } else {
+        createdCount++;
+        resolvedIds.set(plan.payload.email, insertedIds[insertCursor++]);
+      }
+      succeeded.push(plan);
+    });
+  };
+
+
+  const writeChunks = chunkArray(plans, BULK_WRITE_CHUNK_SIZE);
+  for (let c = 0; c < writeChunks.length; c++) {
+    const batch = writeChunks[c];
+    const ops = batch.map((plan) => {
+      if (plan.isUpdate) {
+        const { passwordHash, mustChangePassword, ...detailPayload } = plan.payload;
+        return { updateOne: { filter: { _id: plan.existingId }, update: { $set: { ...detailPayload, isApproved: true } } } };
+      }
+      return { insertOne: { document: { ...plan.payload, isApproved: true } } };
+    });
+
     try {
-      const employee = await getUserByEmailRepo(
-        row.Email?.toLowerCase()
-      );
-
-      if (!employee) continue;
-
-      const reportingManager = inSameOrg(await getUserByEmailRepo(
-        row["Reporting Manager Email"]?.toLowerCase()
-      ));
-
-      const skip1 = inSameOrg(await getUserByEmailRepo(
-        row["Skip Level 1 Manager Email"]?.toLowerCase()
-      ));
-
-      const skip2 = inSameOrg(await getUserByEmailRepo(
-        row["Skip Level 2 Manager Email"]?.toLowerCase()
-      ));
-
-      await updateOneUser(employee._id, {
-        hierarchy: mapEmployeeHierarchy(
-          reportingManager,
-          skip1,
-          skip2
-        ),
-      });
+      const result: any = await bulkWriteUsersRepo(ops);
+      applyChunkResult(batch, result, new Map());
     } catch (err: any) {
-      // The employee row itself was already created/updated in PASS 1 above —
-      // only the manager-chain linking failed, so this is logged rather than
-      // added to `skipped` (which means "this person doesn't exist at all").
-      console.error(`[batchCreateUsers] hierarchy link failed for ${row.Email}:`, err?.message || err);
+      if (!err.writeErrors?.length && !err.mongoose?.results) {
+        const message = friendlyBatchRowError(err, {});
+        batch.forEach((plan) => {
+          skipped.push({ email: plan.row.Email, employeeCode: plan.row["Employee Roll No."], error: `Batch write failed: ${message}` });
+        });
+        if (onProgress) await onProgress(Math.round(((c + 1) / Math.max(writeChunks.length, 1)) * 50));
+        continue;
+      }
+
+      const writeErrorsByIndex = new Map<number, any>((err.writeErrors || []).map((e: any) => [e.index, e]));
+      applyChunkResult(batch, err, writeErrorsByIndex);
     }
+
+    if (onProgress) await onProgress(Math.round(((c + 1) / Math.max(writeChunks.length, 1)) * 50));
+  }
+
+  const newHireEmails = succeeded.filter((plan) => !plan.isUpdate);
+  const EMAIL_BATCH_SIZE = 20;
+  (async () => {
+    for (const batch of chunkArray(newHireEmails, EMAIL_BATCH_SIZE)) {
+      await Promise.allSettled(
+        batch.map((plan) =>
+          sendWelcomeMail(plan.payload.email, plan.payload.name || plan.payload.email, DEFAULT_PASSWORD_PLAINTEXT)
+            .catch(logMailFailure("welcome-bulk-upload"))
+        )
+      );
+    }
+  })();
+
+  for (const plan of succeeded) {
+    const { trainingDept, osd } = plan.payload.officeRoles;
+    if (!trainingDept.enabled && !osd.enabled) continue;
+    const id = resolvedIds.get(plan.payload.email);
+    if (!id) {
+      console.error(`[batchCreateUsers] skipping office-role enforcement for ${plan.payload.email} — no resolved id`);
+      continue;
+    }
+    await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, id, plan.payload.officeRoles);
+  }
+
+  const existingUsersById = new Map(existingUsers.map((u) => [String(u._id), u]));
+  const resolveManagerRef = (id: any): { _id: any } | null => {
+    if (!id) return null;
+    const existing = existingUsersById.get(String(id));
+    if (existing) {
+      return String(existing.orgId) === String(org._id) ? existing : null;
+    }
+    return { _id: id };
+  };
+
+  const hierarchyChunks = chunkArray(succeeded, BULK_WRITE_CHUNK_SIZE);
+  for (let c = 0; c < hierarchyChunks.length; c++) {
+    const batch = hierarchyChunks[c];
+    const ops = batch.map((plan) => {
+      const employeeId = resolvedIds.get(plan.payload.email);
+      const reportingManagerId = resolvedIds.get(String(plan.row["Reporting Manager Email"] || "").trim().toLowerCase());
+      const skip1Id = resolvedIds.get(String(plan.row["Skip Level 1 Manager Email"] || "").trim().toLowerCase());
+      const skip2Id = resolvedIds.get(String(plan.row["Skip Level 2 Manager Email"] || "").trim().toLowerCase());
+
+      const reportingManager = resolveManagerRef(reportingManagerId);
+      const skip1 = resolveManagerRef(skip1Id);
+      const skip2 = resolveManagerRef(skip2Id);
+
+      return {
+        updateOne: {
+          filter: { _id: employeeId },
+          update: { $set: { hierarchy: mapEmployeeHierarchy(reportingManager, skip1, skip2) } },
+        },
+      };
+    });
+
+    try {
+      await bulkWriteUsersRepo(ops);
+    } catch (err: any) {
+      console.error(`[batchCreateUsers] hierarchy link failed for a chunk:`, err?.message || err);
+    }
+
+    if (onProgress) await onProgress(50 + Math.round(((c + 1) / Math.max(hierarchyChunks.length, 1)) * 50));
   }
 
   if (skipped.length > 0) {
@@ -698,14 +802,130 @@ export const batchCreateUsersService = async (
   }
 
   return {
-    createdCount: created,
-    updatedCount: updated,
+    createdCount,
+    updatedCount,
     skippedCount: skipped.length,
     skippedEmails: skipped.map((s) => s.email).filter((e): e is string => !!e),
     skipped,
   };
 };
 
+const resolveAdminOrg = async (userId: string) => {
+  const user = await getUserByIdRepo(userId);
+  if (!user) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+  if (!user.orgId) {
+    throw new AppError(MESSAGES.ORG_NOT_ADD_USER, HTTP_STATUS.NOT_FOUND);
+  }
+  const org = await findOrgById(user.orgId);
+  if (!org) {
+    throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+  return { user, org };
+};
+
+export const batchCreateUsersService = async (
+  file: Express.Multer.File, userId: string
+) => {
+  const rows = await parseBulkUploadFile(file);
+  const { org } = await resolveAdminOrg(userId);
+  return processBulkUserRows(rows, org);
+};
+
+export const createBulkUploadJobService = async (file: Express.Multer.File, userId: string) => {
+  const rows = await parseBulkUploadFile(file);
+  const { user, org } = await resolveAdminOrg(userId);
+
+  const job = await UploadJob.create({
+    status: "pending",
+    totalRows: rows.length,
+    fileName: file.originalname,
+    fileBuffer: file.buffer,
+    createdBy: user._id,
+    orgId: org._id,
+  });
+
+  processBulkUploadJobService(String(job._id), rows).catch((err) => {
+    console.error(`[bulkUploadJob:${job._id}] processing failed to start:`, err?.message || err);
+  });
+
+  return { jobId: job._id };
+};
+
+export const processBulkUploadJobService = async (jobId: string, preParsedRows?: any[]) => {
+  const job = await UploadJob.findById(jobId);
+  if (!job) return;
+
+  try {
+    await UploadJob.updateOne({ _id: jobId }, { $set: { status: "processing", startedAt: new Date() } });
+
+    const rows = preParsedRows ?? await parseBulkUploadFile({ originalname: job.fileName, buffer: job.fileBuffer });
+    const org = await findOrgById(job.orgId);
+    if (!org) {
+      throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    }
+
+    const result = await processBulkUserRows(rows, org, async (progressPercent) => {
+      await UploadJob.updateOne(
+        { _id: jobId },
+        { $set: { processedRows: Math.round((progressPercent / 100) * job.totalRows) } }
+      );
+    });
+
+    await UploadJob.updateOne(
+      { _id: jobId },
+      {
+        $set: {
+          status: "completed",
+          processedRows: job.totalRows,
+          createdCount: result.createdCount,
+          updatedCount: result.updatedCount,
+          skippedCount: result.skippedCount,
+          skippedEmails: result.skippedEmails,
+          skipped: result.skipped,
+          completedAt: new Date(),
+        },
+      }
+    );
+  } catch (err: any) {
+    await UploadJob.updateOne(
+      { _id: jobId },
+      { $set: { status: "failed", error: err?.message || "Bulk upload failed", completedAt: new Date() } }
+    );
+  }
+};
+
+export const getBulkUploadJobStatusService = async (jobId: string, userId: string) => {
+  const job = await UploadJob.findById(jobId);
+  if (!job || String(job.createdBy) !== String(userId)) {
+    throw new AppError(MESSAGES.BULK_UPLOAD_JOB_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+
+  return {
+    jobId: job._id,
+    status: job.status,
+    totalRows: job.totalRows,
+    processedRows: job.processedRows,
+    progress: job.totalRows > 0 ? Math.round((job.processedRows / job.totalRows) * 100) : 0,
+    createdCount: job.createdCount,
+    updatedCount: job.updatedCount,
+    skippedCount: job.skippedCount,
+    skippedEmails: job.skippedEmails,
+    skipped: job.skipped,
+    error: job.error,
+  };
+};
+
+export const reconcileOrphanedBulkUploadJobsService = async () => {
+  const result = await UploadJob.updateMany(
+    { status: { $in: ["pending", "processing"] } },
+    { $set: { status: "failed", error: "Server restarted while this upload was processing.", completedAt: new Date() } }
+  );
+  if (result.modifiedCount > 0) {
+    console.error(`[bulkUploadJob] marked ${result.modifiedCount} orphaned job(s) from a prior process as failed`);
+  }
+};
 
 //get all user
 export const getUsersService = async (
