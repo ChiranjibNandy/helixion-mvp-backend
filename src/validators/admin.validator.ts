@@ -52,6 +52,10 @@ export const updateEmployeeParamsSchema = z.object({
   id: objectIdSchema,
 });
 
+export const bulkUploadJobParamsSchema = z.object({
+  jobId: objectIdSchema,
+});
+
 export const updateEmployeeBodySchema = z.object({
   name: z.string().trim().min(1, MESSAGES.NAME_REQUIRED).optional(),
 

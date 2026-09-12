@@ -138,4 +138,6 @@ userSchema.index({ orgId: 1, "officeRoles.osd.enabled": 1, "officeRoles.osd.leve
 // Employee code within org (unique per org, not globally)
 userSchema.index({ orgId: 1, employeeCode: 1 }, { unique: true, sparse: true });
 
+userSchema.index({ orgId: 1, createdAt: -1, _id: -1 });
+
 export default mongoose.model<IUser>("User", userSchema);

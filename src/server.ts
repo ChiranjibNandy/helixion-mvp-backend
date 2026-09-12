@@ -3,6 +3,8 @@ import { connectDB } from "./config/db.js";
 import app from "./app.js";
 import { ENV } from "./config/env.js";
 import { startOsdTimeoutCron } from "./cron/osdTimeout.cron.js";
+import { reconcileOrphanedBulkUploadJobsService } from "./services/admin.service.js";
+import { startUploadWorker } from "./workers/uploadWorker.js";
 
 dotenv.config();
 
@@ -13,6 +15,8 @@ dotenv.config();
 async function start() {
   await connectDB();
   startOsdTimeoutCron();
+  await reconcileOrphanedBulkUploadJobsService();
+  startUploadWorker();
 
   app.listen(ENV.PORT, () => {
     console.log(`Server running on port ${ENV.PORT}`);

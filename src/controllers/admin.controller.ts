@@ -6,6 +6,8 @@ import {
   deactivateUserService,
   activateUserService,
   batchCreateUsersService,
+  createBulkUploadJobService,
+  getBulkUploadJobStatusService,
   getUsersService,
   searchUsersService,
   createSingleUserService,
@@ -273,6 +275,52 @@ export const batchCreateUsers = async (
         skipped: result.skipped,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createBulkUploadJob = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.file) {
+      throw new AppError("CSV file is required", HTTP_STATUS.BAD_REQUEST);
+    }
+    if (!req.userId) {
+      throw new AppError(MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN);
+    }
+
+    const { jobId } = await createBulkUploadJobService(req.file, req.userId);
+
+    return res.status(HTTP_STATUS.ACCEPTED).json({
+      success: true,
+      message: MESSAGES.BULK_UPLOAD_JOB_CREATED,
+      data: {
+        jobId,
+        statusUrl: `/admin/users/batch/${jobId}`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBulkUploadJobStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) {
+      throw new AppError(MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN);
+    }
+
+    const data = await getBulkUploadJobStatusService(String(req.params.jobId), req.userId);
+
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
   } catch (error) {
     next(error);
   }

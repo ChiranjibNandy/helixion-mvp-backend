@@ -15,7 +15,7 @@ export const getPendingRegistrationsRepo = async (
       User.find({
          isApproved: false
       })
-         .sort({ createdAt: -1 })
+         .sort({ createdAt: -1, _id: -1 })
          .skip(skip)
          .limit(limit),
 
@@ -74,6 +74,13 @@ export const getRegisteredUsersRepo =
                   email: 1
                }
             )
+               // No sort at all previously meant Mongo's documented
+               // "unspecified order" applied — paging from page 1 to page 2
+               // could show a duplicate or silently skip a row on every
+               // request, not just when timestamps tie. _id is unique and
+               // monotonically increasing, so it alone gives a fully
+               // deterministic order with no extra field needed.
+               .sort({ _id: -1 })
                .skip(skip)
                .limit(limit),
 
