@@ -1,5 +1,7 @@
+import mongoose, { HydratedDocument } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { IProgram } from "../interfaces/program.interface.js";
 import {
    getPendingEnrollmentsForStageRepo,
    getPendingTourApprovalsForCtdRepo,
@@ -10,6 +12,7 @@ import {
 } from "../repositories/enrollment.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import { AppError } from "../utils/appError.js";
+import { reserveProgramSlot, autoRejectRemainingPendingEnrollments } from "./quota.service.js";
 import {
    ENROLLMENT_STAGE,
    TRAINING_DEPT_JUNIOR_ACTION,
@@ -18,6 +21,7 @@ import {
    TRAVEL_TYPE,
    TOUR_STATUS,
    TOUR_CTD_ACTION,
+   ENROLLMENT_REJECTION_REASON,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import {
@@ -257,55 +261,98 @@ export const takeSeniorActionService = async (
 
    const nextEnrollmentStatus = approving ? "approved" : "rejected";
 
-   // 4. Atomic update — single round-trip. The filter re-checks currentStage,
-   // so a second, racing request (double-click, or a second officer acting
-   // concurrently) will find nothing to update once the first request has
-   // already moved currentStage away from TRAINING_DEPT_REVIEW.
-   const updated = await enrollmentModel.findOneAndUpdate(
-      {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
-         currentStage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+   const enrollmentUpdateOps = {
+      $set: {
+         currentStage:                        nextStage,
+         "statusSummary.enrollmentStatus":    nextEnrollmentStatus,
+         "trainingDeptReview.seniorOfficerId": toObjectId(officerId),
+         "trainingDeptReview.seniorAction":    action as TRAINING_DEPT_SENIOR_ACTION,
+         "trainingDeptReview.seniorNote":      note,
+         "trainingDeptReview.seniorActedAt":   new Date(),
+         ...(!approving ? { rejectionReason: ENROLLMENT_REJECTION_REASON.TRAINING_DEPT } : {}),
+         // Local training bypasses the tour form (submitTourFormService
+         // never runs for it) — mirror the fields that function would
+         // have set for a LOCAL choice, so tour.* doesn't stay at
+         // whatever default enrollment-time value it started with.
+         ...(approving && isLocal
+            ? {
+               "tour.travelType":         TRAVEL_TYPE.LOCAL,
+               "tour.status":             TOUR_STATUS.NOT_REQUIRED,
+               "statusSummary.tourStatus": TOUR_STATUS.NOT_REQUIRED,
+            }
+            : {}),
       },
-      {
-         $set: {
-            currentStage:                        nextStage,
-            "statusSummary.enrollmentStatus":    nextEnrollmentStatus,
-            "trainingDeptReview.seniorOfficerId": toObjectId(officerId),
-            "trainingDeptReview.seniorAction":    action as TRAINING_DEPT_SENIOR_ACTION,
-            "trainingDeptReview.seniorNote":      note,
-            "trainingDeptReview.seniorActedAt":   new Date(),
-            // Local training bypasses the tour form (submitTourFormService
-            // never runs for it) — mirror the fields that function would
-            // have set for a LOCAL choice, so tour.* doesn't stay at
-            // whatever default enrollment-time value it started with.
-            ...(approving && isLocal
-               ? {
-                  "tour.travelType":         TRAVEL_TYPE.LOCAL,
-                  "tour.status":             TOUR_STATUS.NOT_REQUIRED,
-                  "statusSummary.tourStatus": TOUR_STATUS.NOT_REQUIRED,
-               }
-               : {}),
-         },
-         $push: {
-            timeline: {
-               stage:     nextStage,
-               actorId:   toObjectId(officerId),
-               actorType: ACTOR_TYPE.TRAINING_DEPT,
-               action,
-               note,
-               at:        new Date(),
-            },
+      $push: {
+         timeline: {
+            stage:     nextStage,
+            actorId:   toObjectId(officerId),
+            actorType: ACTOR_TYPE.TRAINING_DEPT,
+            action,
+            note,
+            at:        new Date(),
          },
       },
-      { new: true }
-   );
+   };
 
-   if (!updated) {
-      throw new AppError(
-         "Senior review has already been recorded for this enrollment.",
-         HTTP_STATUS.CONFLICT
+   const enrollmentFilter = {
+      _id:          toObjectId(String(enrollmentId)),
+      orgId:        toObjectId(orgId),
+      currentStage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+   };
+
+   let updated;
+   let reservedProgram: HydratedDocument<IProgram> | null = null;
+
+   if (approving) {
+      // Approval must atomically reserve a quota slot on the Program AND
+      // advance the enrollment's stage — both or neither. This is the
+      // point at which the enrollment becomes "confirmed to TP", so the
+      // confirmedEnrollmentCount counter increments exactly here.
+      const session = await mongoose.startSession();
+      try {
+         await session.withTransaction(async () => {
+            reservedProgram = await reserveProgramSlot(String(existing.programId), session);
+            if (!reservedProgram) {
+               throw new AppError(MESSAGES.PROGRAM_FULL, HTTP_STATUS.CONFLICT);
+            }
+
+            updated = await enrollmentModel.findOneAndUpdate(
+               enrollmentFilter,
+               enrollmentUpdateOps,
+               { new: true, session }
+            );
+
+            if (!updated) {
+               throw new AppError(
+                  "Senior review has already been recorded for this enrollment.",
+                  HTTP_STATUS.CONFLICT
+               );
+            }
+         });
+      } finally {
+         await session.endSession();
+      }
+
+      // Cascade: if that reservation just filled the program, clear the
+      // rest of the backlog (other Manager/CTD-pending enrollments) now.
+      const finalReservedProgram = reservedProgram as HydratedDocument<IProgram> | null;
+      if (finalReservedProgram && finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants!) {
+         await autoRejectRemainingPendingEnrollments(String(existing.programId), enrollmentId);
+      }
+   } else {
+      // Rejection doesn't touch the quota — single-document update as before.
+      updated = await enrollmentModel.findOneAndUpdate(
+         enrollmentFilter,
+         enrollmentUpdateOps,
+         { new: true }
       );
+
+      if (!updated) {
+         throw new AppError(
+            "Senior review has already been recorded for this enrollment.",
+            HTTP_STATUS.CONFLICT
+         );
+      }
    }
 
    const { employee, programTitle } = notificationContext;

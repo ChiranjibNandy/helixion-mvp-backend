@@ -1,6 +1,7 @@
-import { Types } from "mongoose";
+import mongoose, { Types, HydratedDocument } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { IProgram } from "../interfaces/program.interface.js";
 import {
    getPendingEnrollmentsForManagerRepo,
    countPendingEnrollmentsForManagerRepo,
@@ -13,7 +14,9 @@ import {
 } from "../repositories/enrollment.repository.js";
 import { getApprovalStatsRepo } from "../repositories/employee.repository.js";
 import enrollmentModel from "../models/enrollment.model.js";
+import programModel from "../models/program.model.js";
 import { AppError } from "../utils/appError.js";
+import { reserveProgramSlot, autoRejectRemainingPendingEnrollments } from "./quota.service.js";
 import {
    MANAGER_ACTION,
    MANAGER_CHAIN_STATUS,
@@ -24,6 +27,7 @@ import {
    TRAVEL_TYPE,
    REIMBURSEMENT_ACTION,
    REIMBURSEMENT_STATUS,
+   ENROLLMENT_REJECTION_REASON,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
@@ -193,11 +197,18 @@ export const takeManagerActionService = async (
    // post-update mail dispatch, so it isn't fetched twice.
    let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
 
+   // Set when this specific approval must atomically reserve a program quota
+   // slot (see the trainingDeptEnabled===false branch below) — routes the
+   // final enrollment update through a transaction instead of the plain
+   // single-document update every other manager action uses.
+   let requiresQuotaReservation = false;
+
    if (action === MANAGER_ACTION.REJECT) {
       nextStage             = ENROLLMENT_STAGE.REJECTED;
       nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
+      updateOps.$set.rejectionReason = ENROLLMENT_REJECTION_REASON.MANAGER;
       updateOps.$push.timeline.stage = nextStage;
       if (enrollment.travelAndStay) {
          updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.REJECT;
@@ -236,6 +247,15 @@ export const takeManagerActionService = async (
             // branch takeSeniorActionService (CTD) would otherwise apply, and
             // firing the "Enrollment Approved" notification here instead
             // since CTD's own approval step, which normally sends it, never runs.
+            //
+            // This manager approval IS the final gate in this org (no CTD
+            // step exists to reserve a quota slot later), so it must reserve
+            // one itself — see requiresQuotaReservation below, which routes
+            // the final enrollment update through the same
+            // reserveProgramSlot+transaction pattern trainingDept.service.ts
+            // uses for its equivalent final-approval step.
+            requiresQuotaReservation = true;
+
             const { employee, program, programTitle } = await loadNotificationContext(
                String(enrollment.employeeId),
                String(enrollment.programId)
@@ -264,6 +284,18 @@ export const takeManagerActionService = async (
 
             skippedCtdNotification = { employee, programTitle, isLocal };
          } else {
+            // Quota isn't reserved here — CTD's approval is still the real
+            // reservation point — but we block early if it's already full,
+            // so a manager doesn't push a request into a queue that CTD can
+            // only bounce right back out. Non-atomic on purpose: a race with
+            // CTD filling the last slot between this read and the write
+            // below just means this request also gets picked up later by
+            // the CTD-side atomic check (and, if needed, the cascade).
+            const program = await programModel.findById(enrollment.programId);
+            if (!program || program.confirmedEnrollmentCount >= (program.maxParticipants ?? 0)) {
+               throw new AppError(MESSAGES.PROGRAM_FULL, HTTP_STATUS.CONFLICT);
+            }
+
             // Minimum required level has approved — advance to training dept review
             nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
@@ -303,20 +335,51 @@ export const takeManagerActionService = async (
          MANAGER_CHAIN_STATUS.PENDING;
    }
 
-   await enrollmentModel.findOneAndUpdate(
-      {
-         _id:   toObjectId(String(enrollmentId)),
-         orgId: toObjectId(orgId),
-         managerChain: {
-            $elemMatch: {
-               userId: toObjectId(managerId),
-               status: MANAGER_CHAIN_STATUS.PENDING,
-            },
+   const enrollmentFilter = {
+      _id:   toObjectId(String(enrollmentId)),
+      orgId: toObjectId(orgId),
+      managerChain: {
+         $elemMatch: {
+            userId: toObjectId(managerId),
+            status: MANAGER_CHAIN_STATUS.PENDING,
          },
       },
-      updateOps,
-      { arrayFilters, new: true }
-   );
+   };
+
+   if (requiresQuotaReservation) {
+      // This approval is the final gate (Training Dept review disabled for
+      // this org) — reserve the quota slot and advance the enrollment
+      // atomically, exactly like trainingDept.service.ts's CTD approval.
+      let reservedProgram: HydratedDocument<IProgram> | null = null;
+      const session = await mongoose.startSession();
+      try {
+         await session.withTransaction(async () => {
+            reservedProgram = await reserveProgramSlot(String(enrollment.programId), session);
+            if (!reservedProgram) {
+               throw new AppError(MESSAGES.PROGRAM_FULL, HTTP_STATUS.CONFLICT);
+            }
+
+            await enrollmentModel.findOneAndUpdate(
+               enrollmentFilter,
+               updateOps,
+               { arrayFilters, new: true, session }
+            );
+         });
+      } finally {
+         await session.endSession();
+      }
+
+      const finalReservedProgram = reservedProgram as HydratedDocument<IProgram> | null;
+      if (finalReservedProgram && finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants!) {
+         await autoRejectRemainingPendingEnrollments(String(enrollment.programId), enrollmentId);
+      }
+   } else {
+      await enrollmentModel.findOneAndUpdate(
+         enrollmentFilter,
+         updateOps,
+         { arrayFilters, new: true }
+      );
+   }
 
    if (action === MANAGER_ACTION.REJECT) {
       loadNotificationContext(String(enrollment.employeeId), String(enrollment.programId))

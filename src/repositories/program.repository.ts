@@ -556,6 +556,7 @@ export const getPrograms = async (
         startDate: 1,
         enrolledCount: 1,
         maxParticipants: 1,
+        confirmedEnrollmentCount: 1,
         fillRate: {
           $round: ["$fillRate", 0],
         },
