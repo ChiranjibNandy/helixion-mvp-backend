@@ -28,6 +28,8 @@ import {
 import { toObjectId } from "../utils/mongo.js";
 import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
+import { createNotification } from "../repositories/notification.repository.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -72,16 +74,16 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
 
    const mapPendingRow = (enrollment: any) => {
       const employee = enrollment.employeeId;
-      const program   = enrollment.programId;
+      const program = enrollment.programId;
 
       return {
-         _id:          enrollment._id.toString(),
+         _id: enrollment._id.toString(),
          employeeName: employee?.name ?? "Unknown",
          programTitle: program?.title ?? "Untitled Program",
-         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
-         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
-         venue:        program?.venueName || program?.city || "",
-         status:       "Pending Approval",
+         fromDate: program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate: program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue: program?.venueName || program?.city || "",
+         status: "Pending Approval",
       };
    };
 
@@ -93,7 +95,7 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
       // action (matches the "Pending Team Enrollments" badge/donut below it),
       // not ownSummary's personal-employee pendingApprovals count. Uses the
       // true count, not pendingTeamEnrollments.length, since that list is capped.
-      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
+      summary: { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
       approvalStats,
       pendingTeamEnrollments,
       pendingTourApprovals,
@@ -132,7 +134,7 @@ export const takeManagerActionService = async (
    }
 
    const enrollment = await enrollmentModel.findOne({
-      _id:   toObjectId(String(enrollmentId)),
+      _id: toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
       currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       managerChain: {
@@ -159,7 +161,7 @@ export const takeManagerActionService = async (
 
    // 4. Determine next enrollment stage
    let nextStage: ENROLLMENT_STAGE = enrollment.currentStage;
-   let nextEnrollmentStatus        = enrollment.statusSummary.enrollmentStatus;
+   let nextEnrollmentStatus = enrollment.statusSummary.enrollmentStatus;
 
    const arrayFilters: Record<string, any>[] = [
       { "actingElem.userId": toObjectId(managerId) },
@@ -167,20 +169,20 @@ export const takeManagerActionService = async (
    const updateOps: Record<string, any> = {
       $set: {
          "managerChain.$[actingElem].status": newChainStatus,
-         "managerApproval.action":            action as MANAGER_ACTION,
-         "managerApproval.note":              note,
-         "managerApproval.actedAt":           new Date(),
-         currentStage:                        nextStage,
-         "statusSummary.enrollmentStatus":    nextEnrollmentStatus,
+         "managerApproval.action": action as MANAGER_ACTION,
+         "managerApproval.note": note,
+         "managerApproval.actedAt": new Date(),
+         currentStage: nextStage,
+         "statusSummary.enrollmentStatus": nextEnrollmentStatus,
       },
       $push: {
          timeline: {
-            stage:     nextStage,
-            actorId:   toObjectId(managerId),
+            stage: nextStage,
+            actorId: toObjectId(managerId),
             actorType: ACTOR_TYPE.MANAGER,
             action,
             note,
-            at:        new Date(),
+            at: new Date(),
          },
       },
    };
@@ -194,8 +196,8 @@ export const takeManagerActionService = async (
    let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
 
    if (action === MANAGER_ACTION.REJECT) {
-      nextStage             = ENROLLMENT_STAGE.REJECTED;
-      nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
+      nextStage = ENROLLMENT_STAGE.REJECTED;
+      nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.REJECTED;
       updateOps.$set.currentStage = nextStage;
       updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
       updateOps.$push.timeline.stage = nextStage;
@@ -212,7 +214,7 @@ export const takeManagerActionService = async (
       }
    } else {
       // Check whether the minimum required level has approved
-      const minLevel      = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
+      const minLevel = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
       const approvedChain = enrollment.managerChain.filter(
          (e) => (e as any).status === MANAGER_CHAIN_STATUS.APPROVED
       );
@@ -220,7 +222,7 @@ export const takeManagerActionService = async (
       const thisEntry = enrollment.managerChain.find(
          (e) => e.userId.toString() === managerId
       );
-      const thisLevel    = thisEntry?.level ?? Infinity;
+      const thisLevel = thisEntry?.level ?? Infinity;
       const approvedLevels = [
          ...approvedChain.map((e) => e.level),
          thisLevel,
@@ -265,7 +267,7 @@ export const takeManagerActionService = async (
             skippedCtdNotification = { employee, programTitle, isLocal };
          } else {
             // Minimum required level has approved — advance to training dept review
-            nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
+            nextStage = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
             updateOps.$set.currentStage = nextStage;
             updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
@@ -282,9 +284,9 @@ export const takeManagerActionService = async (
                updateOps.$set["tour.managerApproval.note"] = note;
 
                if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-                   updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
+                  updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
                } else {
-                   updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+                  updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
                }
             }
          }
@@ -305,7 +307,7 @@ export const takeManagerActionService = async (
 
    await enrollmentModel.findOneAndUpdate(
       {
-         _id:   toObjectId(String(enrollmentId)),
+         _id: toObjectId(String(enrollmentId)),
          orgId: toObjectId(orgId),
          managerChain: {
             $elemMatch: {
@@ -320,13 +322,37 @@ export const takeManagerActionService = async (
 
    if (action === MANAGER_ACTION.REJECT) {
       loadNotificationContext(String(enrollment.employeeId), String(enrollment.programId))
-         .then(({ employee, programTitle }) => {
+         .then(async ({ employee, programTitle }) => {
             if (!employee) return;
+            // Save in-app notification 
+            await createNotification(
+               String(enrollment.employeeId),
+               NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED,
+               { programTitle },
+               String(enrollment._id)
+            );
+            // Send email
             return sendEnrollmentRejectedMail(employee.email, employee.name, programTitle);
          })
          .catch(logMailFailure("enrollment-rejected"));
    } else if (skippedCtdNotification?.employee) {
       const { employee, programTitle, isLocal } = skippedCtdNotification;
+
+      // Choose notification template
+      const template = isLocal
+         ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL
+         : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION;
+
+      // Save in-app notification
+      await createNotification(
+         String(enrollment.employeeId),
+         template,
+         { programTitle },
+         String(enrollment._id)
+      );
+
+      //send Email
+
       (isLocal
          ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
          : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle)
@@ -385,17 +411,17 @@ export const takeReimbursementManagerActionService = async (
       orgId,
       managerId,
       {
-         currentStage:                    nextStage,
-         "reimbursement.status":          nextReimbursementStatus,
+         currentStage: nextStage,
+         "reimbursement.status": nextReimbursementStatus,
          "reimbursement.managerApproval": { action, note, actedAt: new Date() },
       },
       {
-         stage:     nextStage,
-         actorId:   toObjectId(managerId),
+         stage: nextStage,
+         actorId: toObjectId(managerId),
          actorType: ACTOR_TYPE.MANAGER,
-         action:    reimbursementTimelineAction("manager", action),
+         action: reimbursementTimelineAction("manager", action),
          note,
-         at:        new Date(),
+         at: new Date(),
       }
    );
 
@@ -504,7 +530,7 @@ export const takeTourManagerActionService = async (
                stage: nextStage,
                actorId: toObjectId(managerId),
                actorType: ACTOR_TYPE.MANAGER,
-               action: `tour_manager_${action}`,
+               action: `tour_manager_${ action }`,
                note,
                at: new Date(),
             },

@@ -13,8 +13,8 @@ import {
    updateTravelDetailsService,
    submitEnrollmentService,
    submitReimbursementService,
-   getEmployeeNotificationsService,
-   submitTourFormService
+   submitTourFormService,
+   getEmployeeNotificationsService
 } from "../services/employee.service.js";
 import { getEnrollmentPanelDetails } from "../services/enrollment.service.js";
 
@@ -233,19 +233,30 @@ export const submitEnrollment = async (req: Request, res: Response, next: NextFu
    }
 };
 
-export const getEmployeeNotifications = async (req: Request, res: Response, next: NextFunction) => {
+//get Employee Notification
+
+export const getEmployeeNotifications = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
    try {
       const userId = req.userId;
+
       if (!userId) {
-         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+         throw new AppError(
+            MESSAGES.USER_ID_REQUIRED,
+            HTTP_STATUS.UNAUTHORIZED
+         );
       }
 
-      const notifications = await getEmployeeNotificationsService(userId);
+      const notifications =
+         await getEmployeeNotificationsService(userId);
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.NOTIFICATIONS_FETCHED,
-         data: notifications
+         data: notifications,
       });
    } catch (error) {
       next(error);

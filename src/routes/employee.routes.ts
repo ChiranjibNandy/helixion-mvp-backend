@@ -9,9 +9,9 @@ import {
    updateTravelDetails,
    submitEnrollment,
    submitReimbursement,
-   getEmployeeNotifications,
    submitTourForm,
-   getEnrollmentPanelById
+   getEnrollmentPanelById,
+   getEmployeeNotifications
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
