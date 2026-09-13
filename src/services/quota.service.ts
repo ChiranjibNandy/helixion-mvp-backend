@@ -38,7 +38,12 @@ export const reserveProgramSlot = async (
    return await programModel.findOneAndUpdate(
       {
          _id: toObjectId(programId),
-         $expr: { $lt: ["$confirmedEnrollmentCount", "$maxParticipants"] },
+         // A missing/null maxParticipants means no cap was ever set (only
+         // possible on programs created before it became required) — treat
+         // that as unlimited rather than a 0-slot program.
+         $expr: {
+            $lt: ["$confirmedEnrollmentCount", { $ifNull: ["$maxParticipants", Infinity] }],
+         },
       },
       { $inc: { confirmedEnrollmentCount: 1 } },
       { session, new: true }

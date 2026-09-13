@@ -336,7 +336,11 @@ export const takeSeniorActionService = async (
       // Cascade: if that reservation just filled the program, clear the
       // rest of the backlog (other Manager/CTD-pending enrollments) now.
       const finalReservedProgram = reservedProgram as HydratedDocument<IProgram> | null;
-      if (finalReservedProgram && finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants!) {
+      if (
+         finalReservedProgram &&
+         finalReservedProgram.maxParticipants != null &&
+         finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants
+      ) {
          await autoRejectRemainingPendingEnrollments(String(existing.programId), enrollmentId);
       }
    } else {

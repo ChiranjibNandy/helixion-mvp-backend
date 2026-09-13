@@ -292,7 +292,7 @@ export const takeManagerActionService = async (
             // below just means this request also gets picked up later by
             // the CTD-side atomic check (and, if needed, the cascade).
             const program = await programModel.findById(enrollment.programId);
-            if (!program || program.confirmedEnrollmentCount >= (program.maxParticipants ?? 0)) {
+            if (!program || (program.maxParticipants != null && program.confirmedEnrollmentCount >= program.maxParticipants)) {
                throw new AppError(MESSAGES.PROGRAM_FULL, HTTP_STATUS.CONFLICT);
             }
 
@@ -370,7 +370,11 @@ export const takeManagerActionService = async (
       }
 
       const finalReservedProgram = reservedProgram as HydratedDocument<IProgram> | null;
-      if (finalReservedProgram && finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants!) {
+      if (
+         finalReservedProgram &&
+         finalReservedProgram.maxParticipants != null &&
+         finalReservedProgram.confirmedEnrollmentCount >= finalReservedProgram.maxParticipants
+      ) {
          await autoRejectRemainingPendingEnrollments(String(enrollment.programId), enrollmentId);
       }
    } else {
