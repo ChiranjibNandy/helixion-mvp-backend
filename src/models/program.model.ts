@@ -95,6 +95,12 @@ const programSchema = new Schema<IProgram>(
          },
       },
 
+      confirmedEnrollmentCount: {
+         type:    Number,
+         default: 0,
+         min:     0,
+      },
+
       status: {
          type:    String,
          enum:    Object.values(PROGRAM_SAVED_STATUS),
