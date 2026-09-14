@@ -61,3 +61,18 @@ export const NOTIFICATION_TEMPLATES = {
       color: "green",
    },
 };
+
+
+export  const buildRejectedEmailBody = (
+   username: string,
+   programTitle: string
+): string => {
+   return `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+         <h2>Enrollment Request Status</h2>
+         <p>Hello <strong>${username}</strong>,</p>
+         <p>We regret to inform you that your enrollment request for <strong>${programTitle}</strong> has been rejected.</p>
+         <p>If you have any questions or require further clarification, please contact your line manager or HR training team.</p>
+      </div>
+   `;
+};

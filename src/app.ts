@@ -26,7 +26,7 @@ app.use("/api/training-provider", trainingProviderRoutes);
 app.use("/api/manager", managerRoutes);
 app.use("/api/training-dept", trainingDeptRoutes);
 app.use("/api/osd", osdRoutes);
-app.use("/api/notification",notificationRoutes)
+app.use("/api/notifications",notificationRoutes)
 
 app.use(errorMiddleware);
 

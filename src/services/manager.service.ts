@@ -29,7 +29,8 @@ import { toObjectId } from "../utils/mongo.js";
 import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
 import { createNotification } from "../repositories/notification.repository.js";
-import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { buildRejectedEmailBody, NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { sendTrackedMail } from "../utils/sendTrackedMail.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -332,7 +333,13 @@ export const takeManagerActionService = async (
                String(enrollment._id)
             );
             // Send email
-            return sendEnrollmentRejectedMail(employee.email, employee.name, programTitle);
+            return await sendTrackedMail({
+               to: employee.email,
+               subject: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED.emailSubject,
+               templateName: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED.title,
+               html: buildRejectedEmailBody(employee.name, programTitle),
+               relatedEntityId: String(enrollment._id),
+            });
          })
          .catch(logMailFailure("enrollment-rejected"));
    } else if (skippedCtdNotification?.employee) {
