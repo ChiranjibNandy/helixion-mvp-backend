@@ -34,11 +34,10 @@ import {
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
-import { isLocalTraining, resolveProgramTitle, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
+import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 import { sendSelfTravelSelectedMail, sendTravelRequestSubmittedMail } from "../utils/sendMail.js";
 import { ITimelineEntry } from "../interfaces/enrollment.interface.js";
 import { IUser } from "../interfaces/user.interface.js";
-import { getEmployeeNotificationsRepo, getEmployeeUnreadNotificationCountRepo } from "../repositories/notification.repository.js";
 
 
 export const getEmployeeDashboardService = async (userId: string) => {
@@ -671,19 +670,7 @@ const NOTIFICATION_RULES: NotificationRule[] = [
    },
 ];
 
-export const getEmployeeNotificationsService = async (
-   userId: string
-) => {
-   const [notifications, unreadCount] = await Promise.all([
-      getEmployeeNotificationsRepo(userId),
-      getEmployeeUnreadNotificationCountRepo(userId),
-   ]);
 
-   return {
-      notifications,
-      unreadCount,
-   };
-};
 
 
 

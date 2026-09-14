@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { markNotificationAsReadRepo } from "../repositories/notification.repository.js";
+import { getNotificationsRepo, getUnreadNotificationCountRepo, markNotificationAsReadRepo } from "../repositories/notification.repository.js";
 
 export const markNotificationAsReadService = async (
    userId: string,
@@ -28,4 +28,19 @@ export const markNotificationAsReadService = async (
    }
 
    return notification;
+};
+
+
+export const getNotificationsService = async (
+   userId: string
+) => {
+   const [notifications, unreadCount] = await Promise.all([
+      getNotificationsRepo(userId),
+      getUnreadNotificationCountRepo(userId),
+   ]);
+
+   return {
+      notifications,
+      unreadCount,
+   };
 };

@@ -31,7 +31,7 @@ export const createNotification = async (
   });
 };
 
-export const getEmployeeNotificationsRepo = async (userId: string) => {
+export const getNotificationsRepo = async (userId: string) => {
    return await Notification.find({
       userId: toObjectId(userId),
    })
@@ -40,7 +40,7 @@ export const getEmployeeNotificationsRepo = async (userId: string) => {
       .lean();
 };
 
-export const getEmployeeUnreadNotificationCountRepo = async (
+export const getUnreadNotificationCountRepo = async (
    userId: string
 ) => {
    return await Notification.countDocuments({

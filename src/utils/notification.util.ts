@@ -1,6 +1,14 @@
 import { getUserByIdRepo } from "../repositories/user.repository.js";
 import { findProgramById } from "../repositories/program.repository.js";
 import { REIMBURSEMENT_ACTION, TIMELINE_ACTION } from "../constants/enum.js";
+import { IUser } from "../interfaces/user.interface.js";
+import { IProgram } from "../interfaces/program.interface.js";
+
+interface NotificationContext {
+   employee: IUser | null;
+   program: IProgram | null;
+   programTitle: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers for ticket 0033 (employee notifications). Kept in one place
@@ -40,7 +48,7 @@ export const resolveProgramTitle = (program?: { title?: string } | null): string
 export const loadNotificationContext = async (
    employeeId: string,
    programId: string
-) => {
+): Promise<NotificationContext> => {
    const [employee, program] = await Promise.all([
       getUserByIdRepo(employeeId),
       findProgramById(programId),
