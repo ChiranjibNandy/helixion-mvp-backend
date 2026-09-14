@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
 
@@ -154,7 +154,7 @@ export const searchUsersRepo = async (
    limit: number,
    orgId: string
 ) => {
-   
+
    const filter: Record<string, unknown> = {
       orgId,
    };
@@ -309,5 +309,10 @@ export const hasApproveEmployees = (
          }
       }
    });
+};
+
+//find admin user
+export const findAdminUsers = async () => {
+   return User.find({ orgRole: ORG_ROLE.ADMIN }).lean();
 };
 

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import {
    createUserRepo,
+   findAdminUsers,
    getUserByEmailRepo,
    getUserByIdRepo,
    updatePasswordRepo,
@@ -14,6 +15,7 @@ import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { buildPermission } from "../utils/permission.js";
 import { LoginResponse } from "../types/auth.js";
+import { createNotification } from "../repositories/notification.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register User
@@ -31,15 +33,11 @@ export const signupService = async (
    const orgRole = (userData as any).orgRole || (userData as any).role;
 
    try {
-      return await createUserRepo({
+      const newUser = await createUserRepo({
          name: userData.name || (userData as any).username,
          email: userData.email,
          passwordHash: hashedPassword,
          orgRole,
-         // Admins self-register to create their org — there's no other admin
-         // yet to approve them, so they must be approved immediately.
-         // Employees self-registering into an existing org still need an
-         // admin to review and assign their role via Pending Registrations.
          isApproved: orgRole === ORG_ROLE.ADMIN,
          mustChangePassword: false,
          status: USER_STATUS.ACTIVE,
@@ -49,9 +47,34 @@ export const signupService = async (
             osd: { enabled: false, level: 0 },
          },
       });
+
+      // Send notifications to admins if a non-admin user registers
+      if (orgRole !== ORG_ROLE.ADMIN) {
+         const adminUsers = await findAdminUsers();
+
+         const notificationTemplate = {
+            type: "USER_REGISTERED",
+            title: "New Registration Pending Approval",
+            message: "A new user {{programTitle}} has registered and is pending review.",
+            icon: "user-plus",
+            color: "blue",
+         };
+
+         // Dispatch notifications in parallel to all admins
+         await Promise.all(
+            adminUsers.map((admin) =>
+               createNotification(
+                  admin._id.toString(),
+                  notificationTemplate,
+                  { programTitle: newUser.name },
+                  newUser._id.toString()
+               )
+            )
+         );
+      }
+
+      return newUser;
    } catch (err: any) {
-      // MongoDB duplicate key — concurrent request registered the same email
-      // between our getUserByEmail check and the insert above
       if (err?.code === 11000) {
          throw new AppError(MESSAGES.USER_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
       }
@@ -78,8 +101,8 @@ export const loginService = async (
       throw new AppError(MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.CONFLICT);
    }
 
-   if(!user.isApproved){
-       throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
+   if (!user.isApproved) {
+      throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
    }
 
    if (user.status !== USER_STATUS.ACTIVE) {

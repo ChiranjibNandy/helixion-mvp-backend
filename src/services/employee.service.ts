@@ -8,7 +8,6 @@ import {
    getEnrollmentDetailsRepo,
    findEnrollmentForReimbursementSubmitRepo,
    submitReimbursementRepo,
-   getEmployeeNotificationTimelineRepo,
    countPendingEnrollmentsForStageRepo,
    countPendingTourApprovalsForCtdRepo,
 } from "../repositories/enrollment.repository.js";
@@ -35,7 +34,7 @@ import {
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
-import { isLocalTraining, resolveProgramTitle, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
+import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 import { sendSelfTravelSelectedMail, sendTravelRequestSubmittedMail } from "../utils/sendMail.js";
 import { ITimelineEntry } from "../interfaces/enrollment.interface.js";
 import { IUser } from "../interfaces/user.interface.js";
@@ -671,46 +670,9 @@ const NOTIFICATION_RULES: NotificationRule[] = [
    },
 ];
 
-const NOTIFICATION_LIMIT = 50;
 
-export const getEmployeeNotificationsService = async (userId: string) => {
-   const [enrollments, employee] = await Promise.all([
-      getEmployeeNotificationTimelineRepo(userId),
-      userModel.findById(userId),
-   ]);
 
-   const notifications: {
-      id: string;
-      type: string;
-      message: string;
-      enrollmentId: string;
-      at: Date;
-   }[] = [];
 
-   for (const enrollment of enrollments) {
-      const program = enrollment.programId as any;
-      const programTitle = resolveProgramTitle(program);
-      const enrollmentId = enrollment._id.toString();
-      const ctx: NotificationContext = { programTitle, program, employee };
-
-      for (const entry of enrollment.timeline || []) {
-         const rule = NOTIFICATION_RULES.find((r) => r.matches(entry));
-         if (!rule) continue;
-
-         notifications.push({
-            id:           `${enrollmentId}-${new Date(entry.at).getTime()}`,
-            type:         rule.type,
-            message:      rule.buildMessage(ctx),
-            enrollmentId,
-            at:           entry.at,
-         });
-      }
-   }
-
-   notifications.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-
-   return notifications.slice(0, NOTIFICATION_LIMIT);
-};
 
 // Submit tour form (post-CTD approval)
 //
