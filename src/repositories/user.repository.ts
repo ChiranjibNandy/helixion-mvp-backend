@@ -312,7 +312,7 @@ export const hasApproveEmployees = (
 };
 
 //find admin user
-export const findAdminUsers = async () => {
-   return User.find({ orgRole: ORG_ROLE.ADMIN }).lean();
+export const findAdminUser = async () => {
+   return User.findOne({ orgRole: ORG_ROLE.ADMIN }).lean();
 };
 

@@ -10,19 +10,13 @@ export const createNotification = async (
     icon: string;
     color: string;
   },
-  data: {
-    programTitle: string;
-  },
   relatedEntityId: string
 ) => {
   await Notification.create({
     userId: toObjectId(userId),
     type: template.type,
     title: template.title,
-    message: template.message.replace(
-      "{{programTitle}}",
-      data.programTitle
-    ),
+    message: template.message,
     icon: template.icon,
     color: template.color,
     read: false,

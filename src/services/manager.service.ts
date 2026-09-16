@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import {
@@ -26,7 +25,7 @@ import {
    REIMBURSEMENT_STATUS,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
+import { sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
 import { createNotification } from "../repositories/notification.repository.js";
 import { buildApprovedLocalEmailBody, buildApprovedOutstationEmailBody, buildRejectedEmailBody, NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
@@ -128,7 +127,7 @@ export const takeManagerActionService = async (
       action === MANAGER_ACTION.PENDING
    ) {
       throw new AppError(
-         "Invalid action. Must be recommend, approve, or reject.",
+         MESSAGES.INVALID_MANAGER_ACTION,
          HTTP_STATUS.BAD_REQUEST
       );
    }
@@ -152,6 +151,8 @@ export const takeManagerActionService = async (
          HTTP_STATUS.NOT_FOUND
       );
    }
+   console.log(enrollment)
+
 
    // 3. Setup update payloads
    const newChainStatus =
@@ -313,15 +314,14 @@ export const takeManagerActionService = async (
 
             await createNotification(
                String(enrollment.employeeId),
-               NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED,
-               { programTitle },
+               NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle),
                String(enrollment._id)
             );
 
             await sendTrackedMail({
                to: employee.email,
-               subject: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED.emailSubject,
-               templateName: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED.title,
+               subject: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle).emailSubject,
+               templateName: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle).title,
                html: buildRejectedEmailBody(employee.name, programTitle),
                relatedEntityId: String(enrollment._id),
             });
@@ -330,17 +330,15 @@ export const takeManagerActionService = async (
          logMailFailure("enrollment-rejected")(err);
       }
    } else if (skippedCtdNotification?.employee) {
-      console.log("haiiiihbjhdbcjd")
       const { employee, programTitle, isLocal } = skippedCtdNotification;
       const template = isLocal
-         ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL
-         : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION;
+         ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(programTitle)
+         : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(programTitle)
 
       try {
          await createNotification(
             String(enrollment.employeeId),
             template,
-            { programTitle },
             String(enrollment._id)
          );
 
@@ -354,34 +352,6 @@ export const takeManagerActionService = async (
             relatedEntityId: String(enrollment._id),
          });
       } catch (err) {
-         logMailFailure("enrollment-approved")(err);
-      }
-   } else if (action == MANAGER_ACTION.APPROVE) {
-      try {
-         const context = await loadNotificationContext(
-            String(enrollment.employeeId),
-            String(enrollment.programId)
-         );
-
-         if (context?.employee) {
-            const { employee, programTitle } = context;
-
-            await createNotification(
-               String(enrollment.employeeId),
-               NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL,
-               { programTitle },
-               String(enrollment._id)
-            );
-
-            await sendTrackedMail({
-               to: employee.email,
-               subject: NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL.emailSubject,
-               templateName: NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL.title,
-               html: buildApprovedLocalEmailBody(employee.name, programTitle),
-               relatedEntityId: String(enrollment._id),
-            });
-         }
-      }catch (err) {
          logMailFailure("enrollment-approved")(err);
       }
    }
@@ -569,15 +539,68 @@ export const takeTourManagerActionService = async (
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   loadNotificationContext(String(updated.employeeId), String(updated.programId))
-      .then(({ employee, programTitle }) => {
+   loadNotificationContext(
+      String(updated.employeeId),
+      String(updated.programId)
+   )
+      .then(async ({ employee, programTitle }) => {
          if (!employee) return;
+
+         const employeeId = String(updated.employeeId);
+         const relatedEntityId = String(updated._id);
+
          if (nextTourStatus === TOUR_STATUS.MANAGER_REJECTED) {
-            return sendTravelRequestRejectedByManagerMail(employee.email, employee.name, programTitle);
+            const template =
+               NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_REJECTED_BY_MANAGER(
+                  programTitle
+               );
+
+            await createNotification(
+               employeeId,
+               template,
+               relatedEntityId
+            );
+
+            return sendTravelRequestRejectedByManagerMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
          }
-         return nextTourStatus === TOUR_STATUS.MANAGER_APPROVED
-            ? sendTravelRequestUnderCtdReviewMail(employee.email, employee.name, programTitle)
-            : sendTravelRequestApprovedMail(employee.email, employee.name, programTitle);
+
+         if (nextTourStatus === TOUR_STATUS.MANAGER_APPROVED) {
+            const template =
+               NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_UNDER_CTD_REVIEW(
+                  programTitle
+               );
+
+            await createNotification(
+               employeeId,
+               template,
+               relatedEntityId
+            );
+
+            return sendTravelRequestUnderCtdReviewMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
+         }
+
+         const template =
+            NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_APPROVED(programTitle);
+
+         await createNotification(
+            employeeId,
+            template,
+            relatedEntityId
+         );
+
+         return sendTravelRequestApprovedMail(
+            employee.email,
+            employee.name,
+            programTitle
+         );
       })
       .catch(logMailFailure("tour-manager-action"));
 

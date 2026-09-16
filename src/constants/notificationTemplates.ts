@@ -1,77 +1,136 @@
 type NotificationData = {
-   programTitle: string;
+  programTitle: string;
 };
 
 export const NOTIFICATION_TEMPLATES = {
-   ENROLLMENT_APPROVED_LOCAL: {
-      title: "Enrollment Approved",
-      message: "Your enrollment for {{programTitle}} has been approved.",
-      emailSubject: "Enrollment Approved",
+  ENROLLMENT_APPROVED_LOCAL: (programTitle: string) => ({
+    title: "Enrollment Approved",
+    message: `Your enrollment for ${ programTitle } has been approved.`,
+    emailSubject: "Enrollment Approved",
 
-      emailBody: (data: NotificationData) =>
-         `Your enrollment for <strong>${ data.programTitle }</strong> has been approved.
-      No travel action is required. Please attend the training as scheduled.`,
+    emailBody: `Your enrollment for <strong>${ programTitle }</strong> has been approved. No travel action is required. Please attend the training as scheduled.`,
 
-      type: "enrollment_approved",
-      icon: "check-circle",
-      color: "green",
-   },
+    type: "enrollment_approved",
+    icon: "check-circle",
+    color: "green",
+  }),
 
-   ENROLLMENT_REJECTED: {
-      title: "Enrollment Rejected",
-      message: "Your enrollment for {{programTitle}} was rejected.",
-      emailSubject: "Enrollment Rejected",
+  ENROLLMENT_REJECTED: (programTitle: string) => ({
+    title: "Enrollment Rejected",
+    message: `Your enrollment for ${ programTitle } was rejected.`,
+    emailSubject: "Enrollment Rejected",
 
-      emailBody: (data: NotificationData) =>
-         `Your enrollment for <strong>${ data.programTitle }</strong> has been rejected
-      by your manager. Please contact them for details.`,
+    emailBody:
+      `Your enrollment for <strong>${ programTitle }</strong> has been rejected by your manager. Please contact them for details.`,
 
-      type: "enrollment_rejected",
-      icon: "x-circle",
-      color: "red",
-   },
-   CTD_APPROVED: {
-      title: "Travel Approved",
-      message:
-         "Your travel request for {{programTitle}} has been approved by the Training Dept.",
+    type: "enrollment_rejected",
+    icon: "x-circle",
+    color: "red",
+  }),
+  CTD_APPROVED: {
+    title: "Travel Approved",
+    message:
+      "Your travel request for {{programTitle}} has been approved by the Training Dept.",
 
-      emailSubject: "Travel Request Approved",
+    emailSubject: "Travel Request Approved",
 
-      emailBody: (data: NotificationData) =>
-         `Your travel request for <strong>${ data.programTitle }</strong> has been approved by the Training Dept.
+    emailBody: (data: NotificationData) =>
+      `Your travel request for <strong>${ data.programTitle }</strong> has been approved by the Training Dept.
     Please proceed with the necessary travel arrangements.`,
 
-      type: "ctd_approved",
-      icon: "check-circle",
-      color: "green",
-   },
-   ENROLLMENT_APPROVED_OUTSTATION: {
-      title: "Enrollment Approved",
-      message:
-         "Your enrollment for {{programTitle}} has been approved. Travel arrangements are required.",
+    type: "ctd_approved",
+    icon: "check-circle",
+    color: "green",
+  },
+  ENROLLMENT_APPROVED_OUTSTATION: (programTitle: string) => ({
+    title: "Enrollment Approved",
+    message: `Your enrollment for ${ programTitle } has been approved. Travel arrangements are required.`,
+    emailSubject: "Enrollment Approved",
+    emailBody: `Your enrollment for <strong>${ programTitle }</strong> has been approved. Since the training is outstation, please proceed with the required travel arrangements.`,
+    type: "enrollment_approved",
+    icon: "check-circle",
+    color: "green",
+  }),
 
-      emailSubject: "Enrollment Approved",
+  TRAVEL_REQUEST_REJECTED_BY_MANAGER: (programTitle: string) => ({
+    title: "Travel Request Rejected",
+    message: `Your travel request for ${ programTitle } has been rejected by your manager.`,
+    emailSubject: "Travel Request Rejected",
+    emailBody: `Your travel request for <strong>${ programTitle }</strong> has been rejected by your manager. Please contact your manager for more details.`,
+    type: "travel_request_rejected",
+    icon: "x-circle",
+    color: "red",
+  }),
 
-      emailBody: (data: NotificationData) =>
-         `Your enrollment for <strong>${ data.programTitle }</strong> has been approved.
-    Since the training is outstation, please proceed with the required travel arrangements.`,
+  TRAVEL_REQUEST_UNDER_CTD_REVIEW: (programTitle: string) => ({
+    title: "Travel Request Under CTD Review",
+    message: `Your travel request for ${ programTitle } has been approved by your manager and is now under CTD review.`,
+    emailSubject: "Travel Request Under CTD Review",
+    emailBody: `Your travel request for <strong>${ programTitle }</strong> has been approved by your manager and is now under CTD review. Please wait for further updates.`,
+    type: "travel_request_ctd_review",
+    icon: "clock",
+    color: "orange",
+  }),
 
-      type: "enrollment_approved",
-      icon: "check-circle",
-      color: "green",
-   },
+  TRAVEL_REQUEST_APPROVED: (programTitle: string) => ({
+    title: "Travel Request Approved",
+    message: `Your travel request for ${ programTitle } has been approved. Travel arrangements are required.`,
+    emailSubject: "Travel Request Approved",
+    emailBody: `Your travel request for <strong>${ programTitle }</strong> has been approved. Since the training is outstation, please proceed with the required travel arrangements.`,
+    type: "travel_request_approved",
+    icon: "check-circle",
+    color: "green"
+  }),
+
+  USER_REGISTERED: (userName: string) => ({
+    type: "USER_REGISTERED",
+    title: "New Registration Pending Approval",
+    message: `A new user ${ userName } has registered and is pending review.`,
+    icon: "user-plus",
+    color: "blue",
+  }),
+
+  TRAVEL_REQUEST_SUBMITTED: (programTitle: string) => ({
+    title: "Travel Request Submitted",
+    message: `Your travel request for ${ programTitle } has been submitted successfully.`,
+    emailSubject: "Travel Request Submitted",
+    emailBody: `Your travel request for <strong>${ programTitle }</strong> has been submitted successfully.`,
+    type: "travel_request_submitted",
+    icon: "send",
+    color: "blue",
+  }),
+
+  SELF_TRAVEL_SELECTED: (programTitle: string) => ({
+    title: "Self Travel Selected",
+    message: `You have selected self travel for ${ programTitle }.`,
+    emailSubject: "Self Travel Selected",
+    emailBody: `You have selected self travel for <strong>${ programTitle }</strong>. Please proceed with your travel arrangements.`,
+    type: "self_travel_selected",
+    icon: "plane",
+    color: "blue",
+  }),
+
+  TRAVEL_REQUEST_NOT_APPROVED_BY_CTD: (programTitle: string) => ({
+    title: "Travel Request Not Approved",
+    message: `Your travel request for ${ programTitle } was not approved by CTD.`,
+    emailSubject: "Travel Request Not Approved",
+    emailBody: `Your travel request for <strong>${ programTitle }</strong> was not approved by CTD. Please contact the concerned team for more details.`,
+    type: "travel_request_not_approved",
+    icon: "x-circle",
+    color: "red",
+  }),
 };
 
 
-export  const buildRejectedEmailBody = (
-   username: string,
-   programTitle: string
+export const buildRejectedEmailBody = (
+  username: string,
+  programTitle: string
 ): string => {
-   return `
+  return `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
          <h2>Enrollment Request Status</h2>
-         <p>Hello <strong>${username}</strong>,</p>
-         <p>We regret to inform you that your enrollment request for <strong>${programTitle}</strong> has been rejected.</p>
+         <p>Hello <strong>${ username }</strong>,</p>
+         <p>We regret to inform you that your enrollment request for <strong>${ programTitle }</strong> has been rejected.</p>
          <p>If you have any questions or require further clarification, please contact your line manager or HR training team.</p>
       </div>
    `;
@@ -104,11 +163,11 @@ export function buildApprovedLocalEmailBody(
             <h1 style="margin:0; font-size: 20px;">Enrollment Approved!</h1>
           </div>
           <div class="content">
-            <p>Dear <strong>${employeeName}</strong>,</p>
+            <p>Dear <strong>${ employeeName }</strong>,</p>
             <p>Great news! Your manager has approved your request to enroll in the following program:</p>
             
             <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #10b981; border-radius: 4px; margin: 20px 0;">
-              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${programTitle}</h3>
+              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
               <span class="badge">Type: Local Program</span>
             </div>
 
@@ -153,11 +212,11 @@ export function buildApprovedOutstationEmailBody(
             <h1 style="margin:0; font-size: 20px;">Enrollment Approved!</h1>
           </div>
           <div class="content">
-            <p>Dear <strong>${employeeName}</strong>,</p>
+            <p>Dear <strong>${ employeeName }</strong>,</p>
             <p>Great news! Your manager has approved your request to enroll in the outstation program:</p>
             
             <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #2563eb; border-radius: 4px; margin: 20px 0;">
-              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${programTitle}</h3>
+              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
               <span class="badge">Type: Outstation Program</span>
             </div>
 

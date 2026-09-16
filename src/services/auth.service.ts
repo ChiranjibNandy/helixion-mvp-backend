@@ -2,13 +2,12 @@ import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import {
    createUserRepo,
-   findAdminUsers,
+   findAdminUser,
    getUserByEmailRepo,
    getUserByIdRepo,
    updatePasswordRepo,
 } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
-import { IUser } from "../interfaces/user.interface.js";
 import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -16,6 +15,7 @@ import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { buildPermission } from "../utils/permission.js";
 import { LoginResponse } from "../types/auth.js";
 import { createNotification } from "../repositories/notification.repository.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register User
@@ -48,29 +48,13 @@ export const signupService = async (
          },
       });
 
-      // Send notifications to admins if a non-admin user registers
-      if (orgRole !== ORG_ROLE.ADMIN) {
-         const adminUsers = await findAdminUsers();
-
-         const notificationTemplate = {
-            type: "USER_REGISTERED",
-            title: "New Registration Pending Approval",
-            message: "A new user {{programTitle}} has registered and is pending review.",
-            icon: "user-plus",
-            color: "blue",
-         };
-
-         // Dispatch notifications in parallel to all admins
-         await Promise.all(
-            adminUsers.map((admin) =>
-               createNotification(
-                  admin._id.toString(),
-                  notificationTemplate,
-                  { programTitle: newUser.name },
-                  newUser._id.toString()
-               )
-            )
-         );
+      const adminUser = await findAdminUser();
+      if (adminUser) {
+         await createNotification(
+            adminUser._id.toString(),
+            NOTIFICATION_TEMPLATES.USER_REGISTERED(newUser.name),
+            newUser._id.toString()
+         )
       }
 
       return newUser;
