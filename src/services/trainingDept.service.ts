@@ -311,13 +311,61 @@ export const takeSeniorActionService = async (
    }
 
    const { employee, programTitle } = notificationContext;
+
    if (employee) {
-      (approving
-         ? (isLocal
-            ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
-            : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle))
-         : sendEnrollmentRejectedByTrainingDeptMail(employee.email, employee.name, programTitle)
-      ).catch(logMailFailure(approving ? "enrollment-approved" : "enrollment-rejected-by-training-dept"));
+      // -----------------------------
+      // Email notification
+      // -----------------------------
+      (
+         approving
+            ? (
+               isLocal
+                  ? sendEnrollmentApprovedLocalMail(
+                     employee.email,
+                     employee.name,
+                     programTitle
+                  )
+                  : sendEnrollmentApprovedOutstationMail(
+                     employee.email,
+                     employee.name,
+                     programTitle
+                  )
+            )
+            : sendEnrollmentRejectedByTrainingDeptMail(
+               employee.email,
+               employee.name,
+               programTitle
+            )
+      ).catch(
+         logMailFailure(
+            approving
+               ? "enrollment-approved"
+               : "enrollment-rejected-by-training-dept"
+         )
+      );
+
+      // -----------------------------
+      // In-app notification
+      // -----------------------------
+      const notification = approving
+         ? (
+            isLocal
+               ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(
+                  programTitle
+               )
+               : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(
+                  programTitle
+               )
+         )
+         : NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(
+            programTitle
+         );
+
+      await createNotification(
+         String(employee._id),
+         notification,
+         String(enrollmentId)
+      );
    }
 
    return { currentStage: nextStage };

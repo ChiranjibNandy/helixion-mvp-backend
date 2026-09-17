@@ -39,7 +39,7 @@ import { sendSelfTravelSelectedMail, sendTravelRequestSubmittedMail } from "../u
 import { ITimelineEntry } from "../interfaces/enrollment.interface.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
-import { createNotification } from "../repositories/notification.repository.js";
+import { createNotification, createNotifications } from "../repositories/notification.repository.js";
 
 
 export const getEmployeeDashboardService = async (userId: string) => {
@@ -128,6 +128,7 @@ export const enrollInProgramService = async (
    if (!user) {
       throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+
 
    // A manager is required before enrollment is allowed at all — an empty
    // managerChain would otherwise reach MANAGER_REVIEW with nobody able to
@@ -242,6 +243,21 @@ export const enrollInProgramService = async (
          }
       ]
    };
+
+   //send notification for all manager corresponding employee
+   const managerIds = (user.hierarchy?.managerChain ?? [])
+      .map((manager) => manager.userId?.toString())
+      .filter(Boolean);
+
+   if (managerIds.length) {
+      const template = NOTIFICATION_TEMPLATES.ENROLL_PROGRAM(program.title, user.name);
+
+      await createNotifications(
+         managerIds,
+         template,
+         user._id.toString()
+      );
+   }
 
 
    // Save to DB
@@ -793,16 +809,21 @@ export const submitTourFormService = async (
       .then(async ({ employee, programTitle }) => {
          if (!employee) return;
 
-         const employeeId = String(updated.employeeId);
+
+         //send notification for all manager corresponding employee
+         const managerIds = (employee.hierarchy?.managerChain ?? [])
+            .map((manager) => manager.userId?.toString())
+            .filter(Boolean);
+
          const relatedEntityId = String(updated._id);
 
          const template =
             travelType === TRAVEL_TYPE.COMPANY_ASSISTED
-               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_SUBMITTED(programTitle)
-               : NOTIFICATION_TEMPLATES.SELF_TRAVEL_SELECTED(programTitle);
+               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_SUBMITTED(programTitle,employee.name)
+               : NOTIFICATION_TEMPLATES.SELF_TRAVEL_SELECTED(programTitle,employee.name);
 
-         await createNotification(
-            employeeId,
+         await createNotifications(
+            managerIds,
             template,
             relatedEntityId
          );

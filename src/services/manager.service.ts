@@ -27,9 +27,10 @@ import {
 import { toObjectId } from "../utils/mongo.js";
 import { sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
-import { createNotification } from "../repositories/notification.repository.js";
+import { createNotification, createNotifications } from "../repositories/notification.repository.js";
 import { buildApprovedLocalEmailBody, buildApprovedOutstationEmailBody, buildRejectedEmailBody, NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
 import { sendTrackedMail } from "../utils/sendTrackedMail.js";
+import { findCtdUsersByOrgId } from "../repositories/user.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -151,7 +152,14 @@ export const takeManagerActionService = async (
          HTTP_STATUS.NOT_FOUND
       );
    }
-   console.log(enrollment)
+   const { employee, programTitle } = await loadNotificationContext(
+      String(enrollment.employeeId),
+      String(enrollment.programId)
+   );
+
+   if (!employee) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
+   }
 
 
    // 3. Setup update payloads
@@ -299,6 +307,27 @@ export const takeManagerActionService = async (
       updateOps,
       { arrayFilters, new: true }
    );
+
+   if (action == MANAGER_ACTION.APPROVE) {
+      const ctdUsers = await findCtdUsersByOrgId(orgId);
+      console.log(ctdUsers,"ctdUsers")
+
+      const ctdUserIds = ctdUsers.map((user) => user._id.toString());
+      console.log(ctdUserIds,"ctdUserIds")
+
+      if (ctdUserIds.length > 0) {
+         await createNotifications(
+            ctdUserIds,
+            NOTIFICATION_TEMPLATES.ENROLLMENT_PENDING_CTD_APPROVAL(
+               programTitle,
+               employee.name
+            ),
+            enrollmentId
+         );
+      }
+   }
+
+
 
    // 8. Single Notification Dispatch Handling
 

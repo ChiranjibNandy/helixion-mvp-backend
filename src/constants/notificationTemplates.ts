@@ -42,12 +42,13 @@ export const NOTIFICATION_TEMPLATES = {
     icon: "check-circle",
     color: "green",
   },
+  
   ENROLLMENT_APPROVED_OUTSTATION: (programTitle: string) => ({
     title: "Enrollment Approved",
-    message: `Your enrollment for ${ programTitle } has been approved. Travel arrangements are required.`,
+    message: `Your enrollment for ${ programTitle } has been approved. Please complete the tour form to proceed with the required travel arrangements.`,
     emailSubject: "Enrollment Approved",
-    emailBody: `Your enrollment for <strong>${ programTitle }</strong> has been approved. Since the training is outstation, please proceed with the required travel arrangements.`,
-    type: "enrollment_approved",
+    emailBody: `Your enrollment for <strong>${ programTitle }</strong> has been approved. Since the training is outstation, please complete the tour form and proceed with the required travel arrangements.`,
+    type: "enrollment_approved_outstation",
     icon: "check-circle",
     color: "green",
   }),
@@ -90,21 +91,21 @@ export const NOTIFICATION_TEMPLATES = {
     color: "blue",
   }),
 
-  TRAVEL_REQUEST_SUBMITTED: (programTitle: string) => ({
+  TRAVEL_REQUEST_SUBMITTED: (programTitle: string,employeeName:string) => ({
     title: "Travel Request Submitted",
     message: `Your travel request for ${ programTitle } has been submitted successfully.`,
     emailSubject: "Travel Request Submitted",
-    emailBody: `Your travel request for <strong>${ programTitle }</strong> has been submitted successfully.`,
+    emailBody: `${employeeName} have submitted travel request for the program : <strong>${ programTitle }</strong> .`,
     type: "travel_request_submitted",
     icon: "send",
     color: "blue",
   }),
 
-  SELF_TRAVEL_SELECTED: (programTitle: string) => ({
+  SELF_TRAVEL_SELECTED: (programTitle: string,employeeName:string) => ({
     title: "Self Travel Selected",
     message: `You have selected self travel for ${ programTitle }.`,
     emailSubject: "Self Travel Selected",
-    emailBody: `You have selected self travel for <strong>${ programTitle }</strong>. Please proceed with your travel arrangements.`,
+    emailBody: `${employeeName} have selected self travel for the program : <strong>${ programTitle }</strong>. Please proceed with your travel arrangements.`,
     type: "self_travel_selected",
     icon: "plane",
     color: "blue",
@@ -119,6 +120,27 @@ export const NOTIFICATION_TEMPLATES = {
     icon: "x-circle",
     color: "red",
   }),
+
+  ENROLL_PROGRAM: (programTitle: string, userName: string) => ({
+    title: "Program Enrollment",
+    message: `${ userName } enrolled in the ${ programTitle } program.`,
+    emailSubject: "Program Enrollment",
+    emailBody: `${ userName } have been successfully enrolled in the <strong>${ programTitle }</strong> program.`,
+    type: "program_enrolled",
+    icon: "book-open",
+    color: "blue",
+  }),
+
+  ENROLLMENT_PENDING_CTD_APPROVAL: (programTitle: string, employeeName: string) => ({
+    title: "Enrollment Pending CTD Approval",
+    message: `Manager has approved the enrollment for ${ programTitle } of employee ${ employeeName }. It is now pending CTD approval.`,
+    emailSubject: "Enrollment Pending CTD Approval",
+    emailBody: `The manager has approved the enrollment for <strong>${ programTitle }</strong>. The enrollment is now pending approval from the Training Department (CTD). Please review and take the necessary action.`,
+    type: "enrollment_pending_ctd_approval",
+    icon: "clock",
+    color: "orange",
+  }),
+
 };
 
 
