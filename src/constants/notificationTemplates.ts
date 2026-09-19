@@ -93,7 +93,7 @@ export const NOTIFICATION_TEMPLATES = {
 
   TRAVEL_REQUEST_SUBMITTED: (programTitle: string,employeeName:string) => ({
     title: "Travel Request Submitted",
-    message: `Your travel request for ${ programTitle } has been submitted successfully.`,
+    message: `${employeeName} travel request for ${ programTitle } has been submitted successfully.`,
     emailSubject: "Travel Request Submitted",
     emailBody: `${employeeName} have submitted travel request for the program : <strong>${ programTitle }</strong> .`,
     type: "travel_request_submitted",
@@ -103,7 +103,7 @@ export const NOTIFICATION_TEMPLATES = {
 
   SELF_TRAVEL_SELECTED: (programTitle: string,employeeName:string) => ({
     title: "Self Travel Selected",
-    message: `You have selected self travel for ${ programTitle }.`,
+    message: `${employeeName} have selected self travel for ${ programTitle }.`,
     emailSubject: "Self Travel Selected",
     emailBody: `${employeeName} have selected self travel for the program : <strong>${ programTitle }</strong>. Please proceed with your travel arrangements.`,
     type: "self_travel_selected",
