@@ -53,6 +53,8 @@ export const MESSAGES = {
   NO_FIELDS_TO_UPDATE: "At least one field is required to update",
 
   BATCH_USERS_PROCESSED: "Bulk users processed successfully",
+  BULK_UPLOAD_JOB_CREATED: "Bulk upload job created successfully",
+  BULK_UPLOAD_JOB_NOT_FOUND: "Upload job not found",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
   USERS_ALREADY_EXIST: "Some users already exist",
   WELCOME_EMAIL_SUBJECT: "Welcome to Helixon — Your Account Credentials",
