@@ -376,6 +376,13 @@ const buildManagerPendingFilter = (
 
   return {
     orgId: toObjectId(orgId),
+    // managerChain[].status alone isn't enough: auto-rejection (quota-full
+    // cascade, see autoRejectRemainingPendingEnrollments) flips currentStage
+    // to REJECTED without touching the still-PENDING managerChain entries,
+    // which otherwise leaves a dead row in this queue that 404s when acted
+    // on. currentStage is the source of truth, same as
+    // getPendingEnrollmentsForStageRepo on the CTD side.
+    currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
     managerChain: { $elemMatch: chainFilter },
   };
 };

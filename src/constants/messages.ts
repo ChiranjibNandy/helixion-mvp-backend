@@ -108,7 +108,7 @@ export const MESSAGES = {
   NOTIFICATIONS_FETCHED: "Notifications fetched successfully",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
   ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
-  PROGRAM_FULL: "This program has reached its maximum capacity",
+  PROGRAM_FULL: "Could not approve enrollment request now. Please contact the Training Provider",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
 
   MIN_POLICY: "At least one policy section is required",
