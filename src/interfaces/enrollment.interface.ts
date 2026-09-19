@@ -139,6 +139,7 @@ export interface IEnrollment {
       uploadedByProvider?: boolean;
       uploadedAt?: Date;
       status?: ATTENDANCE_RECORD_STATUS;
+      hasAttendanceMarked?: boolean;
    };
 
    reimbursement?: {

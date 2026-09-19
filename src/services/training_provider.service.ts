@@ -123,7 +123,7 @@ export const updateDraftService = async (
 import { createProgramSchema } from "../validators/training_provider.validator.js";
 import { PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 import { getEnrollmentActivities, getTodayEnrollmentCount, getTotalEnrollments } from "../repositories/enrollment.repository.js";
-import { getAttendanceActivities, getTodayAttendanceTaken } from "../repositories/attendance.repository.js";
+import { getAttendanceActivities, getTodayAttendanceTaken } from "../repositories/attendanceRecord.repository.js";
 
 export const publishDraftService = async (id: string, providerId: string) => {
   const program = await getProgramByIdRepo(id, providerId);
