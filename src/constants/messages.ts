@@ -132,7 +132,12 @@ export const MESSAGES = {
   TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
+  INVALID_MANAGER_ACTION:"Invalid action. Must be recommend, approve, or reject.",
 
   ORG_NOT_ADD_USER:"Organization not added the admin",
-  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program"
+  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program",
+
+  //notification
+  NOTIFICATION_ID_REQUIRED:"Notification ID is required",
+  NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
 } as const;
