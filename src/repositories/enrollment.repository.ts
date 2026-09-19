@@ -73,22 +73,6 @@ export const getProgramParticipantsRepo = async (programId: string) => {
     .populate({ path: "employeeId", select: "_id name email employeeCode" });
 };
 
-// Same visibility gate as getProgramParticipantsRepo — a participant not
-// yet past CTD approval isn't "enrolled" from the Training Provider's
-// point of view, so attendance can't be taken for them yet either.
-export const validateParticipantsEnrollmentRepo = async (
-  programId: string,
-  participantIds: string[]
-) => {
-  return await enrollmentModel
-    .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      employeeId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
-    })
-    .select("employeeId");
-};
-
 export const getTotalEnrollments = async (trainingProviderId: string) => {
   const result = await enrollmentModel.aggregate([
     {

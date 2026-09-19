@@ -220,6 +220,7 @@ const enrollmentSchema = new Schema<IEnrollment>(
          uploadedByProvider: { type: Boolean, default: false },
          uploadedAt: { type: Date },
          status: { type: String, enum: Object.values(ATTENDANCE_RECORD_STATUS), default: ATTENDANCE_RECORD_STATUS.PENDING },
+         hasAttendanceMarked: { type: Boolean, default: false },
       },
 
       reimbursement: {
