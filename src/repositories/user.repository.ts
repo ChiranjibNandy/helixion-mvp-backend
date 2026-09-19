@@ -43,6 +43,15 @@ export const updateOneUser = async (
    );
 };
 
+export const bulkWriteUsersRepo = async (
+   ops: Array<
+      | { insertOne: { document: Partial<IUser> } }
+      | { updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }
+   >
+) => {
+   return await User.bulkWrite(ops as any, { ordered: false });
+};
+
 export interface BatchInsertResult {
    inserted: IUser[];
    failed: { email?: string; error: string }[];
@@ -171,7 +180,7 @@ export const searchUsersRepo = async (
    const [users, total] = await Promise.all([
       User.find(filter)
          .select("-passwordHash")
-         .sort({ createdAt: -1 })
+         .sort({ createdAt: -1, _id: -1 })
          .skip((page - 1) * limit)
          .limit(limit),
       User.countDocuments(filter),
@@ -240,7 +249,7 @@ export const getUsersByOrgRepo = async (
    const [users, total] = await Promise.all([
       User.find(filter)
          .select("-passwordHash")
-         .sort({ createdAt: -1 })
+         .sort({ createdAt: -1, _id: -1 })
          .skip((page - 1) * limit)
          .limit(limit),
       User.countDocuments(filter),
