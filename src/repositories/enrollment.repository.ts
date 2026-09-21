@@ -645,34 +645,8 @@ export const submitReimbursementRepo = async (
   );
 };
 
-// ─── Notifications (ticket 0033 — derived from timeline, no persistence) ──────
 
-// $or:[{employeeId},{userId}] matches the same legacy-schema fallback used by
-// getEmployeeEnrollmentsRepo/getEnrollmentDetailsRepo — enrollments created
-// before the employeeId migration only have `userId` populated, and would
-// otherwise silently produce zero notifications for their workflow history.
-//
-// Deliberately NOT capped with .limit(): a resolved enrollment's timeline
-// can't produce a NEW notification, but capping by enrollment count (rather
-// than by time or by whether a notification was already seen) would exclude
-// arbitrary older enrollments whenever an employee has many, not just the
-// ones that are actually irrelevant — silently and permanently, since the
-// caller has no way to know an enrollment was dropped from consideration.
-// Sort is kept (cheap, supported by the employeeId+updatedAt index below) so
-// the derived notification list in employee.service.ts sees the most
-// recently active enrollments first even before its own 50-item cap.
-export const getEmployeeNotificationTimelineRepo = async (employeeId: string) => {
-  return await enrollmentModel
-    .find({
-      $or: [
-        { employeeId: toObjectId(employeeId) },
-        { userId: toObjectId(employeeId) },
-      ],
-    })
-    .select("timeline programId")
-    .populate("programId", "title city")
-    .sort({ updatedAt: -1 });
-};
+
 
 // ─── Attendance → Enrollment sync ──────────────────────────────────────────────
 

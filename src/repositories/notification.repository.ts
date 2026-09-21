@@ -1,0 +1,96 @@
+import Notification from "../models/notification.model.js";
+import { toObjectId } from "../utils/mongo.js";
+
+export const createNotification = async (
+  userId: string,
+  template: {
+    type: string;
+    title: string;
+    message: string;
+    icon: string;
+    color: string;
+  },
+  relatedEntityId: string
+) => {
+  await Notification.create({
+    userId: toObjectId(userId),
+    type: template.type,
+    title: template.title,
+    message: template.message,
+    icon: template.icon,
+    color: template.color,
+    read: false,
+    relatedEntityId: toObjectId(relatedEntityId),
+    readAt: null,
+  });
+};
+
+export const getNotificationsRepo = async (userId: string) => {
+   return await Notification.find({
+      userId: toObjectId(userId),
+   })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+};
+
+export const getUnreadNotificationCountRepo = async (
+   userId: string
+) => {
+   return await Notification.countDocuments({
+      userId: toObjectId(userId),
+      read: false,
+   });
+};
+
+//mark read
+export const markNotificationAsReadRepo = async (
+   userId: string,
+   notificationId: string
+) => {
+   return await Notification.findOneAndUpdate(
+      {
+         _id: toObjectId(notificationId),
+         userId: toObjectId(userId),
+         read: false,
+      },
+      {
+         $set: {
+            read: true,
+            readAt: new Date(),
+         },
+      },
+      {
+         new: true,
+      }
+   );
+};
+
+//create multiple notifications
+export const createNotifications = async (
+  userIds: string[],
+  template: {
+    type: string;
+    title: string;
+    message: string;
+    icon: string;
+    color: string;
+  },
+  relatedEntityId: string
+) => {
+  if (!userIds.length) return;
+
+  const notifications = userIds.map((userId) => ({
+    userId: toObjectId(userId),
+    type: template.type,
+    title: template.title,
+    message: template.message,
+    icon: template.icon,
+    color: template.color,
+    read: false,
+    relatedEntityId: toObjectId(relatedEntityId),
+    readAt: null,
+  }));
+
+  await Notification.insertMany(notifications);
+};

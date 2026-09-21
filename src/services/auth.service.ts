@@ -2,18 +2,20 @@ import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import {
    createUserRepo,
+   findAdminUser,
    getUserByEmailRepo,
    getUserByIdRepo,
    updatePasswordRepo,
 } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
-import { IUser } from "../interfaces/user.interface.js";
 import { sendResetMail } from "../utils/sendMail.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { buildPermission } from "../utils/permission.js";
 import { LoginResponse } from "../types/auth.js";
+import { createNotification } from "../repositories/notification.repository.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register User
@@ -31,15 +33,11 @@ export const signupService = async (
    const orgRole = (userData as any).orgRole || (userData as any).role;
 
    try {
-      return await createUserRepo({
+      const newUser = await createUserRepo({
          name: userData.name || (userData as any).username,
          email: userData.email,
          passwordHash: hashedPassword,
          orgRole,
-         // Admins self-register to create their org — there's no other admin
-         // yet to approve them, so they must be approved immediately.
-         // Employees self-registering into an existing org still need an
-         // admin to review and assign their role via Pending Registrations.
          isApproved: orgRole === ORG_ROLE.ADMIN,
          mustChangePassword: false,
          status: USER_STATUS.ACTIVE,
@@ -49,9 +47,18 @@ export const signupService = async (
             osd: { enabled: false, level: 0 },
          },
       });
+
+      const adminUser = await findAdminUser();
+      if (adminUser) {
+         await createNotification(
+            adminUser._id.toString(),
+            NOTIFICATION_TEMPLATES.USER_REGISTERED(newUser.name),
+            newUser._id.toString()
+         )
+      }
+
+      return newUser;
    } catch (err: any) {
-      // MongoDB duplicate key — concurrent request registered the same email
-      // between our getUserByEmail check and the insert above
       if (err?.code === 11000) {
          throw new AppError(MESSAGES.USER_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
       }
@@ -78,8 +85,8 @@ export const loginService = async (
       throw new AppError(MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.CONFLICT);
    }
 
-   if(!user.isApproved){
-       throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
+   if (!user.isApproved) {
+      throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
    }
 
    if (user.status !== USER_STATUS.ACTIVE) {

@@ -1,7 +1,8 @@
 import { Types } from "mongoose";
-import { USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
+import { toObjectId } from "../utils/mongo.js";
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +164,7 @@ export const searchUsersRepo = async (
    limit: number,
    orgId: string
 ) => {
-   
+
    const filter: Record<string, unknown> = {
       orgId,
    };
@@ -318,5 +319,26 @@ export const hasApproveEmployees = (
          }
       }
    });
+};
+
+//find admin user
+export const findAdminUser = async () => {
+   return User.findOne({ orgRole: ORG_ROLE.ADMIN }).lean();
+};
+
+
+//find ctd user in a particular Organization
+export const findCtdUsersByOrgId = async (orgId: string) => {
+  return User.find(
+    {
+      orgId: toObjectId(orgId),
+      "officeRoles.trainingDept.enabled": true,
+    },
+    {
+      _id: 1,
+      email: 1,
+      name: 1,
+    }
+  ).lean();
 };
 

@@ -9,9 +9,8 @@ import {
    updateTravelDetails,
    submitEnrollment,
    submitReimbursement,
-   getEmployeeNotifications,
    submitTourForm,
-   getEnrollmentPanelById
+   getEnrollmentPanelById,
 } from "../controllers/employee.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -46,8 +45,6 @@ router.post(
    validate({ params: programParamsSchema, body: enrollProgramBodySchema }),
    enrollInProgram
 );
-
-router.get("/notifications", getEmployeeNotifications);
 
 router.get("/enrollments", getEmployeeEnrollments);
 
