@@ -6,6 +6,7 @@ import {
    getProgramEnrollmentsForGridRepo,
    countEligibleEnrollmentsRepo,
    getEligibleEnrollmentForAttendanceRepo,
+   getEmployeeEnrollmentForProgramRepo,
    getAllAttendanceRecordsForProgramRepo,
    getAttendanceRecordsByEnrollmentIdsRepo,
    upsertAttendanceDayRepo,
@@ -13,6 +14,7 @@ import {
    markProgramAttendanceUpdatedRepo,
    markEnrollmentAttendanceStartedRepo,
 } from "../repositories/attendanceRecord.repository.js";
+import { findProgramById } from "../repositories/program.repository.js";
 import { syncEnrollmentAttendanceRepo } from "../repositories/enrollment.repository.js";
 import { GetAttendanceGridQuery, MarkAttendanceDayPayload, UpdateAttendanceNotesPayload } from "../types/attendanceRecord.js";
 import { ACTOR_TYPE, ATTENDANCE_DAY_STATUS, ATTENDANCE_RECORD_STATUS, ENROLLMENT_STAGE, TIMELINE_ACTION } from "../constants/enum.js";
@@ -300,4 +302,47 @@ export const updateAttendanceNotesService = async (payload: UpdateAttendanceNote
    );
 
    return { enrollmentId: payload.enrollmentId, notes: record.notes };
+};
+
+// Employee-facing view of their own attendance for one program — same
+// per-day shape the TP grid uses for a single row, so the two stay in sync
+// by construction rather than by two independently-maintained response
+// shapes drifting apart over time.
+export const getEmployeeProgramAttendanceService = async (
+   employeeId: string,
+   programId: string
+) => {
+   const [program, enrollment] = await Promise.all([
+      findProgramById(programId),
+      getEmployeeEnrollmentForProgramRepo(employeeId, programId),
+   ]);
+
+   if (!program) {
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+   if (!enrollment) {
+      throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   const dateRange = getDateRangeStrings(program.startDate, program.endDate);
+   const [record] = await getAttendanceRecordsByEnrollmentIdsRepo([String(enrollment._id)]);
+   const attendanceByDay = record?.attendanceByDay as unknown as Record<string, IAttendanceDayEntry> | undefined;
+   const { present, absent, pending } = tallyAttendanceByDay(attendanceByDay, dateRange);
+
+   return {
+      programId,
+      programTitle: program.title,
+      programDates: {
+         start: toDateString(program.startDate),
+         end: program.endDate ? toDateString(program.endDate) : toDateString(program.startDate),
+         totalDays: dateRange.length,
+      },
+      enrollmentId: String(enrollment._id),
+      attendanceByDay: buildEnrollmentDayView(attendanceByDay, dateRange),
+      notes: record?.notes ?? "",
+      totalPresent: present,
+      totalAbsent: absent,
+      totalPending: pending,
+      isComplete: pending === 0,
+   };
 };

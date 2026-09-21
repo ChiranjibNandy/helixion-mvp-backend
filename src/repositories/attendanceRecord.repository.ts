@@ -88,6 +88,25 @@ export const getEligibleEnrollmentForAttendanceRepo = async (
   });
 };
 
+// The employee's own enrollment for a program, regardless of stage — unlike
+// VISIBLE_ENROLLMENT_FILTER (which gates what a *training provider* may act
+// on), an employee looking at their own attendance should see it whatever
+// stage they're at, including after it's fully resolved (ATTENDED/ABSENT).
+// $or covers the same legacy userId/employeeId split used elsewhere in this
+// codebase (enrollments created before the employeeId migration).
+export const getEmployeeEnrollmentForProgramRepo = async (
+  employeeId: string,
+  programId: string
+) => {
+  return await enrollmentModel.findOne({
+    programId: toObjectId(programId),
+    $or: [
+      { employeeId: toObjectId(employeeId) },
+      { userId: toObjectId(employeeId) },
+    ],
+  });
+};
+
 export const getAllAttendanceRecordsForProgramRepo = async (programId: string) => {
   return await attendanceRecordModel
     .find({ programId: toObjectId(programId) })

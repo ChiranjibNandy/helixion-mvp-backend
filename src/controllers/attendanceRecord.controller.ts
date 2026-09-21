@@ -6,6 +6,7 @@ import {
    getProgramAttendanceGridService,
    markAttendanceDayService,
    updateAttendanceNotesService,
+   getEmployeeProgramAttendanceService,
 } from "../services/attendanceRecord.service.js";
 
 export const getProgramAttendanceGridController = async (
@@ -70,6 +71,30 @@ export const markAttendanceDayController = async (
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.ATTENDANCE_DAY_SAVE_SUCCESS,
+         data,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getEmployeeProgramAttendanceController = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const employeeId = req.userId;
+      if (!employeeId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+      const { id: programId } = req.params;
+
+      const data = await getEmployeeProgramAttendanceService(employeeId, String(programId));
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ATTENDANCE_GRID_FETCH_SUCCESS,
          data,
       });
    } catch (error) {
