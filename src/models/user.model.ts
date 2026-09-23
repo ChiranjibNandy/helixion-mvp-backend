@@ -84,6 +84,10 @@ const userSchema = new Schema<IUser>(
          default: USER_STATUS.ACTIVE,
          index: true,
       },
+      isRejected: {
+         type: Boolean,
+         default: false,
+      },
       isApproved: {
          type: Boolean,
          default: false,
@@ -110,7 +114,7 @@ const userSchema = new Schema<IUser>(
       officeRoles: {
          trainingDept: {
             enabled: { type: Boolean, default: false },
-            level: { type: Number, default: 0 }, 
+            level: { type: Number, default: 0 },
          },
          osd: {
             enabled: { type: Boolean, default: false },

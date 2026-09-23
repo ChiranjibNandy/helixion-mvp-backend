@@ -20,7 +20,9 @@ export const MESSAGES = {
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
   USER_APPROVED_SUCCESSFULLY: "User approved successfully",
+  USER_REJECTED_SUCCESSFULLY: "User rejected successfully",
   NOT_APPROVED: "Your ID is awaiting role assignment and approval by Administrator",
+  REJECTED: "Your registration has been rejected by the Administrator",
 
   PAGE_MUST_BE_A_VALID_NUMBER: "Page must be a valid number",
   PAGE_MUST_BE_GREATER_THAN_ZERO: "Page must be greater than 0",
@@ -109,7 +111,7 @@ export const MESSAGES = {
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
   NOTIFICATIONS_FETCHED: "Notifications fetched successfully",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
-  ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
+  ENROLLMENT_DATA_FETCH: "Enrollment data fetched successfully",
   PROGRAM_FULL: "This program has reached its maximum capacity",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
 
@@ -132,12 +134,12 @@ export const MESSAGES = {
   TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
-  INVALID_MANAGER_ACTION:"Invalid action. Must be recommend, approve, or reject.",
+  INVALID_MANAGER_ACTION: "Invalid action. Must be recommend, approve, or reject.",
 
-  ORG_NOT_ADD_USER:"Organization not added the admin",
-  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program",
+  ORG_NOT_ADD_USER: "Organization not added the admin",
+  ENROLLDATE_LESSTHAN_STARTDATE: "Enrollment Date is should be less than start date of the program",
 
   //notification
-  NOTIFICATION_ID_REQUIRED:"Notification ID is required",
-  NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
+  NOTIFICATION_ID_REQUIRED: "Notification ID is required",
+  NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
 } as const;

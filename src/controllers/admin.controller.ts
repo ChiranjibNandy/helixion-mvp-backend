@@ -14,6 +14,7 @@ import {
   getAdminDashboardStatsService,
   getEmployeeByIdService,
   updateEmployeeService,
+  rejectUserService,
 } from "../services/admin.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
@@ -103,6 +104,26 @@ export const approveUser = async (
     next(error);
   }
 };
+
+export const rejectUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    await rejectUserService(String(id));
+
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: MESSAGES.USER_REJECTED_SUCCESSFULLY
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 /**
  * Deactivate a user account.
@@ -257,11 +278,11 @@ export const batchCreateUsers = async (
     if (!req.file) {
       throw new AppError("CSV file is required", HTTP_STATUS.BAD_REQUEST);
     }
-    if(!req.userId){
-      throw new AppError(MESSAGES.ACCESS_DENIED,HTTP_STATUS.FORBIDDEN)
+    if (!req.userId) {
+      throw new AppError(MESSAGES.ACCESS_DENIED, HTTP_STATUS.FORBIDDEN)
     }
 
-    const result = await batchCreateUsersService(req.file,req.userId);
+    const result = await batchCreateUsersService(req.file, req.userId);
 
 
     return res.status(HTTP_STATUS.CREATED).json({

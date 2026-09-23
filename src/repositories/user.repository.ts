@@ -147,6 +147,19 @@ export const approveUserRepo = async (
    );
 };
 
+export const rejectUserRepo = async (
+   id: string,
+) => {
+   return await User.findByIdAndUpdate(
+      id,
+      {
+         isRejected: true,
+         status: USER_STATUS.INACTIVE,
+      },
+      { new: true, runValidators: true }
+   );
+};
+
 // ─── Search / List ────────────────────────────────────────────────────────────
 
 /** Every userId currently referenced as someone else's manager, anywhere.
@@ -268,9 +281,9 @@ export const clearOtherOfficeRoleHoldersRepo = async (
       {
          orgId,
          _id: { $ne: excludeUserId },
-         [`officeRoles.${ category }.enabled`]: true,
+         [`officeRoles.${category}.enabled`]: true,
       },
-      { $set: { [`officeRoles.${ category }`]: { enabled: false, level: 0 } } }
+      { $set: { [`officeRoles.${category}`]: { enabled: false, level: 0 } } }
    );
 };
 
@@ -282,8 +295,8 @@ export const getUsersByOfficeRoleRepo = async (
 ) => {
    return await User.find({
       orgId,
-      [`officeRoles.${ type }.enabled`]: true,
-      [`officeRoles.${ type }.level`]: { $gte: minLevel },
+      [`officeRoles.${type}.enabled`]: true,
+      [`officeRoles.${type}.level`]: { $gte: minLevel },
       status: USER_STATUS.ACTIVE,
    }).select("-passwordHash");
 };
@@ -329,16 +342,16 @@ export const findAdminUser = async () => {
 
 //find ctd user in a particular Organization
 export const findCtdUsersByOrgId = async (orgId: string) => {
-  return User.find(
-    {
-      orgId: toObjectId(orgId),
-      "officeRoles.trainingDept.enabled": true,
-    },
-    {
-      _id: 1,
-      email: 1,
-      name: 1,
-    }
-  ).lean();
+   return User.find(
+      {
+         orgId: toObjectId(orgId),
+         "officeRoles.trainingDept.enabled": true,
+      },
+      {
+         _id: 1,
+         email: 1,
+         name: 1,
+      }
+   ).lean();
 };
 

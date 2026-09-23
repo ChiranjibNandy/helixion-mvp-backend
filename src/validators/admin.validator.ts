@@ -20,6 +20,13 @@ export const approveUserBodySchema = z.object({
     .optional(),
 });
 
+export const rejectUserParamsSchema = z.object({
+  id: z
+    .string()
+    .min(1, MESSAGES.USER_ID_REQUIRED),
+});
+
+
 // Single-employee creation — the escape hatch for the one case bulk upload
 // can no longer handle: a person with no manager (bulk upload now requires
 // Reporting Manager Email on every row). Reporting manager here is
