@@ -31,7 +31,7 @@ export const createProgram = async (req: Request, res: Response, next: NextFunct
 export const bulkCreateProgram = async (req: Request, res: Response, next: NextFunction) => {
    try {
       if (!req.file) {
-         throw new AppError(MESSAGES.CSV_REQUIRED, HTTP_STATUS.BAD_REQUEST);
+         throw new AppError(MESSAGES.FILE_REQUIRED, HTTP_STATUS.BAD_REQUEST);
       }
 
       const result = await bulkCreateProgramService({

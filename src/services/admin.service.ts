@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import { MESSAGES } from "../constants/messages.js";
 import { PendingRegistrationsDto } from "../dtos/registration.dto.js";
-import { BulkUploadUserDto } from "../dtos/user.dto.js";
 import { getPendingRegistrationsRepo, getRegisteredUsersRepo } from "../repositories/admin.repository.js";
 import { mapUserToPendingRegistrationDto } from "../mapper/user.mapper.js";
 import {
@@ -10,10 +9,6 @@ import {
   deactivateUserRepo,
   activateUserRepo,
   getUsersByEmailsRepo,
-  batchCreateUsersRepo,
-  searchUsersRepo,
-  updateUserRoleRepo,
-  getUserByEmailRepo,
   createUserRepo,
   updateOneUser,
   getDistinctManagerIdsRepo,
@@ -22,6 +17,8 @@ import {
   clearOtherOfficeRoleHoldersRepo,
   getRecentlyAddedUsersRepo,
   bulkWriteUsersRepo,
+  getUserByEmailRepo,
+  searchUsersRepo,
 } from "../repositories/user.repository.js";
 import UploadJob from "../models/uploadJob.model.js";
 import { uploadQueue } from "../queue/bullConfig.js";
@@ -29,7 +26,6 @@ import { Types } from "mongoose";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
-import { ENV } from "../config/env.js";
 import { sendWelcomeMail } from "../utils/sendMail.js";
 import { logMailFailure } from "../utils/notification.util.js";
 
@@ -52,12 +48,11 @@ const enforceSingleOfficeRoleHolder = async (
   }
 };
 import { toObjectId } from "../utils/mongo.js";
-import { parseCsvBuffer } from "../utils/csvParser.js";
 import { findOrgById } from "../repositories/organization.repository.js";
-import { parseExcelBuffer } from "../utils/parseExcelBuffer.js";
 import { mapSpreadsheetEmployee } from "../utils/mapSpreadsheetEmployee.js";
 import { mapEmployeeHierarchy, buildManagerChain } from "../utils/mapEmployeeHierarchy.js";
 import { EmployeeDetailDto } from "../dtos/user.dto.js";
+import { parseBulkFileBuffer } from "../utils/parseBulkFile.js";
 
 
 
@@ -111,7 +106,7 @@ export const approveUserAndAddRoleService = async (
 
     const pendingUser = await getUserByIdRepo(id);
     if (!pendingUser?.employeeCode) {
-      employeeCode = `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      employeeCode = `EMP-${ Date.now().toString(36) }-${ Math.random().toString(36).slice(2, 8) }`;
     }
   }
 
@@ -262,7 +257,7 @@ export const createSingleUserService = async (
   // actually sparse, despite the schema declaring it that way — likely
   // created before that option was added and never rebuilt). Always supply
   // a value rather than relying on sparseness to exclude it.
-  const employeeCode = data.employeeCode?.trim() || `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const employeeCode = data.employeeCode?.trim() || `EMP-${ Date.now().toString(36) }-${ Math.random().toString(36).slice(2, 8) }`;
 
   const created = await createUserRepo({
     orgId: org._id,
@@ -528,10 +523,10 @@ const friendlyBatchRowError = (err: any, row: any): string => {
   if (err?.code === 11000 || /E11000/.test(message)) {
     if (/employeeCode/.test(message)) {
       const rollNo = row?.["Employee Roll No."] ?? "";
-      return `Employee Roll No. "${rollNo}" is already used by another employee in this org — use a unique Roll No.`;
+      return `Employee Roll No. "${ rollNo }" is already used by another employee in this org — use a unique Roll No.`;
     }
     if (/email/i.test(message)) {
-      return `Email "${row?.Email ?? ""}" is already in use by another employee.`;
+      return `Email "${ row?.Email ?? "" }" is already in use by another employee.`;
     }
     return "A duplicate value conflicts with an existing employee record.";
   }
@@ -539,15 +534,6 @@ const friendlyBatchRowError = (err: any, row: any): string => {
   return message;
 };
 
-const parseBulkUploadFile = async (file: { originalname: string; buffer: Buffer }) => {
-  if (file.originalname.endsWith(".csv")) {
-    return await parseCsvBuffer(file.buffer);
-  }
-  if (file.originalname.endsWith(".xlsx") || file.originalname.endsWith(".xls")) {
-    return await parseExcelBuffer(file.buffer);
-  }
-  throw new AppError("Unsupported file type", 400);
-};
 
 const MANAGER_EMAIL_COLUMNS = [
   ["Reporting Manager Email", true],
@@ -624,34 +610,34 @@ export const processBulkUserRows = async (
       for (const [column, required] of MANAGER_EMAIL_COLUMNS) {
         const managerEmail = row[column];
         if (!managerEmail) {
-          if (required) throw new Error(`${column} is required`);
+          if (required) throw new Error(`${ column } is required`);
           continue;
         }
         if (!managerRefResolves(managerEmail)) {
-          throw new Error(`${column} "${managerEmail}" does not match any existing user or row in this file`);
+          throw new Error(`${ column } "${ managerEmail }" does not match any existing user or row in this file`);
         }
       }
 
       const existing = byEmail.get(payload.email);
       if (existing) {
         if (existing.orgRole !== ORG_ROLE.EMPLOYEE && existing.orgRole !== ORG_ROLE.MANAGER) {
-          throw new Error(`Email "${payload.email}" belongs to a ${existing.orgRole} account and cannot be modified via bulk upload`);
+          throw new Error(`Email "${ payload.email }" belongs to a ${ existing.orgRole } account and cannot be modified via bulk upload`);
         }
         if (existing.orgId && String(existing.orgId) !== String(org._id)) {
-          throw new Error(`Email "${payload.email}" already belongs to a user in another organization`);
+          throw new Error(`Email "${ payload.email }" already belongs to a user in another organization`);
         }
         const priorDuplicate = updatePlansByEmail.get(payload.email);
         if (priorDuplicate) {
           skipped.push({
             email: priorDuplicate.row.Email,
             employeeCode: priorDuplicate.row["Employee Roll No."],
-            error: `Email "${payload.email}" appears more than once in this file — only the last occurrence was applied`,
+            error: `Email "${ payload.email }" appears more than once in this file — only the last occurrence was applied`,
           });
         }
         updatePlansByEmail.set(payload.email, { row, payload, isUpdate: true, existingId: existing._id });
       } else {
         if (seenNewEmails.has(payload.email)) {
-          throw new Error(`Email "${payload.email}" appears more than once in this file for a new employee — only the first occurrence was processed`);
+          throw new Error(`Email "${ payload.email }" appears more than once in this file for a new employee — only the first occurrence was processed`);
         }
         seenNewEmails.add(payload.email);
         plans.push({ row, payload, isUpdate: false });
@@ -675,7 +661,7 @@ export const processBulkUserRows = async (
     const validationResults: any[] = result?.mongoose?.results ?? [];
     const insertedIds: Record<number, any> = result?.insertedIds ?? {};
 
-    let sentIndex = 0;   
+    let sentIndex = 0;
     let insertCursor = 0;
 
     batch.forEach((plan, originalIndex) => {
@@ -721,7 +707,7 @@ export const processBulkUserRows = async (
       if (!err.writeErrors?.length && !err.mongoose?.results) {
         const message = friendlyBatchRowError(err, {});
         batch.forEach((plan) => {
-          skipped.push({ email: plan.row.Email, employeeCode: plan.row["Employee Roll No."], error: `Batch write failed: ${message}` });
+          skipped.push({ email: plan.row.Email, employeeCode: plan.row["Employee Roll No."], error: `Batch write failed: ${ message }` });
         });
         if (onProgress) await onProgress(Math.round(((c + 1) / Math.max(writeChunks.length, 1)) * 50));
         continue;
@@ -752,7 +738,7 @@ export const processBulkUserRows = async (
     if (!trainingDept.enabled && !osd.enabled) continue;
     const id = resolvedIds.get(plan.payload.email);
     if (!id) {
-      console.error(`[batchCreateUsers] skipping office-role enforcement for ${plan.payload.email} — no resolved id`);
+      console.error(`[batchCreateUsers] skipping office-role enforcement for ${ plan.payload.email } — no resolved id`);
       continue;
     }
     await enforceSingleOfficeRoleHolder(org._id as Types.ObjectId, id, plan.payload.officeRoles);
@@ -799,7 +785,7 @@ export const processBulkUserRows = async (
   }
 
   if (skipped.length > 0) {
-    console.error(`[batchCreateUsers] ${skipped.length} row(s) skipped:`, skipped);
+    console.error(`[batchCreateUsers] ${ skipped.length } row(s) skipped:`, skipped);
   }
 
   return {
@@ -829,13 +815,13 @@ const resolveAdminOrg = async (userId: string) => {
 export const batchCreateUsersService = async (
   file: Express.Multer.File, userId: string
 ) => {
-  const rows = await parseBulkUploadFile(file);
+  const rows = await parseBulkFileBuffer(file.buffer, file.originalname);
   const { org } = await resolveAdminOrg(userId);
   return processBulkUserRows(rows, org);
 };
 
 export const createBulkUploadJobService = async (file: Express.Multer.File, userId: string) => {
-  const rows = await parseBulkUploadFile(file);
+  const rows = await parseBulkFileBuffer(file.buffer, file.originalname);
   const { user, org } = await resolveAdminOrg(userId);
 
   const job = await UploadJob.create({
@@ -859,7 +845,7 @@ export const processBulkUploadJobService = async (jobId: string, preParsedRows?:
   try {
     await UploadJob.updateOne({ _id: jobId }, { $set: { status: "processing", startedAt: new Date() } });
 
-    const rows = preParsedRows ?? await parseBulkUploadFile({ originalname: job.fileName, buffer: job.fileBuffer });
+    const rows = preParsedRows ?? await parseBulkFileBuffer(job.fileBuffer, job.fileName);
     const org = await findOrgById(job.orgId);
     if (!org) {
       throw new AppError(MESSAGES.ORG_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -922,7 +908,7 @@ export const reconcileOrphanedBulkUploadJobsService = async () => {
     { $set: { status: "failed", error: "Server restarted while this upload was processing.", completedAt: new Date() } }
   );
   if (result.modifiedCount > 0) {
-    console.error(`[bulkUploadJob] marked ${result.modifiedCount} orphaned job(s) from a prior process as failed`);
+    console.error(`[bulkUploadJob] marked ${ result.modifiedCount } orphaned job(s) from a prior process as failed`);
   }
 };
 
@@ -1076,7 +1062,7 @@ export const getAdminDashboardStatsService = async (adminUserId: string) => {
   const managerIds = new Set(managerIdList);
   const recentActivity = recentUsers.map((user: any) => ({
     id: String(user._id),
-    title: `${user.name} joined as ${deriveDisplayRole(user, managerIds)}`,
+    title: `${ user.name } joined as ${ deriveDisplayRole(user, managerIds) }`,
     time: user.createdAt,
     type: "success" as const,
   }));

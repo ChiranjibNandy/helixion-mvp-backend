@@ -81,7 +81,7 @@ export const MESSAGES = {
   PARTICIPANT_FETCH: "Participants fetched successfully",
 
   UPLOAD_FAIL: "Upload failed",
-  CSV_REQUIRED: "CSV file is required",
+  FILE_REQUIRED: "File is required",
   NO_PROGRAM_FOUND: "No valid programs found in CSV",
   CSV_ALLOWED: "Only CSV files are allowed",
   CSV_EMPTY: "CSV file is empty",

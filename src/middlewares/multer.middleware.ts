@@ -7,7 +7,7 @@ export const upload = multer({
    storage: multer.memoryStorage(),
 });
 
-export const uploadCsv = multer({
+export const uploadBulkFile = multer({
    storage: multer.memoryStorage(),
 
    limits: {
