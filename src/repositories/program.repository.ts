@@ -437,7 +437,8 @@ export const getEmployeeProgramsListRepo = async ({
   search,
   venue,
   fromDate,
-  toDate
+  toDate,
+  hidePast
 }: {
   page: number;
   limit: number;
@@ -445,6 +446,7 @@ export const getEmployeeProgramsListRepo = async ({
   venue?: string;
   fromDate?: string;
   toDate?: string;
+  hidePast?: boolean;
 }) => {
   const skip = (page - 1) * limit;
   const filter: any = {
@@ -465,6 +467,13 @@ export const getEmployeeProgramsListRepo = async ({
     if (toDate) {
       filter.startDate.$lte = new Date(toDate);
     }
+  }
+  if (hidePast) {
+    const now = new Date();
+    filter.$or = [
+      { endDate: { $gte: now } },
+      { endDate: null, startDate: { $gte: now } }
+    ];
   }
 
   const [programs, total] = await Promise.all([

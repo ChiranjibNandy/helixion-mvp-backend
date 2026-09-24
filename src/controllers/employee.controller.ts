@@ -62,7 +62,7 @@ export const getEmployeeDashboard =
 
 export const getEmployeeProgramsList = async (req: Request, res: Response, next: NextFunction) => {
    try {
-      const { page, limit, search, venue, fromDate, toDate } = req.query as any;
+      const { page, limit, search, venue, fromDate, toDate, hidePast } = req.query as any;
 
       const result = await getEmployeeProgramsListService({
          page,
@@ -70,7 +70,8 @@ export const getEmployeeProgramsList = async (req: Request, res: Response, next:
          search,
          venue,
          fromDate,
-         toDate
+         toDate,
+         hidePast: hidePast === "true"
       });
 
       return res.status(HTTP_STATUS.OK).json({
