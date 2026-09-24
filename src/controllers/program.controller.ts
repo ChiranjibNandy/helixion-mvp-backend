@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getProgramParticipantsService, getProgramsService, getPublishedProgramsService } from "../services/program.service.js";
+import { getProgramParticipantsService, getProgramsService, getPublishedProgramsService, updatePublishedProgramService } from "../services/program.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -98,6 +98,33 @@ export const getPrograms = async (
          success: true,
          message: MESSAGES.PUBLISHED_PROGRAM_FETCH,
          ...result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+
+export const updatePublishedProgram = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const { id } = req.params;
+      const { title, minParticipants, maxParticipants } = req.body;
+      const userId = req.userId
+
+      if (!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
+      }
+      
+      const program = await updatePublishedProgramService(String(id), {
+         title,
+         minParticipants,
+         maxParticipants,
+      }, userId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.DRAFT_PUBLISHED,
+         data: program,
       });
    } catch (error) {
       next(error);

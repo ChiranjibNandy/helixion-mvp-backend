@@ -595,6 +595,20 @@ export const getPrograms = async (
   ]);
 };
 
+//update program data ById
+// 1* used to update title max and min participant
+
+export const updateProgramFields = async (
+  programId: string,
+  updateData: Partial<IProgram>
+): Promise<IProgram | null> => {
+  return await Program.findByIdAndUpdate(
+    programId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+}
+
 
 
 
