@@ -154,7 +154,6 @@ export const rejectUserRepo = async (
       id,
       {
          isRejected: true,
-         status: USER_STATUS.INACTIVE,
       },
       { new: true, runValidators: true }
    );
