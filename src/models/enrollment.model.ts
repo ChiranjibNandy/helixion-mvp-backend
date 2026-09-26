@@ -14,6 +14,7 @@ import {
    TRAVEL_TYPE,
    TOUR_CTD_ACTION,
    ENROLLMENT_STATUS,
+   ENROLLMENT_REJECTION_REASON,
 } from "../constants/enum.js";
 
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
@@ -95,6 +96,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
          enum: Object.values(ENROLLMENT_STAGE),
          default: ENROLLMENT_STAGE.SUBMITTED,
          index: true,
+      },
+
+      /** Set only when currentStage === REJECTED, explains which gate rejected it */
+      rejectionReason: {
+         type: String,
+         enum: Object.values(ENROLLMENT_REJECTION_REASON),
       },
 
       /**
