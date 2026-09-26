@@ -100,7 +100,7 @@ export const updatePublishedProgramService = async (
    const existingProgram = await getProgramByIdRepo(programId, userId);
 
    if (!existingProgram) {
-      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND || "Program not found", HTTP_STATUS.NOT_FOUND);
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND , HTTP_STATUS.NOT_FOUND);
    }
 
    // Extract only allowed fields

@@ -123,7 +123,7 @@ export const updatePublishedProgram = async (req: Request, res: Response, next: 
 
       return res.status(HTTP_STATUS.OK).json({
          success: true,
-         message: MESSAGES.DRAFT_PUBLISHED,
+         message: MESSAGES.PROGRAM_UPDATES_SUCCESS,
          data: program,
       });
    } catch (error) {
