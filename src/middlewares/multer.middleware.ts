@@ -2,6 +2,7 @@ import multer from "multer";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { AppError } from "../utils/appError.js";
 import path from "path";
+import { MESSAGES } from "../constants/messages.js";
 
 export const upload = multer({
    storage: multer.memoryStorage(),
@@ -22,7 +23,7 @@ export const uploadBulkFile = multer({
       if (!allowedExtensions.includes(extension)) {
          return cb(
             new AppError(
-               "Only .csv, .xls and .xlsx files are allowed.",
+               MESSAGES.ONLY_ALLOW_FORMAT_FILE,
                HTTP_STATUS.BAD_REQUEST
             )
          );

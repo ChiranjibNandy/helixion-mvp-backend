@@ -139,4 +139,5 @@ export const MESSAGES = {
   //notification
   NOTIFICATION_ID_REQUIRED:"Notification ID is required",
   NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
+  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed."
 } as const;
