@@ -21,9 +21,7 @@ export const approveUserBodySchema = z.object({
 });
 
 export const rejectUserParamsSchema = z.object({
-  id: z
-    .string()
-    .min(1, MESSAGES.USER_ID_REQUIRED),
+  id: objectIdSchema,
 });
 
 

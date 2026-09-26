@@ -13,7 +13,7 @@ export const getPendingRegistrationsRepo = async (
 
    const pendingFilter = {
       isApproved: false,
-      isRejected: false,
+      isRejected: { $ne: true },
    };
 
    const [users, total] = await Promise.all([
@@ -22,9 +22,7 @@ export const getPendingRegistrationsRepo = async (
          .skip(skip)
          .limit(limit),
 
-      User.countDocuments({
-         isApproved: false
-      }),
+      User.countDocuments(pendingFilter),
    ]);
 
    return { users, total };

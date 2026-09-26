@@ -147,15 +147,20 @@ export const approveUserRepo = async (
    );
 };
 
-export const rejectUserRepo = async (
-   id: string,
-) => {
-   return await User.findByIdAndUpdate(
-      id,
+export const rejectUserRepo = async (id: string) => {
+   return await User.findOneAndUpdate(
+      {
+         _id: id,
+         isApproved: false,
+         isRejected: { $ne: true },
+      },
       {
          isRejected: true,
       },
-      { new: true, runValidators: true }
+      {
+         new: true,
+         runValidators: true,
+      }
    );
 };
 
@@ -220,7 +225,7 @@ export const getOrgUserStatsRepo = async (orgId: string) => {
                { $match: { status: { $in: [USER_STATUS.INACTIVE, USER_STATUS.DEACTIVE] } } },
                { $count: "n" },
             ],
-            pending: [{ $match: { isApproved: false } }, { $count: "n" }],
+            pending: [{ $match: { isApproved: false, isRejected: { $ne: true } } }, { $count: "n" }],
          },
       },
    ]);
