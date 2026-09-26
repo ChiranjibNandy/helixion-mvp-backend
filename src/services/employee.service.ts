@@ -8,7 +8,6 @@ import {
    getEnrollmentDetailsRepo,
    findEnrollmentForReimbursementSubmitRepo,
    submitReimbursementRepo,
-   getEmployeeNotificationTimelineRepo,
    countPendingEnrollmentsForStageRepo,
    countPendingTourApprovalsForCtdRepo,
 } from "../repositories/enrollment.repository.js";
@@ -35,49 +34,51 @@ import {
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { resolveEnrollmentFee } from "../utils/fee.js";
-import { isLocalTraining, resolveProgramTitle, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
+import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
 import { sendSelfTravelSelectedMail, sendTravelRequestSubmittedMail } from "../utils/sendMail.js";
 import { ITimelineEntry } from "../interfaces/enrollment.interface.js";
 import { IUser } from "../interfaces/user.interface.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { createNotification, createNotifications } from "../repositories/notification.repository.js";
 
 
 export const getEmployeeDashboardService = async (userId: string) => {
-  const [summary, approvalStats, listedPrograms, user] = await Promise.all([
-    getDashboardSummaryRepo(userId),
-    getApprovalStatsRepo(userId),
-    getListedProgramsRepo(userId),
-    userModel.findById(userId).select("orgId officeRoles.trainingDept").lean(),
-  ]);
+   const [summary, approvalStats, listedPrograms, user] = await Promise.all([
+      getDashboardSummaryRepo(userId),
+      getApprovalStatsRepo(userId),
+      getListedProgramsRepo(userId),
+      userModel.findById(userId).select("orgId officeRoles.trainingDept").lean(),
+   ]);
 
-  // A CTD officer's own personal "pendingApprovals" (enrollments THEY
-  // submitted awaiting a manager) is rarely what they actually care about
-  // on this dashboard — they land here because there's no separate CTD
-  // dashboard. Mirror the same override already applied to the Manager
-  // dashboard: replace it with the count of items actually awaiting THEIR
-  // CTD action (main enrollment queue + tour queue combined), so "Pending
-  // Approvals" / "Awaiting your review" means something real for them.
-  const trainingDeptRole = (user as any)?.officeRoles?.trainingDept;
-  if (trainingDeptRole?.enabled && (user as any)?.orgId) {
-    const orgId = String((user as any).orgId);
-    const [ctdMainPendingCount, ctdTourPendingCount] = await Promise.all([
-      countPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
-      countPendingTourApprovalsForCtdRepo(orgId),
-    ]);
-    summary.pendingApprovals = ctdMainPendingCount + ctdTourPendingCount;
-  }
+   // A CTD officer's own personal "pendingApprovals" (enrollments THEY
+   // submitted awaiting a manager) is rarely what they actually care about
+   // on this dashboard — they land here because there's no separate CTD
+   // dashboard. Mirror the same override already applied to the Manager
+   // dashboard: replace it with the count of items actually awaiting THEIR
+   // CTD action (main enrollment queue + tour queue combined), so "Pending
+   // Approvals" / "Awaiting your review" means something real for them.
+   const trainingDeptRole = (user as any)?.officeRoles?.trainingDept;
+   if (trainingDeptRole?.enabled && (user as any)?.orgId) {
+      const orgId = String((user as any).orgId);
+      const [ctdMainPendingCount, ctdTourPendingCount] = await Promise.all([
+         countPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
+         countPendingTourApprovalsForCtdRepo(orgId),
+      ]);
+      summary.pendingApprovals = ctdMainPendingCount + ctdTourPendingCount;
+   }
 
-  return { summary, approvalStats, listedPrograms };
+   return { summary, approvalStats, listedPrograms };
 };
 
 export const getAvailableProgramsService = async (params: {
-  page:      number;
-  limit:     number;
-  search?:   string;
-  venue?:    string;
-  fromDate?: string;
-  toDate?:   string;
+   page: number;
+   limit: number;
+   search?: string;
+   venue?: string;
+   fromDate?: string;
+   toDate?: string;
 }) => {
-  return await getAvailableProgramsPaginatedRepo(params);
+   return await getAvailableProgramsPaginatedRepo(params);
 };
 
 export const getEmployeeProgramsListService = async (params: {
@@ -112,8 +113,8 @@ export const enrollInProgramService = async (
       throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
    let now = new Date()
-   if(program.startDate < now){
-      throw new AppError(MESSAGES.ENROLLDATE_LESSTHAN_STARTDATE,HTTP_STATUS.CONFLICT)
+   if (program.startDate < now) {
+      throw new AppError(MESSAGES.ENROLLDATE_LESSTHAN_STARTDATE, HTTP_STATUS.CONFLICT)
    }
 
    // 2. Check if already enrolled (active or pending)
@@ -127,6 +128,7 @@ export const enrollInProgramService = async (
    if (!user) {
       throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+
 
    // A manager is required before enrollment is allowed at all — an empty
    // managerChain would otherwise reach MANAGER_REVIEW with nobody able to
@@ -194,7 +196,7 @@ export const enrollInProgramService = async (
    const user_hierarchy = (user as any).hierarchy || {};
    const managerChain = (user_hierarchy.managerChain || []).map((entry: any) => ({
       userId: entry.userId,
-      level:  entry.level,
+      level: entry.level,
       status: MANAGER_CHAIN_STATUS.WAITING,
    }));
    // Activate the first level immediately
@@ -241,6 +243,21 @@ export const enrollInProgramService = async (
          }
       ]
    };
+
+   //send notification for all manager corresponding employee
+   const managerIds = (user.hierarchy?.managerChain ?? [])
+      .map((manager) => manager.userId?.toString())
+      .filter(Boolean);
+
+   if (managerIds.length) {
+      const template = NOTIFICATION_TEMPLATES.ENROLL_PROGRAM(program.title, user.name);
+
+      await createNotifications(
+         managerIds,
+         template,
+         user._id.toString()
+      );
+   }
 
 
    // Save to DB
@@ -492,19 +509,19 @@ export const submitReimbursementService = async (
       enrollmentId,
       userId,
       {
-         "reimbursement.expenses":    expenses,
-         "reimbursement.receipts":    receipts,
+         "reimbursement.expenses": expenses,
+         "reimbursement.receipts": receipts,
          "reimbursement.totalAmount": totalAmount,
-         "reimbursement.status":      REIMBURSEMENT_STATUS.SUBMITTED,
-         currentStage:                ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+         "reimbursement.status": REIMBURSEMENT_STATUS.SUBMITTED,
+         currentStage: ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
       },
       {
-         stage:     ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
-         actorId:   toObjectId(userId),
+         stage: ENROLLMENT_STAGE.REIMBURSEMENT_MANAGER_REVIEW,
+         actorId: toObjectId(userId),
          actorType: ACTOR_TYPE.EMPLOYEE,
-         action:    EMPLOYEE_TIMELINE_ACTION.SUBMITTED,
-         note:      "Reimbursement claim submitted",
-         at:        new Date(),
+         action: EMPLOYEE_TIMELINE_ACTION.SUBMITTED,
+         note: "Reimbursement claim submitted",
+         at: new Date(),
       }
    );
 
@@ -544,173 +561,136 @@ export const submitReimbursementService = async (
 
 interface NotificationContext {
    programTitle: string;
-   program:      any;
-   employee:     IUser | null;
+   program: any;
+   employee: IUser | null;
 }
 
 interface NotificationRule {
-   type:         string;
-   matches:      (entry: ITimelineEntry) => boolean;
+   type: string;
+   matches: (entry: ITimelineEntry) => boolean;
    buildMessage: (ctx: NotificationContext) => string;
 }
 
 const NOTIFICATION_RULES: NotificationRule[] = [
    {
-      type:    "enrollment_rejected",
+      type: "enrollment_rejected",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your enrollment request for ${programTitle} has been rejected by your manager.`,
+         `Your enrollment request for ${ programTitle } has been rejected by your manager.`,
    },
    {
-      type:    "enrollment_approved",
+      type: "enrollment_approved",
       matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TRAINING_DEPT_SENIOR_ACTION.APPROVE,
       buildMessage: ({ programTitle, program, employee }) =>
          isLocalTraining(employee?.placeOfPosting, program?.city)
-            ? `Your enrollment for ${programTitle} has been approved. No travel action is required.`
-            : `Your enrollment for ${programTitle} has been approved. Please coordinate travel arrangements with the Training Department.`,
+            ? `Your enrollment for ${ programTitle } has been approved. No travel action is required.`
+            : `Your enrollment for ${ programTitle } has been approved. Please coordinate travel arrangements with the Training Department.`,
    },
    {
       // For orgs with Training Dept review disabled, takeManagerActionService
       // applies the local/outstation branch itself and the timeline's `stage`
       // lands on APPROVED directly — distinguishes this from an intermediate
       // multi-level chain approval, which leaves `stage` unchanged.
-      type:    "enrollment_approved",
+      type: "enrollment_approved",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.APPROVED,
       buildMessage: ({ programTitle }) =>
-         `Your enrollment for ${programTitle} has been approved. No travel action is required.`,
+         `Your enrollment for ${ programTitle } has been approved. No travel action is required.`,
    },
    {
-      type:    "enrollment_approved",
+      type: "enrollment_approved",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
       buildMessage: ({ programTitle }) =>
-         `Your enrollment for ${programTitle} has been approved. Please coordinate travel arrangements with the Training Department.`,
+         `Your enrollment for ${ programTitle } has been approved. Please coordinate travel arrangements with the Training Department.`,
    },
    {
       // Not one of the ticket's 12 named events, but its approval counterpart
       // (above) is — a Training Dept rejection producing zero notification
       // was a gap found while testing, matching the reimbursement-reject fix.
-      type:    "enrollment_rejected",
+      type: "enrollment_rejected",
       matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TRAINING_DEPT_SENIOR_ACTION.REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your enrollment request for ${programTitle} has been rejected by the Training Department.`,
+         `Your enrollment request for ${ programTitle } has been rejected by the Training Department.`,
    },
    {
-      type:    "attendance_present",
+      type: "attendance_present",
       matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.ATTENDANCE_PRESENT,
       buildMessage: ({ programTitle }) =>
-         `Your attendance for ${programTitle} has been marked as Present. You may now submit your reimbursement claim.`,
+         `Your attendance for ${ programTitle } has been marked as Present. You may now submit your reimbursement claim.`,
    },
    {
-      type:    "attendance_absent",
+      type: "attendance_absent",
       matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.ATTENDANCE_ABSENT,
       buildMessage: ({ programTitle }) =>
-         `You have been marked as absent for ${programTitle}. Reimbursement submission is not available.`,
+         `You have been marked as absent for ${ programTitle }. Reimbursement submission is not available.`,
    },
    {
-      type:    "reimbursement_approved",
+      type: "reimbursement_approved",
       matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.REIMBURSEMENT_OSD_APPROVE,
       buildMessage: ({ programTitle }) =>
-         `Your reimbursement claim for ${programTitle} has been approved.`,
+         `Your reimbursement claim for ${ programTitle } has been approved.`,
    },
    // Not one of the ticket's 12 named events, but its approval counterpart
    // is — a rejected reimbursement claim producing zero notification at all
    // (found in code review) was a gap, not a deliberate scope decision.
    {
-      type:    "reimbursement_rejected",
+      type: "reimbursement_rejected",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === TIMELINE_ACTION.REIMBURSEMENT_MANAGER_REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your reimbursement claim for ${programTitle} was not approved by your manager.`,
+         `Your reimbursement claim for ${ programTitle } was not approved by your manager.`,
    },
    {
-      type:    "reimbursement_rejected",
+      type: "reimbursement_rejected",
       matches: (entry) => entry.actorType === ACTOR_TYPE.OSD && entry.action === TIMELINE_ACTION.REIMBURSEMENT_OSD_REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your reimbursement claim for ${programTitle} was not approved by OSD.`,
+         `Your reimbursement claim for ${ programTitle } was not approved by OSD.`,
    },
    {
-      type:    "self_travel_selected",
+      type: "self_travel_selected",
       matches: (entry) => entry.actorType === ACTOR_TYPE.EMPLOYEE && entry.action === EMPLOYEE_TIMELINE_ACTION.TOUR_FORM_SUBMITTED && !entry.note?.includes("company_assisted"),
       buildMessage: ({ programTitle }) =>
-         `You have chosen to make your own travel arrangements for ${programTitle}. You will be able to submit reimbursement after attendance is marked as Present.`,
+         `You have chosen to make your own travel arrangements for ${ programTitle }. You will be able to submit reimbursement after attendance is marked as Present.`,
    },
    {
-      type:    "travel_request_submitted",
+      type: "travel_request_submitted",
       matches: (entry) => entry.actorType === ACTOR_TYPE.EMPLOYEE && entry.action === EMPLOYEE_TIMELINE_ACTION.TOUR_FORM_SUBMITTED && (entry.note?.includes("company_assisted") ?? false),
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} has been submitted and is awaiting manager approval.`,
+         `Your company-assisted travel request for ${ programTitle } has been submitted and is awaiting manager approval.`,
    },
    {
-      type:    "travel_under_ctd_review",
+      type: "travel_under_ctd_review",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === TIMELINE_ACTION.TOUR_MANAGER_APPROVE,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} has been approved by your manager and is awaiting Training Dept approval.`,
+         `Your company-assisted travel request for ${ programTitle } has been approved by your manager and is awaiting Training Dept approval.`,
    },
    {
-      type:    "travel_rejected_by_manager",
+      type: "travel_rejected_by_manager",
       matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === TIMELINE_ACTION.TOUR_MANAGER_REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} was not approved by your manager.`,
+         `Your company-assisted travel request for ${ programTitle } was not approved by your manager.`,
    },
    {
-      type:    "travel_approved",
+      type: "travel_approved",
       matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TIMELINE_ACTION.TOUR_CTD_APPROVE,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} has been approved. Please proceed with the approved travel arrangements.`,
+         `Your company-assisted travel request for ${ programTitle } has been approved. Please proceed with the approved travel arrangements.`,
    },
    {
-      type:    "travel_rejected_by_ctd",
+      type: "travel_rejected_by_ctd",
       matches: (entry) => entry.actorType === ACTOR_TYPE.TRAINING_DEPT && entry.action === TIMELINE_ACTION.TOUR_CTD_REJECT,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} was not approved by the Training Department. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
+         `Your company-assisted travel request for ${ programTitle } was not approved by the Training Department. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
    },
    {
-      type:    "travel_timed_out",
+      type: "travel_timed_out",
       matches: (entry) => entry.actorType === ACTOR_TYPE.SYSTEM && entry.action === TIMELINE_ACTION.TOUR_CTD_TIMEOUT,
       buildMessage: ({ programTitle }) =>
-         `Your company-assisted travel request for ${programTitle} could not be processed within the required time. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
+         `Your company-assisted travel request for ${ programTitle } could not be processed within the required time. You may proceed with self-arranged travel and submit reimbursement after training completion.`,
    },
 ];
 
-const NOTIFICATION_LIMIT = 50;
 
-export const getEmployeeNotificationsService = async (userId: string) => {
-   const [enrollments, employee] = await Promise.all([
-      getEmployeeNotificationTimelineRepo(userId),
-      userModel.findById(userId),
-   ]);
 
-   const notifications: {
-      id: string;
-      type: string;
-      message: string;
-      enrollmentId: string;
-      at: Date;
-   }[] = [];
 
-   for (const enrollment of enrollments) {
-      const program = enrollment.programId as any;
-      const programTitle = resolveProgramTitle(program);
-      const enrollmentId = enrollment._id.toString();
-      const ctx: NotificationContext = { programTitle, program, employee };
-
-      for (const entry of enrollment.timeline || []) {
-         const rule = NOTIFICATION_RULES.find((r) => r.matches(entry));
-         if (!rule) continue;
-
-         notifications.push({
-            id:           `${enrollmentId}-${new Date(entry.at).getTime()}`,
-            type:         rule.type,
-            message:      rule.buildMessage(ctx),
-            enrollmentId,
-            at:           entry.at,
-         });
-      }
-   }
-
-   notifications.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-
-   return notifications.slice(0, NOTIFICATION_LIMIT);
-};
 
 // Submit tour form (post-CTD approval)
 //
@@ -802,7 +782,7 @@ export const submitTourFormService = async (
             actorId: toObjectId(userId),
             actorType: ACTOR_TYPE.EMPLOYEE,
             action: EMPLOYEE_TIMELINE_ACTION.TOUR_FORM_SUBMITTED,
-            note: `Tour form submitted — ${travelType}`,
+            note: `Tour form submitted — ${ travelType }`,
             at: new Date(),
          },
       },
@@ -822,12 +802,43 @@ export const submitTourFormService = async (
       throw new AppError(MESSAGES.TOUR_NOT_PENDING, HTTP_STATUS.CONFLICT);
    }
 
-   loadNotificationContext(String(updated.employeeId), String(updated.programId))
-      .then(({ employee, programTitle }) => {
+   loadNotificationContext(
+      String(updated.employeeId),
+      String(updated.programId)
+   )
+      .then(async ({ employee, programTitle }) => {
          if (!employee) return;
+
+
+         //send notification for all manager corresponding employee
+         const managerIds = (employee.hierarchy?.managerChain ?? [])
+            .map((manager) => manager.userId?.toString())
+            .filter(Boolean);
+
+         const relatedEntityId = String(updated._id);
+
+         const template =
+            travelType === TRAVEL_TYPE.COMPANY_ASSISTED
+               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_SUBMITTED(programTitle,employee.name)
+               : NOTIFICATION_TEMPLATES.SELF_TRAVEL_SELECTED(programTitle,employee.name);
+
+         await createNotifications(
+            managerIds,
+            template,
+            relatedEntityId
+         );
+
          return travelType === TRAVEL_TYPE.COMPANY_ASSISTED
-            ? sendTravelRequestSubmittedMail(employee.email, employee.name, programTitle)
-            : sendSelfTravelSelectedMail(employee.email, employee.name, programTitle);
+            ? sendTravelRequestSubmittedMail(
+               employee.email,
+               employee.name,
+               programTitle
+            )
+            : sendSelfTravelSelectedMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
       })
       .catch(logMailFailure("tour-form-submitted"));
 

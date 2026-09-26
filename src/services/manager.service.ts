@@ -1,4 +1,4 @@
-import mongoose, { Types, HydratedDocument } from "mongoose";
+import mongoose, { HydratedDocument } from "mongoose";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { IProgram } from "../interfaces/program.interface.js";
@@ -30,8 +30,12 @@ import {
    ENROLLMENT_REJECTION_REASON,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendEnrollmentRejectedMail, sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail, sendEnrollmentApprovedLocalMail, sendEnrollmentApprovedOutstationMail } from "../utils/sendMail.js";
+import { sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
+import { createNotification, createNotifications } from "../repositories/notification.repository.js";
+import { buildApprovedLocalEmailBody, buildApprovedOutstationEmailBody, buildRejectedEmailBody, NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { sendTrackedMail } from "../utils/sendTrackedMail.js";
+import { findCtdUsersByOrgId } from "../repositories/user.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -76,16 +80,16 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
 
    const mapPendingRow = (enrollment: any) => {
       const employee = enrollment.employeeId;
-      const program   = enrollment.programId;
+      const program = enrollment.programId;
 
       return {
-         _id:          enrollment._id.toString(),
+         _id: enrollment._id.toString(),
          employeeName: employee?.name ?? "Unknown",
          programTitle: program?.title ?? "Untitled Program",
-         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
-         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
-         venue:        program?.venueName || program?.city || "",
-         status:       "Pending Approval",
+         fromDate: program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate: program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue: program?.venueName || program?.city || "",
+         status: "Pending Approval",
       };
    };
 
@@ -97,7 +101,7 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
       // action (matches the "Pending Team Enrollments" badge/donut below it),
       // not ownSummary's personal-employee pendingApprovals count. Uses the
       // true count, not pendingTeamEnrollments.length, since that list is capped.
-      summary:                 { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
+      summary: { ...ownSummary, teamEnrollments, pendingApprovals: pendingTeamCount, pendingTourApprovals: pendingTourCount },
       approvalStats,
       pendingTeamEnrollments,
       pendingTourApprovals,
@@ -116,7 +120,6 @@ export const getManagerDashboardService = async (managerId: string, orgId: strin
 // document (the entry is no longer PENDING) and receive a 404 — preventing
 // double-processing.
 // ─────────────────────────────────────────────────────────────────────────────
-
 export const takeManagerActionService = async (
    enrollmentId: string,
    managerId: string,
@@ -130,13 +133,14 @@ export const takeManagerActionService = async (
       action === MANAGER_ACTION.PENDING
    ) {
       throw new AppError(
-         "Invalid action. Must be recommend, approve, or reject.",
+         MESSAGES.INVALID_MANAGER_ACTION,
          HTTP_STATUS.BAD_REQUEST
       );
    }
 
+   // 2. Fetch and guard idempotency
    const enrollment = await enrollmentModel.findOne({
-      _id:   toObjectId(String(enrollmentId)),
+      _id: toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
       currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
       managerChain: {
@@ -148,53 +152,47 @@ export const takeManagerActionService = async (
    });
 
    if (!enrollment) {
-      // Either not found, or this manager already acted (idempotency guard)
       throw new AppError(
          MESSAGES.ENROLLMENT_NOT_FOUND,
          HTTP_STATUS.NOT_FOUND
       );
    }
+   const { employee, programTitle } = await loadNotificationContext(
+      String(enrollment.employeeId),
+      String(enrollment.programId)
+   );
 
-   // 3. Determine the new chain-entry status
+   if (!employee) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
+   }
+
+
+   // 3. Setup update payloads
    const newChainStatus =
       action === MANAGER_ACTION.REJECT
          ? MANAGER_CHAIN_STATUS.REJECTED
          : MANAGER_CHAIN_STATUS.APPROVED;
 
-   // 4. Determine next enrollment stage
    let nextStage: ENROLLMENT_STAGE = enrollment.currentStage;
-   let nextEnrollmentStatus        = enrollment.statusSummary.enrollmentStatus;
+   let nextEnrollmentStatus = enrollment.statusSummary.enrollmentStatus;
 
    const arrayFilters: Record<string, any>[] = [
       { "actingElem.userId": toObjectId(managerId) },
    ];
+
    const updateOps: Record<string, any> = {
       $set: {
          "managerChain.$[actingElem].status": newChainStatus,
-         "managerApproval.action":            action as MANAGER_ACTION,
-         "managerApproval.note":              note,
-         "managerApproval.actedAt":           new Date(),
-         currentStage:                        nextStage,
-         "statusSummary.enrollmentStatus":    nextEnrollmentStatus,
+         "managerApproval.action": action as MANAGER_ACTION,
+         "managerApproval.note": note,
+         "managerApproval.actedAt": new Date(),
       },
-      $push: {
-         timeline: {
-            stage:     nextStage,
-            actorId:   toObjectId(managerId),
-            actorType: ACTOR_TYPE.MANAGER,
-            action,
-            note,
-            at:        new Date(),
-         },
-      },
+      $push: {},
    };
 
-   const tourManagerApprovalRequired = enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
+   const tourManagerApprovalRequired =
+      enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
 
-   // Populated only when this org has Training Dept review disabled and the
-   // chain's final approval skips straight past it (see below) — carries the
-   // employee/program lookup already done for that branch forward to the
-   // post-update mail dispatch, so it isn't fetched twice.
    let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
 
    // Set when this specific approval must atomically reserve a program quota
@@ -203,13 +201,12 @@ export const takeManagerActionService = async (
    // single-document update every other manager action uses.
    let requiresQuotaReservation = false;
 
+   // 4. Handle Rejection vs Approval logic
    if (action === MANAGER_ACTION.REJECT) {
-      nextStage             = ENROLLMENT_STAGE.REJECTED;
-      nextEnrollmentStatus  = ENROLLMENT_STATUS_SUMMARY.REJECTED;
-      updateOps.$set.currentStage = nextStage;
-      updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
+      nextStage = ENROLLMENT_STAGE.REJECTED;
+      nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.REJECTED;
       updateOps.$set.rejectionReason = ENROLLMENT_REJECTION_REASON.MANAGER;
-      updateOps.$push.timeline.stage = nextStage;
+
       if (enrollment.travelAndStay) {
          updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.REJECT;
          updateOps.$set["travelAndStay.status"] = TOUR_STATUS.REJECTED;
@@ -222,24 +219,21 @@ export const takeManagerActionService = async (
          updateOps.$set["tour.status"] = TOUR_STATUS.MANAGER_REJECTED;
       }
    } else {
-      // Check whether the minimum required level has approved
-      const minLevel      = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
+      // Evaluate approval levels
+      const minLevel = enrollment.policySnapshot?.managerApproval?.minLevelToApprove ?? 1;
       const approvedChain = enrollment.managerChain.filter(
          (e) => (e as any).status === MANAGER_CHAIN_STATUS.APPROVED
       );
-      // Include the entry we are about to approve (not yet persisted)
       const thisEntry = enrollment.managerChain.find(
          (e) => e.userId.toString() === managerId
       );
-      const thisLevel    = thisEntry?.level ?? Infinity;
-      const approvedLevels = [
-         ...approvedChain.map((e) => e.level),
-         thisLevel,
-      ];
+      const thisLevel = thisEntry?.level ?? Infinity;
+      const approvedLevels = [...approvedChain.map((e) => e.level), thisLevel];
       const lowestApproved = Math.min(...approvedLevels);
 
       if (lowestApproved <= minLevel) {
-         const trainingDeptEnabled = enrollment.policySnapshot?.trainingDeptApproval?.enabled ?? true;
+         const trainingDeptEnabled =
+            enrollment.policySnapshot?.trainingDeptApproval?.enabled ?? true;
 
          if (!trainingDeptEnabled) {
             // Training Dept review disabled for this org — skip straight past
@@ -263,18 +257,7 @@ export const takeManagerActionService = async (
             const isLocal = isLocalTraining(employee?.placeOfPosting, program?.city);
 
             nextStage = isLocal ? ENROLLMENT_STAGE.APPROVED : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
-            // "approved" here means the approval chain approved it, same as
-            // takeSeniorActionService's unconditional approving->"approved"
-            // (trainingDept.service.ts) — it does NOT mean the tour is
-            // resolved. Nothing downstream (submitTourFormService,
-            // takeTourManagerActionService, takeTourCtdActionService) ever
-            // writes statusSummary.enrollmentStatus again, so gating this on
-            // isLocal left outstation enrollments permanently stuck at
-            // "recommended" even after the tour was later fully approved.
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.APPROVED;
-            updateOps.$set.currentStage = nextStage;
-            updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
-            updateOps.$push.timeline.stage = nextStage;
 
             if (isLocal) {
                updateOps.$set["tour.travelType"] = TRAVEL_TYPE.LOCAL;
@@ -297,46 +280,60 @@ export const takeManagerActionService = async (
             }
 
             // Minimum required level has approved — advance to training dept review
-            nextStage            = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
+            nextStage = ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW;
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.RECOMMENDED;
-            updateOps.$set.currentStage = nextStage;
-            updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
-            updateOps.$push.timeline.stage = nextStage;
+
             if (tourManagerApprovalRequired && enrollment.travelAndStay) {
                updateOps.$set["travelAndStay.managerAction"] = MANAGER_ACTION.APPROVE;
                updateOps.$set["travelAndStay.status"] = TOUR_STATUS.APPROVED;
                updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.APPROVED;
             }
-            const ctdApprovalRequired = enrollment.policySnapshot?.tourApproval?.ctdApprovalRequired ?? true;
+
+            const ctdApprovalRequired =
+               enrollment.policySnapshot?.tourApproval?.ctdApprovalRequired ?? true;
+
             if (tourManagerApprovalRequired && enrollment.tour) {
                updateOps.$set["tour.managerApproval.action"] = MANAGER_ACTION.APPROVE;
                updateOps.$set["tour.managerApproval.actedAt"] = new Date();
                updateOps.$set["tour.managerApproval.note"] = note;
 
                if (enrollment.tour.travelType === TRAVEL_TYPE.COMPANY_ASSISTED) {
-                   updateOps.$set["tour.status"] = ctdApprovalRequired ? TOUR_STATUS.MANAGER_APPROVED : TOUR_STATUS.CTD_APPROVED;
+                  updateOps.$set["tour.status"] = ctdApprovalRequired
+                     ? TOUR_STATUS.MANAGER_APPROVED
+                     : TOUR_STATUS.CTD_APPROVED;
                } else {
-                   updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
+                  updateOps.$set["tour.status"] = TOUR_STATUS.NOT_REQUIRED;
                }
             }
          }
       }
    }
 
+   // 5. Apply stage updates
+   updateOps.$set.currentStage = nextStage;
+   updateOps.$set["statusSummary.enrollmentStatus"] = nextEnrollmentStatus;
+   updateOps.$push.timeline = {
+      stage: nextStage,
+      actorId: toObjectId(managerId),
+      actorType: ACTOR_TYPE.MANAGER,
+      action,
+      note,
+      at: new Date(),
+   };
 
+   // 6. Handle multi-level approval progression
    const nextWaiting = enrollment.managerChain
       .filter((e) => (e as any).status === MANAGER_CHAIN_STATUS.WAITING)
       .sort((a, b) => a.level - b.level)[0];
 
-   // Activate the next waiting manager level atomically
    if (nextWaiting && action !== MANAGER_ACTION.REJECT && nextStage === ENROLLMENT_STAGE.MANAGER_REVIEW) {
       arrayFilters.push({ "waitingElem.userId": nextWaiting.userId });
-      updateOps.$set["managerChain.$[waitingElem].status"] =
-         MANAGER_CHAIN_STATUS.PENDING;
+      updateOps.$set["managerChain.$[waitingElem].status"] = MANAGER_CHAIN_STATUS.PENDING;
    }
 
+   // 7. Persist changes
    const enrollmentFilter = {
-      _id:   toObjectId(String(enrollmentId)),
+      _id: toObjectId(String(enrollmentId)),
       orgId: toObjectId(orgId),
       managerChain: {
          $elemMatch: {
@@ -385,24 +382,85 @@ export const takeManagerActionService = async (
       );
    }
 
+   if (action == MANAGER_ACTION.APPROVE) {
+      const ctdUsers = await findCtdUsersByOrgId(orgId);
+      console.log(ctdUsers,"ctdUsers")
+
+      const ctdUserIds = ctdUsers.map((user) => user._id.toString());
+      console.log(ctdUserIds,"ctdUserIds")
+
+      if (ctdUserIds.length > 0) {
+         await createNotifications(
+            ctdUserIds,
+            NOTIFICATION_TEMPLATES.ENROLLMENT_PENDING_CTD_APPROVAL(
+               programTitle,
+               employee.name
+            ),
+            enrollmentId
+         );
+      }
+   }
+
+
+
+   // 8. Single Notification Dispatch Handling
+
    if (action === MANAGER_ACTION.REJECT) {
-      loadNotificationContext(String(enrollment.employeeId), String(enrollment.programId))
-         .then(({ employee, programTitle }) => {
-            if (!employee) return;
-            return sendEnrollmentRejectedMail(employee.email, employee.name, programTitle);
-         })
-         .catch(logMailFailure("enrollment-rejected"));
+      try {
+         const context = await loadNotificationContext(
+            String(enrollment.employeeId),
+            String(enrollment.programId)
+         );
+
+         if (context?.employee) {
+            const { employee, programTitle } = context;
+
+            await createNotification(
+               String(enrollment.employeeId),
+               NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle),
+               String(enrollment._id)
+            );
+
+            await sendTrackedMail({
+               to: employee.email,
+               subject: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle).emailSubject,
+               templateName: NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle).title,
+               html: buildRejectedEmailBody(employee.name, programTitle),
+               relatedEntityId: String(enrollment._id),
+            });
+         }
+      } catch (err) {
+         logMailFailure("enrollment-rejected")(err);
+      }
    } else if (skippedCtdNotification?.employee) {
       const { employee, programTitle, isLocal } = skippedCtdNotification;
-      (isLocal
-         ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
-         : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle)
-      ).catch(logMailFailure("enrollment-approved"));
+      const template = isLocal
+         ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(programTitle)
+         : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(programTitle)
+
+      try {
+         await createNotification(
+            String(enrollment.employeeId),
+            template,
+            String(enrollment._id)
+         );
+
+         await sendTrackedMail({
+            to: employee.email,
+            subject: template.emailSubject,
+            templateName: template.title,
+            html: isLocal
+               ? buildApprovedLocalEmailBody(employee.name, programTitle)
+               : buildApprovedOutstationEmailBody(employee.name, programTitle),
+            relatedEntityId: String(enrollment._id),
+         });
+      } catch (err) {
+         logMailFailure("enrollment-approved")(err);
+      }
    }
 
    return { currentStage: nextStage };
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending reimbursement claims awaiting this manager's approval
 // ─────────────────────────────────────────────────────────────────────────────
@@ -452,17 +510,17 @@ export const takeReimbursementManagerActionService = async (
       orgId,
       managerId,
       {
-         currentStage:                    nextStage,
-         "reimbursement.status":          nextReimbursementStatus,
+         currentStage: nextStage,
+         "reimbursement.status": nextReimbursementStatus,
          "reimbursement.managerApproval": { action, note, actedAt: new Date() },
       },
       {
-         stage:     nextStage,
-         actorId:   toObjectId(managerId),
+         stage: nextStage,
+         actorId: toObjectId(managerId),
          actorType: ACTOR_TYPE.MANAGER,
-         action:    reimbursementTimelineAction("manager", action),
+         action: reimbursementTimelineAction("manager", action),
          note,
-         at:        new Date(),
+         at: new Date(),
       }
    );
 
@@ -571,7 +629,7 @@ export const takeTourManagerActionService = async (
                stage: nextStage,
                actorId: toObjectId(managerId),
                actorType: ACTOR_TYPE.MANAGER,
-               action: `tour_manager_${action}`,
+               action: `tour_manager_${ action }`,
                note,
                at: new Date(),
             },
@@ -584,15 +642,68 @@ export const takeTourManagerActionService = async (
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   loadNotificationContext(String(updated.employeeId), String(updated.programId))
-      .then(({ employee, programTitle }) => {
+   loadNotificationContext(
+      String(updated.employeeId),
+      String(updated.programId)
+   )
+      .then(async ({ employee, programTitle }) => {
          if (!employee) return;
+
+         const employeeId = String(updated.employeeId);
+         const relatedEntityId = String(updated._id);
+
          if (nextTourStatus === TOUR_STATUS.MANAGER_REJECTED) {
-            return sendTravelRequestRejectedByManagerMail(employee.email, employee.name, programTitle);
+            const template =
+               NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_REJECTED_BY_MANAGER(
+                  programTitle
+               );
+
+            await createNotification(
+               employeeId,
+               template,
+               relatedEntityId
+            );
+
+            return sendTravelRequestRejectedByManagerMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
          }
-         return nextTourStatus === TOUR_STATUS.MANAGER_APPROVED
-            ? sendTravelRequestUnderCtdReviewMail(employee.email, employee.name, programTitle)
-            : sendTravelRequestApprovedMail(employee.email, employee.name, programTitle);
+
+         if (nextTourStatus === TOUR_STATUS.MANAGER_APPROVED) {
+            const template =
+               NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_UNDER_CTD_REVIEW(
+                  programTitle
+               );
+
+            await createNotification(
+               employeeId,
+               template,
+               relatedEntityId
+            );
+
+            return sendTravelRequestUnderCtdReviewMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
+         }
+
+         const template =
+            NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_APPROVED(programTitle);
+
+         await createNotification(
+            employeeId,
+            template,
+            relatedEntityId
+         );
+
+         return sendTravelRequestApprovedMail(
+            employee.email,
+            employee.name,
+            programTitle
+         );
       })
       .catch(logMailFailure("tour-manager-action"));
 

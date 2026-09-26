@@ -1,7 +1,8 @@
 import { Types } from "mongoose";
-import { USER_STATUS } from "../constants/enum.js";
+import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import User from "../models/user.model.js";
+import { toObjectId } from "../utils/mongo.js";
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,15 @@ export const updateOneUser = async (
          runValidators: true,
       }
    );
+};
+
+export const bulkWriteUsersRepo = async (
+   ops: Array<
+      | { insertOne: { document: Partial<IUser> } }
+      | { updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }
+   >
+) => {
+   return await User.bulkWrite(ops as any, { ordered: false });
 };
 
 export interface BatchInsertResult {
@@ -154,7 +164,7 @@ export const searchUsersRepo = async (
    limit: number,
    orgId: string
 ) => {
-   
+
    const filter: Record<string, unknown> = {
       orgId,
    };
@@ -171,7 +181,7 @@ export const searchUsersRepo = async (
    const [users, total] = await Promise.all([
       User.find(filter)
          .select("-passwordHash")
-         .sort({ createdAt: -1 })
+         .sort({ createdAt: -1, _id: -1 })
          .skip((page - 1) * limit)
          .limit(limit),
       User.countDocuments(filter),
@@ -240,7 +250,7 @@ export const getUsersByOrgRepo = async (
    const [users, total] = await Promise.all([
       User.find(filter)
          .select("-passwordHash")
-         .sort({ createdAt: -1 })
+         .sort({ createdAt: -1, _id: -1 })
          .skip((page - 1) * limit)
          .limit(limit),
       User.countDocuments(filter),
@@ -309,5 +319,26 @@ export const hasApproveEmployees = (
          }
       }
    });
+};
+
+//find admin user
+export const findAdminUser = async () => {
+   return User.findOne({ orgRole: ORG_ROLE.ADMIN }).lean();
+};
+
+
+//find ctd user in a particular Organization
+export const findCtdUsersByOrgId = async (orgId: string) => {
+  return User.find(
+    {
+      orgId: toObjectId(orgId),
+      "officeRoles.trainingDept.enabled": true,
+    },
+    {
+      _id: 1,
+      email: 1,
+      name: 1,
+    }
+  ).lean();
 };
 

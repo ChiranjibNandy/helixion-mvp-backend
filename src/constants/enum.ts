@@ -141,9 +141,13 @@ export enum USER_STATUS {
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
-export enum ATTENDANCE_STATUS {
+// Per-day status inside an AttendanceRecord.attendanceByDay entry. PENDING is
+// only ever written explicitly (e.g. a TP clearing a previously-marked day) —
+// a day with no entry at all is treated as pending too, without a stored row.
+export enum ATTENDANCE_DAY_STATUS {
   PRESENT = "present",
   ABSENT = "absent",
+  PENDING = "pending",
 }
 
 // ─── Enrollment lifecycle stage ───────────────────────────────────────────────

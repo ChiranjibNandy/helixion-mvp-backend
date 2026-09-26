@@ -9,10 +9,10 @@ import {
    updateTravelDetails,
    submitEnrollment,
    submitReimbursement,
-   getEmployeeNotifications,
    submitTourForm,
-   getEnrollmentPanelById
+   getEnrollmentPanelById,
 } from "../controllers/employee.controller.js";
+import { getEmployeeProgramAttendanceController } from "../controllers/attendanceRecord.controller.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
@@ -41,13 +41,17 @@ router.get(
 
 router.get("/programs/:id", getEmployeeProgramById);
 
+router.get(
+   "/programs/:id/attendance",
+   validate({ params: programParamsSchema }),
+   getEmployeeProgramAttendanceController
+);
+
 router.post(
    "/programs/:id/enroll",
    validate({ params: programParamsSchema, body: enrollProgramBodySchema }),
    enrollInProgram
 );
-
-router.get("/notifications", getEmployeeNotifications);
 
 router.get("/enrollments", getEmployeeEnrollments);
 

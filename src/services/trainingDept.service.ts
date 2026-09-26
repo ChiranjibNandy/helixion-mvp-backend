@@ -32,6 +32,8 @@ import {
    sendTravelRequestNotApprovedByCtdMail,
 } from "../utils/sendMail.js";
 import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { createNotification } from "../repositories/notification.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for Training Dept queue
@@ -57,17 +59,17 @@ export const getTrainingDeptDashboardService = async (userId: string, orgId: str
 
    const pendingReviews = pendingReviewsRaw.map((enrollment: any) => {
       const employee = enrollment.employeeId;
-      const program   = enrollment.programId;
+      const program = enrollment.programId;
 
       return {
-         _id:          enrollment._id.toString(),
+         _id: enrollment._id.toString(),
          employeeName: employee?.name ?? "Unknown",
          programTitle: program?.title ?? "Untitled Program",
-         fromDate:     program?.startDate ? new Date(program.startDate).toISOString() : "",
-         toDate:       program?.endDate ? new Date(program.endDate).toISOString() : "",
-         venue:        program?.venueName || program?.city || "",
+         fromDate: program?.startDate ? new Date(program.startDate).toISOString() : "",
+         toDate: program?.endDate ? new Date(program.endDate).toISOString() : "",
+         venue: program?.venueName || program?.city || "",
 
-         status:       "Pending Approval",
+         status: "Pending Approval",
       };
    });
 
@@ -75,7 +77,7 @@ export const getTrainingDeptDashboardService = async (userId: string, orgId: str
 
       summary: {
          ...ownSummary,
-         pendingApprovals:     pendingReviewCount,
+         pendingApprovals: pendingReviewCount,
          pendingTourApprovals: pendingTourCount,
       },
       approvalStats: { ...approvalStats, pending: pendingReviewCount },
@@ -116,8 +118,8 @@ export const takeJuniorActionService = async (
 
    // 2. Load enrollment to check idempotency (junior already reviewed?)
    const existing = await enrollmentModel.findOne({
-      _id:          toObjectId(String(enrollmentId)),
-      orgId:        toObjectId(orgId),
+      _id: toObjectId(String(enrollmentId)),
+      orgId: toObjectId(orgId),
       currentStage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
    });
 
@@ -151,25 +153,25 @@ export const takeJuniorActionService = async (
    // member the same way, instead of reusing the enum's raw value.
    await enrollmentModel.findOneAndUpdate(
       {
-         _id:          toObjectId(String(enrollmentId)),
-         orgId:        toObjectId(orgId),
+         _id: toObjectId(String(enrollmentId)),
+         orgId: toObjectId(orgId),
          currentStage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
       },
       {
          $set: {
             "trainingDeptReview.juniorOfficerId": toObjectId(officerId),
-            "trainingDeptReview.juniorAction":    action as TRAINING_DEPT_JUNIOR_ACTION,
-            "trainingDeptReview.juniorNote":      note,
-            "trainingDeptReview.juniorActedAt":   new Date(),
+            "trainingDeptReview.juniorAction": action as TRAINING_DEPT_JUNIOR_ACTION,
+            "trainingDeptReview.juniorNote": note,
+            "trainingDeptReview.juniorActedAt": new Date(),
          },
          $push: {
             timeline: {
-               stage:     ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
-               actorId:   toObjectId(officerId),
+               stage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+               actorId: toObjectId(officerId),
                actorType: ACTOR_TYPE.TRAINING_DEPT,
                action,
                note,
-               at:        new Date(),
+               at: new Date(),
             },
          },
       },
@@ -212,8 +214,8 @@ export const takeSeniorActionService = async (
 
    // 2. Load enrollment — must be in TRAINING_DEPT_REVIEW and junior must have acted
    const existing = await enrollmentModel.findOne({
-      _id:          toObjectId(String(enrollmentId)),
-      orgId:        toObjectId(orgId),
+      _id: toObjectId(String(enrollmentId)),
+      orgId: toObjectId(orgId),
       currentStage: ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
    });
 
@@ -360,13 +362,61 @@ export const takeSeniorActionService = async (
    }
 
    const { employee, programTitle } = notificationContext;
+
    if (employee) {
-      (approving
-         ? (isLocal
-            ? sendEnrollmentApprovedLocalMail(employee.email, employee.name, programTitle)
-            : sendEnrollmentApprovedOutstationMail(employee.email, employee.name, programTitle))
-         : sendEnrollmentRejectedByTrainingDeptMail(employee.email, employee.name, programTitle)
-      ).catch(logMailFailure(approving ? "enrollment-approved" : "enrollment-rejected-by-training-dept"));
+      // -----------------------------
+      // Email notification
+      // -----------------------------
+      (
+         approving
+            ? (
+               isLocal
+                  ? sendEnrollmentApprovedLocalMail(
+                     employee.email,
+                     employee.name,
+                     programTitle
+                  )
+                  : sendEnrollmentApprovedOutstationMail(
+                     employee.email,
+                     employee.name,
+                     programTitle
+                  )
+            )
+            : sendEnrollmentRejectedByTrainingDeptMail(
+               employee.email,
+               employee.name,
+               programTitle
+            )
+      ).catch(
+         logMailFailure(
+            approving
+               ? "enrollment-approved"
+               : "enrollment-rejected-by-training-dept"
+         )
+      );
+
+      // -----------------------------
+      // In-app notification
+      // -----------------------------
+      const notification = approving
+         ? (
+            isLocal
+               ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(
+                  programTitle
+               )
+               : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(
+                  programTitle
+               )
+         )
+         : NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(
+            programTitle
+         );
+
+      await createNotification(
+         String(employee._id),
+         notification,
+         String(enrollmentId)
+      );
    }
 
    return { currentStage: nextStage };
@@ -435,7 +485,7 @@ export const takeTourCtdActionService = async (
             stage: nextStage,
             actorId: toObjectId(officerId),
             actorType: ACTOR_TYPE.TRAINING_DEPT,
-            action: `tour_ctd_${action}`,
+            action: `tour_ctd_${ action }`,
             note,
             at: new Date(),
          },
@@ -468,12 +518,40 @@ export const takeTourCtdActionService = async (
       throw new AppError(MESSAGES.ENROLLMENT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
-   loadNotificationContext(String(updated.employeeId), String(updated.programId))
-      .then(({ employee, programTitle }) => {
+   loadNotificationContext(
+      String(updated.employeeId),
+      String(updated.programId)
+   )
+      .then(async ({ employee, programTitle }) => {
          if (!employee) return;
+
+         const employeeId = String(updated.employeeId);
+         const relatedEntityId = String(updated._id);
+
+         const template =
+            action === TOUR_CTD_ACTION.APPROVE
+               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_APPROVED(programTitle)
+               : NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_NOT_APPROVED_BY_CTD(
+                  programTitle
+               );
+
+         await createNotification(
+            employeeId,
+            template,
+            relatedEntityId
+         );
+
          return action === TOUR_CTD_ACTION.APPROVE
-            ? sendTravelRequestApprovedMail(employee.email, employee.name, programTitle)
-            : sendTravelRequestNotApprovedByCtdMail(employee.email, employee.name, programTitle);
+            ? sendTravelRequestApprovedMail(
+               employee.email,
+               employee.name,
+               programTitle
+            )
+            : sendTravelRequestNotApprovedByCtdMail(
+               employee.email,
+               employee.name,
+               programTitle
+            );
       })
       .catch(logMailFailure("tour-ctd-action"));
 

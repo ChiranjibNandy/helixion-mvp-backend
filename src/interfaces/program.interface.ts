@@ -47,6 +47,10 @@ export interface IProgram {
    /** Batch ID for bulk-uploaded programs */
    batchId?: string;
 
+   attendanceMarked?: boolean;
+   attendanceMarkedCount?: number;
+   lastAttendanceUpdate?: Date | null;
+
    createdAt: Date;
    updatedAt: Date;
 }

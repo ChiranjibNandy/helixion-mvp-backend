@@ -6,6 +6,7 @@ import trainingProviderRoutes from './routes/training_provider.routes.js'
 import managerRoutes from './routes/manager.routes.js'
 import trainingDeptRoutes from './routes/trainingDept.routes.js'
 import osdRoutes from './routes/osd.routes.js'
+import notificationRoutes from './routes/notification.routes.js'
 import { corsMiddleware } from "./middlewares/cors.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import cookieParser from "cookie-parser";
@@ -25,6 +26,7 @@ app.use("/api/training-provider", trainingProviderRoutes);
 app.use("/api/manager", managerRoutes);
 app.use("/api/training-dept", trainingDeptRoutes);
 app.use("/api/osd", osdRoutes);
+app.use("/api/notifications",notificationRoutes)
 
 app.use(errorMiddleware);
 

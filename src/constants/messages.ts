@@ -53,6 +53,8 @@ export const MESSAGES = {
   NO_FIELDS_TO_UPDATE: "At least one field is required to update",
 
   BATCH_USERS_PROCESSED: "Bulk users processed successfully",
+  BULK_UPLOAD_JOB_CREATED: "Bulk upload job created successfully",
+  BULK_UPLOAD_JOB_NOT_FOUND: "Upload job not found",
   DUPLICATE_EMAILS_IN_BATCH: "Duplicate emails found in the batch",
   USERS_ALREADY_EXIST: "Some users already exist",
   WELCOME_EMAIL_SUBJECT: "Welcome to Helixon — Your Account Credentials",
@@ -84,13 +86,13 @@ export const MESSAGES = {
   CSV_ALLOWED: "Only CSV files are allowed",
   CSV_EMPTY: "CSV file is empty",
 
-  ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
   VALID_DATE_REQUIRED: "Valid date is required",
-  PRESENT_STATUS_VALUE_VALIDATION: "present_status must be present or absent",
-  MIN_PARTICIPANT: "At least one participant is required",
-  ATTENDANCE_FETCH_SUCCESS: "Attendance fetched successfully",
-  PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program",
-  ATTENDANCE_NOTFOUND: "Attendance record not found",
+  ATTENDANCE_DAY_STATUS_INVALID: "status must be present, absent, or null",
+  ATTENDANCE_GRID_FETCH_SUCCESS: "Attendance grid fetched successfully",
+  ATTENDANCE_DAY_SAVE_SUCCESS: "Attendance saved successfully",
+  ATTENDANCE_NOTES_SAVE_SUCCESS: "Notes saved successfully",
+  ATTENDANCE_FUTURE_DATE_NOT_ALLOWED: "Attendance cannot be marked for a future date",
+  ENROLLMENT_NOT_ELIGIBLE_FOR_ATTENDANCE: "This enrollment is not eligible for attendance yet",
 
   DRAFT_PROGRAMS_FETCHED: "Draft programs fetched successfully",
   DRAFT_PROGRAM_FETCHED: "Draft program fetched successfully",
@@ -130,7 +132,12 @@ export const MESSAGES = {
   TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
+  INVALID_MANAGER_ACTION:"Invalid action. Must be recommend, approve, or reject.",
 
   ORG_NOT_ADD_USER:"Organization not added the admin",
-  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program"
+  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program",
+
+  //notification
+  NOTIFICATION_ID_REQUIRED:"Notification ID is required",
+  NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
 } as const;
