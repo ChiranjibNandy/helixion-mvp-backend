@@ -104,6 +104,21 @@ const programSchema = new Schema<IProgram>(
       batchId: {
          type: String,
       },
+
+      attendanceMarked: {
+         type: Boolean,
+         default: false,
+      },
+
+      attendanceMarkedCount: {
+         type: Number,
+         default: 0,
+      },
+
+      lastAttendanceUpdate: {
+         type: Date,
+         default: null,
+      },
    },
    {
       timestamps: true,
