@@ -106,7 +106,7 @@ export const approveUserAndAddRoleService = async (
 
     const pendingUser = await getUserByIdRepo(id);
     if (!pendingUser?.employeeCode) {
-      employeeCode = `EMP-${ Date.now().toString(36) }-${ Math.random().toString(36).slice(2, 8) }`;
+      employeeCode = `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
   }
 

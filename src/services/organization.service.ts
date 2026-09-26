@@ -196,7 +196,7 @@ export const bulkUploadOrganizationService = async (
   // Empty file validation
   if (!rows.length) {
     throw new AppError(
-      MESSAGES.CSV_EMPTY,
+      MESSAGES.FILE_EMPTY,
       HTTP_STATUS.BAD_REQUEST
     );
   }

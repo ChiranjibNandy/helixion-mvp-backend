@@ -83,8 +83,7 @@ export const MESSAGES = {
   UPLOAD_FAIL: "Upload failed",
   FILE_REQUIRED: "File is required",
   NO_PROGRAM_FOUND: "No valid programs found in CSV",
-  CSV_ALLOWED: "Only CSV files are allowed",
-  CSV_EMPTY: "CSV file is empty",
+  FILE_EMPTY: "File is empty",
 
   ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
   VALID_DATE_REQUIRED: "Valid date is required",

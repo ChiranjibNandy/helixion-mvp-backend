@@ -11,25 +11,15 @@ export const uploadBulkFile = multer({
    storage: multer.memoryStorage(),
 
    limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB
+      fileSize: 5 * 1024 * 1024, 
    },
 
    fileFilter: (req, file, cb) => {
-      const allowedMimeTypes = [
-         "text/csv",
-         "application/csv",
-         "application/vnd.ms-excel", 
-         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      ];
-
       const allowedExtensions = [".csv", ".xls", ".xlsx"];
 
       const extension = path.extname(file.originalname).toLowerCase();
 
-      if (
-         !allowedMimeTypes.includes(file.mimetype) &&
-         !allowedExtensions.includes(extension)
-      ) {
+      if (!allowedExtensions.includes(extension)) {
          return cb(
             new AppError(
                "Only .csv, .xls and .xlsx files are allowed.",
