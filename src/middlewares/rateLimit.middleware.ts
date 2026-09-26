@@ -3,6 +3,6 @@ import { MESSAGES } from "../constants/messages.js";
 
 export const rateLimiter = rateLimit({
    windowMs: 15 * 60 * 1000,
-   max: 100,
+   max: 10,
    message: MESSAGES.RATE_LIMIT
 });
