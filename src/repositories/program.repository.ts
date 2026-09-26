@@ -470,10 +470,10 @@ export const getEmployeeProgramsListRepo = async ({
   }
   if (hidePast) {
     const now = new Date();
-    filter.$or = [
-      { endDate: { $gte: now } },
-      { endDate: null, startDate: { $gte: now } }
-    ];
+    filter.startDate = filter.startDate || {};
+    if (!filter.startDate.$gte || filter.startDate.$gte < now) {
+      filter.startDate.$gte = now;
+    }
   }
 
   const [programs, total] = await Promise.all([
