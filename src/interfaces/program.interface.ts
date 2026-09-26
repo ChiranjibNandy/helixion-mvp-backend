@@ -34,10 +34,22 @@ export interface IProgram {
    minParticipants?: number;
    maxParticipants?: number;
 
+   /**
+    * Confirmed-enrollment counter — incremented only when an enrollment is
+    * approved by BOTH Manager and Training Dept (CTD) and a slot was still
+    * available at that moment. This is the authoritative capacity count
+    * used for quota enforcement, distinct from any read-time aggregation.
+    */
+   confirmedEnrollmentCount: number;
+
    status: PROGRAM_SAVED_STATUS;
 
    /** Batch ID for bulk-uploaded programs */
    batchId?: string;
+
+   attendanceMarked?: boolean;
+   attendanceMarkedCount?: number;
+   lastAttendanceUpdate?: Date | null;
 
    createdAt: Date;
    updatedAt: Date;

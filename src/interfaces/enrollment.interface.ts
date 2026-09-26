@@ -13,6 +13,7 @@ import {
    ENROLLMENT_STATUS_SUMMARY,
    TRAVEL_TYPE,
    TOUR_CTD_ACTION,
+   ENROLLMENT_REJECTION_REASON,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -61,6 +62,9 @@ export interface IEnrollment {
    providerOrgId?: Types.ObjectId;
 
    currentStage: ENROLLMENT_STAGE;
+
+   /** Set only when currentStage === REJECTED, explains which gate rejected it */
+   rejectionReason?: ENROLLMENT_REJECTION_REASON;
 
    statusSummary: {
       enrollmentStatus: ENROLLMENT_STATUS_SUMMARY;         // submitted | recommended | approved | rejected
@@ -139,6 +143,7 @@ export interface IEnrollment {
       uploadedByProvider?: boolean;
       uploadedAt?: Date;
       status?: ATTENDANCE_RECORD_STATUS;
+      hasAttendanceMarked?: boolean;
    };
 
    reimbursement?: {
