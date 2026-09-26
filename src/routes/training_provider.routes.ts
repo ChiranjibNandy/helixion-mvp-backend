@@ -4,7 +4,7 @@ import { createProgramSchema, updateProgramSchema } from "../validators/training
 import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, getTrainingProviderDashboard, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
-import { upload, uploadCsv } from "../middlewares/multer.middleware.js";
+import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
@@ -41,7 +41,7 @@ router.post(
 router.post(
   "/programs/bulk",
   rateLimiter,
-  uploadCsv.single("file"),
+  uploadBulkFile.single("file"),
   bulkCreateProgram
 );
 

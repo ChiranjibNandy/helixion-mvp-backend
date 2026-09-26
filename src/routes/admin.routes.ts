@@ -8,8 +8,8 @@ import { ORG_ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 import { bulkUploadOrganizations, createOrganization, getAllOrganizations, getOrganizationById, getOrganizations, getOrganizationStatus, updateOrganizationDetails, updatePolicy } from "../controllers/organization.controller.js";
 import { createOrganizationSchema, organizationIdParamSchema, updateOrganizationDetailsSchema, updatePolicySchema } from "../validators/organization.validator.js";
-import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
+import { uploadBulkFile } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -47,12 +47,12 @@ router.patch("/users/:id/profile",
 router.get("/dashboard/stats", getAdminDashboardStats);
 
 router.post("/users/batch",
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    batchCreateUsers
 );
 
 router.post("/users/batch-async",
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    createBulkUploadJob
 );
 
@@ -103,7 +103,7 @@ router.get("/organizations/all",
 router.post(
    "/organizations/bulk-upload",
    rateLimiter,
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    bulkUploadOrganizations
 );
 

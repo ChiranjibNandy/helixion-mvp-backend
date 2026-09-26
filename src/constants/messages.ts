@@ -81,10 +81,9 @@ export const MESSAGES = {
   PARTICIPANT_FETCH: "Participants fetched successfully",
 
   UPLOAD_FAIL: "Upload failed",
-  CSV_REQUIRED: "CSV file is required",
+  FILE_REQUIRED: "File is required",
   NO_PROGRAM_FOUND: "No valid programs found in CSV",
-  CSV_ALLOWED: "Only CSV files are allowed",
-  CSV_EMPTY: "CSV file is empty",
+  FILE_EMPTY: "File is empty",
 
   VALID_DATE_REQUIRED: "Valid date is required",
   ATTENDANCE_DAY_STATUS_INVALID: "status must be present, absent, or null",
@@ -140,4 +139,5 @@ export const MESSAGES = {
   //notification
   NOTIFICATION_ID_REQUIRED:"Notification ID is required",
   NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
+  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed."
 } as const;
