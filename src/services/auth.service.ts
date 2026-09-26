@@ -85,6 +85,10 @@ export const loginService = async (
       throw new AppError(MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.CONFLICT);
    }
 
+   if (user.isRejected) {
+      throw new AppError(MESSAGES.REJECTED, HTTP_STATUS.CONFLICT);
+   }
+
    if (!user.isApproved) {
       throw new AppError(MESSAGES.NOT_APPROVED, HTTP_STATUS.CONFLICT);
    }

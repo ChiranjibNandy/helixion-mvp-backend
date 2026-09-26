@@ -4,17 +4,17 @@ import { IOrganization } from "./organization.interface.js";
 
 export interface IManagerChainEntry {
    userId: Types.ObjectId;
-   level: number; 
+   level: number;
 }
 
 export interface IOfficeRoles {
    trainingDept: {
       enabled: boolean;
-      level: number 
+      level: number
    };
    osd: {
       enabled: boolean;
-      level: number 
+      level: number
    };
 }
 
@@ -51,7 +51,8 @@ export interface IUser {
    mustChangePassword: boolean;
    orgRole: string;            // top-level role (admin | employee | training_provider)
    status: USER_STATUS;
-   isApproved:boolean;
+   isRejected: boolean;
+   isApproved: boolean;
    hierarchy: IHierarchy;
    officeRoles: IOfficeRoles;
    createdAt?: Date;

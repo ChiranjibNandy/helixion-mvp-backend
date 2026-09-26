@@ -17,6 +17,7 @@ export const errorMiddleware = (
       err.message === MESSAGES.USER_NOT_FOUND ||
       err.message === MESSAGES.INVALID_CREDENTIALS ||
       err.message === MESSAGES.NOT_APPROVED ||
+      err.message === MESSAGES.REJECTED ||
       err.message === MESSAGES.USER_ALREADY_EXISTS
    ) {
       statusCode = HTTP_STATUS.UNAUTHORIZED;
