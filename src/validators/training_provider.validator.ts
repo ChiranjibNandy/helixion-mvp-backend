@@ -96,8 +96,8 @@ export const bulkProgramRowSchema = z.object({
 
 export const updatePublishedProgramSchema = z.object({
   title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
-  minParticipants: z.number().int().nonnegative().optional(),
-  maxParticipants: z.number().int().nonnegative().optional(),
+  minParticipants: z.number().int(),
+  maxParticipants: z.number().int()
 }).refine(
   (data) => {
     if (data.minParticipants !== undefined && data.maxParticipants !== undefined) {
