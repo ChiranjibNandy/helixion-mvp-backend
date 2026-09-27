@@ -147,6 +147,23 @@ export const approveUserRepo = async (
    );
 };
 
+export const rejectUserRepo = async (id: string) => {
+   return await User.findOneAndUpdate(
+      {
+         _id: id,
+         isApproved: false,
+         isRejected: { $ne: true },
+      },
+      {
+         isRejected: true,
+      },
+      {
+         new: true,
+         runValidators: true,
+      }
+   );
+};
+
 // ─── Search / List ────────────────────────────────────────────────────────────
 
 /** Every userId currently referenced as someone else's manager, anywhere.
@@ -208,7 +225,7 @@ export const getOrgUserStatsRepo = async (orgId: string) => {
                { $match: { status: { $in: [USER_STATUS.INACTIVE, USER_STATUS.DEACTIVE] } } },
                { $count: "n" },
             ],
-            pending: [{ $match: { isApproved: false } }, { $count: "n" }],
+            pending: [{ $match: { isApproved: false, isRejected: { $ne: true } } }, { $count: "n" }],
          },
       },
    ]);
@@ -268,9 +285,9 @@ export const clearOtherOfficeRoleHoldersRepo = async (
       {
          orgId,
          _id: { $ne: excludeUserId },
-         [`officeRoles.${ category }.enabled`]: true,
+         [`officeRoles.${category}.enabled`]: true,
       },
-      { $set: { [`officeRoles.${ category }`]: { enabled: false, level: 0 } } }
+      { $set: { [`officeRoles.${category}`]: { enabled: false, level: 0 } } }
    );
 };
 
@@ -282,8 +299,8 @@ export const getUsersByOfficeRoleRepo = async (
 ) => {
    return await User.find({
       orgId,
-      [`officeRoles.${ type }.enabled`]: true,
-      [`officeRoles.${ type }.level`]: { $gte: minLevel },
+      [`officeRoles.${type}.enabled`]: true,
+      [`officeRoles.${type}.level`]: { $gte: minLevel },
       status: USER_STATUS.ACTIVE,
    }).select("-passwordHash");
 };
@@ -329,16 +346,16 @@ export const findAdminUser = async () => {
 
 //find ctd user in a particular Organization
 export const findCtdUsersByOrgId = async (orgId: string) => {
-  return User.find(
-    {
-      orgId: toObjectId(orgId),
-      "officeRoles.trainingDept.enabled": true,
-    },
-    {
-      _id: 1,
-      email: 1,
-      name: 1,
-    }
-  ).lean();
+   return User.find(
+      {
+         orgId: toObjectId(orgId),
+         "officeRoles.trainingDept.enabled": true,
+      },
+      {
+         _id: 1,
+         email: 1,
+         name: 1,
+      }
+   ).lean();
 };
 

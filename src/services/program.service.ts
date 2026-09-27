@@ -22,8 +22,6 @@ export const getPublishedProgramsService = async ({
 
 // Confirms the requesting Training Provider owns this program before any
 // participant/attendance data is read or written for it (ticket 0032).
-// Reused across program.service.ts and attendance.service.ts so ownership
-// is enforced identically everywhere a TP touches a specific program.
 export const assertProgramOwnershipService = async (
    programId: string,
    requestingUserId: string

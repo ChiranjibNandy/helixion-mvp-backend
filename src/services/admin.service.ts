@@ -22,6 +22,7 @@ import {
   clearOtherOfficeRoleHoldersRepo,
   getRecentlyAddedUsersRepo,
   bulkWriteUsersRepo,
+  rejectUserRepo,
 } from "../repositories/user.repository.js";
 import UploadJob from "../models/uploadJob.model.js";
 import { uploadQueue } from "../queue/bullConfig.js";
@@ -123,6 +124,18 @@ export const approveUserAndAddRoleService = async (
       orgId,
       employeeCode
     );
+
+  if (!updatedUser) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+};
+
+export const rejectUserService = async (
+  id: string,
+) => {
+
+  const updatedUser =
+    await rejectUserRepo(id);
 
   if (!updatedUser) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -675,7 +688,7 @@ export const processBulkUserRows = async (
     const validationResults: any[] = result?.mongoose?.results ?? [];
     const insertedIds: Record<number, any> = result?.insertedIds ?? {};
 
-    let sentIndex = 0;   
+    let sentIndex = 0;
     let insertCursor = 0;
 
     batch.forEach((plan, originalIndex) => {

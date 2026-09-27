@@ -20,7 +20,9 @@ export const MESSAGES = {
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
   USER_APPROVED_SUCCESSFULLY: "User approved successfully",
+  USER_REJECTED_SUCCESSFULLY: "User rejected successfully",
   NOT_APPROVED: "Your ID is awaiting role assignment and approval by Administrator",
+  REJECTED: "Your registration has been rejected by the Administrator",
 
   PAGE_MUST_BE_A_VALID_NUMBER: "Page must be a valid number",
   PAGE_MUST_BE_GREATER_THAN_ZERO: "Page must be greater than 0",
@@ -86,13 +88,13 @@ export const MESSAGES = {
   CSV_ALLOWED: "Only CSV files are allowed",
   CSV_EMPTY: "CSV file is empty",
 
-  ATTENDANCE_SAVE_SUCCESS: "Attendance saved successfully",
   VALID_DATE_REQUIRED: "Valid date is required",
-  PRESENT_STATUS_VALUE_VALIDATION: "present_status must be present or absent",
-  MIN_PARTICIPANT: "At least one participant is required",
-  ATTENDANCE_FETCH_SUCCESS: "Attendance fetched successfully",
-  PARTICIPANTS_NOT_ENROLLED: "These participants are not enrolled in this program",
-  ATTENDANCE_NOTFOUND: "Attendance record not found",
+  ATTENDANCE_DAY_STATUS_INVALID: "status must be present, absent, or null",
+  ATTENDANCE_GRID_FETCH_SUCCESS: "Attendance grid fetched successfully",
+  ATTENDANCE_DAY_SAVE_SUCCESS: "Attendance saved successfully",
+  ATTENDANCE_NOTES_SAVE_SUCCESS: "Notes saved successfully",
+  ATTENDANCE_FUTURE_DATE_NOT_ALLOWED: "Attendance cannot be marked for a future date",
+  ENROLLMENT_NOT_ELIGIBLE_FOR_ATTENDANCE: "This enrollment is not eligible for attendance yet",
 
   DRAFT_PROGRAMS_FETCHED: "Draft programs fetched successfully",
   DRAFT_PROGRAM_FETCHED: "Draft program fetched successfully",
@@ -111,7 +113,7 @@ export const MESSAGES = {
   NOTIFICATIONS_FETCHED: "Notifications fetched successfully",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
   ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
-  PROGRAM_FULL: "This program has reached its maximum capacity",
+  PROGRAM_FULL: "Could not approve enrollment request now. Please contact the Training Provider",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
 
   MIN_POLICY: "At least one policy section is required",
@@ -133,12 +135,12 @@ export const MESSAGES = {
   TOUR_FORM_SUBMITTED: "Tour form submitted successfully",
   INVALID_TOUR_ACTION: "Invalid action. Must be approve or reject.",
   TOUR_NOT_PENDING: "Tour form is not pending submission",
-  INVALID_MANAGER_ACTION:"Invalid action. Must be recommend, approve, or reject.",
+  INVALID_MANAGER_ACTION: "Invalid action. Must be recommend, approve, or reject.",
 
-  ORG_NOT_ADD_USER:"Organization not added the admin",
-  ENROLLDATE_LESSTHAN_STARTDATE:"Enrollment Date is should be less than start date of the program",
+  ORG_NOT_ADD_USER: "Organization not added the admin",
+  ENROLLDATE_LESSTHAN_STARTDATE: "Enrollment Date is should be less than start date of the program",
 
   //notification
-  NOTIFICATION_ID_REQUIRED:"Notification ID is required",
-  NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
+  NOTIFICATION_ID_REQUIRED: "Notification ID is required",
+  NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
 } as const;
