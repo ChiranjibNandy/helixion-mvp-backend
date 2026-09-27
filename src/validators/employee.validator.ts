@@ -7,6 +7,7 @@ export const getProgramsQuerySchema = searchUsersQuerySchema.extend({
   venue:    z.string().optional().default("").transform((v) => v.trim()),
   fromDate: z.string().optional().default(""),
   toDate:   z.string().optional().default(""),
+  hidePast: z.string().optional().default("false").transform((val) => val === "true")
 });
 
 export const programParamsSchema = z.object({

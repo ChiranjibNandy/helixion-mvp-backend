@@ -71,7 +71,7 @@ export const getEmployeeProgramsList = async (req: Request, res: Response, next:
          venue,
          fromDate,
          toDate,
-         hidePast: hidePast === "true"
+         hidePast
       });
 
       return res.status(HTTP_STATUS.OK).json({
