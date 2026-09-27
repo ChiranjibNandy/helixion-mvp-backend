@@ -1,6 +1,6 @@
 import { mapUserBasicDetail } from "../mapper/user.mapper.js";
 import { getProgramParticipantsRepo } from "../repositories/enrollment.repository.js";
-import { getPublishedProgramsRepo, findProgramById, getPrograms } from "../repositories/program.repository.js";
+import { getPublishedProgramsRepo, findProgramById, getPrograms, getProgramByIdRepo, updateProgramFields } from "../repositories/program.repository.js";
 import { GetPublishedProgramsServiceParams } from "../types/program.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -22,8 +22,6 @@ export const getPublishedProgramsService = async ({
 
 // Confirms the requesting Training Provider owns this program before any
 // participant/attendance data is read or written for it (ticket 0032).
-// Reused across program.service.ts and attendance.service.ts so ownership
-// is enforced identically everywhere a TP touches a specific program.
 export const assertProgramOwnershipService = async (
    programId: string,
    requestingUserId: string
@@ -91,3 +89,25 @@ export const getProgramsService = async (
       },
    };
 };
+
+export const updatePublishedProgramService = async (
+   programId: string,
+   payload: { title?: string; minParticipants?: number; maxParticipants?: number },
+   userId: string
+) => {
+   const existingProgram = await getProgramByIdRepo(programId, userId);
+
+   if (!existingProgram) {
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND , HTTP_STATUS.NOT_FOUND);
+   }
+
+   // Extract only allowed fields
+   const updatePayload: any = {};
+   if (payload.title !== undefined) updatePayload.title = payload.title;
+   if (payload.minParticipants !== undefined) updatePayload.minParticipants = payload.minParticipants;
+   if (payload.maxParticipants !== undefined) updatePayload.maxParticipants = payload.maxParticipants;
+
+   const updatedProgram = await updateProgramFields(programId, updatePayload);
+
+   return updatedProgram;
+} 

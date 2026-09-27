@@ -1,7 +1,7 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
 import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo, getLiveProgramsCount, getDraftProgramsCount, getTopPrograms, getAverageFillRate, getPublishedActivities, getDraftActivities, getBulkUploadActivities } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
-import { parseCsvBuffer } from "../utils/csvParser.js";
+import { parseBulkFileBuffer } from "../utils/parseBulkFile.js";
 import { validateBulkRows } from "../utils/bulkValidator.js";
 import { AppError } from "../utils/appError.js";
 import { MESSAGES } from "../constants/messages.js";
@@ -39,7 +39,10 @@ export const bulkCreateProgramService = async ({
   training_providerId,
 }: BulkInput) => {
   // Parse CSV buffer into row objects
-  const rows = await parseCsvBuffer(file.buffer);
+  const rows = await parseBulkFileBuffer(
+    file.buffer,
+    file.originalname
+  );
 
   // Generate batch ID
   const lastBatch = await getLastBatchId();
@@ -123,7 +126,7 @@ export const updateDraftService = async (
 import { createProgramSchema } from "../validators/training_provider.validator.js";
 import { PROGRAM_SAVED_STATUS } from "../constants/enum.js";
 import { getEnrollmentActivities, getTodayEnrollmentCount, getTotalEnrollments } from "../repositories/enrollment.repository.js";
-import { getAttendanceActivities, getTodayAttendanceTaken } from "../repositories/attendance.repository.js";
+import { getAttendanceActivities, getTodayAttendanceTaken } from "../repositories/attendanceRecord.repository.js";
 
 export const publishDraftService = async (id: string, providerId: string) => {
   const program = await getProgramByIdRepo(id, providerId);

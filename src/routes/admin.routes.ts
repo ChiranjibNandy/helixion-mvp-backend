@@ -1,15 +1,15 @@
 import express from "express";
 
-import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, createBulkUploadJob, getBulkUploadJobStatus, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats, getEmployeeById, updateEmployee } from "../controllers/admin.controller.js";
-import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema, updateEmployeeParamsSchema, updateEmployeeBodySchema, bulkUploadJobParamsSchema } from "../validators/admin.validator.js";
+import { approveUser, getPendingRegistrations, deactivateUser, activateUser, batchCreateUsers, createBulkUploadJob, getBulkUploadJobStatus, searchUsers, getUsersController, createSingleUser, getAdminDashboardStats, getEmployeeById, updateEmployee, rejectUser } from "../controllers/admin.controller.js";
+import { approveUserBodySchema, approveUserParamsSchema, batchCreateUsersBodySchema, createSingleUserSchema, updateEmployeeParamsSchema, updateEmployeeBodySchema, bulkUploadJobParamsSchema, rejectUserParamsSchema } from "../validators/admin.validator.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 import { bulkUploadOrganizations, createOrganization, getAllOrganizations, getOrganizationById, getOrganizations, getOrganizationStatus, updateOrganizationDetails, updatePolicy } from "../controllers/organization.controller.js";
 import { createOrganizationSchema, organizationIdParamSchema, updateOrganizationDetailsSchema, updatePolicySchema } from "../validators/organization.validator.js";
-import { uploadCsv } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
+import { uploadBulkFile } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -32,7 +32,6 @@ router.get("/users/search",
    searchUsers
 );
 
-
 router.get("/users/:id",
    validate({ params: updateEmployeeParamsSchema }),
    getEmployeeById
@@ -47,12 +46,12 @@ router.patch("/users/:id/profile",
 router.get("/dashboard/stats", getAdminDashboardStats);
 
 router.post("/users/batch",
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    batchCreateUsers
 );
 
 router.post("/users/batch-async",
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    createBulkUploadJob
 );
 
@@ -68,9 +67,14 @@ router.post("/users",
    createSingleUser
 );
 
-router.patch("/users/:id",
+router.patch("/users/:id/approve",
    validate({ params: approveUserParamsSchema, body: approveUserBodySchema }),
    approveUser
+);
+
+router.patch("/users/:id/reject",
+   validate({ params: rejectUserParamsSchema }),
+   rejectUser
 );
 
 router.patch("/users/:id/deactivate",
@@ -103,7 +107,7 @@ router.get("/organizations/all",
 router.post(
    "/organizations/bulk-upload",
    rateLimiter,
-   uploadCsv.single("file"),
+   uploadBulkFile.single("file"),
    bulkUploadOrganizations
 );
 

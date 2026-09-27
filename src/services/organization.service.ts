@@ -7,10 +7,10 @@ import { getUserByIdRepo, updateOneUser } from "../repositories/user.repository.
 import { CreateOrganization } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { buildOrganizationPolicy } from "../utils/buildOrganizationPolicy.js";
-import { parseCsvBuffer } from "../utils/csvParser.js";
 import { toObjectId } from "../utils/mongo.js";
 import { organizationCsvRowSchema } from "../validators/organization.validator.js";
 import { ENV } from "../config/env.js";
+import { parseBulkFileBuffer } from "../utils/parseBulkFile.js";
 
 //Create org
 export const createOrganizationService = async (
@@ -191,12 +191,12 @@ export const updateOrganizationPolicyService = async (
 export const bulkUploadOrganizationService = async (
   file: Express.Multer.File
 ) => {
-  const rows = await parseCsvBuffer(file.buffer);
+  const rows = await parseBulkFileBuffer(file.buffer,file.originalname);
 
   // Empty file validation
   if (!rows.length) {
     throw new AppError(
-      MESSAGES.CSV_EMPTY,
+      MESSAGES.FILE_EMPTY,
       HTTP_STATUS.BAD_REQUEST
     );
   }
