@@ -101,6 +101,7 @@ export const MESSAGES = {
   DRAFT_UPDATED: "Draft updated successfully",
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
+  PROGRAM_UPDATES_SUCCESS:"program updated successfully",
   PROGRAM_NOT_FOUND: "Program not found",
   DASHBOARD_DATA_FETCH: "Dashboard data fetched successfully",
   ENROLLMENT_CREATED: "Enrollment request submitted successfully",
