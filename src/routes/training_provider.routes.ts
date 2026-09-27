@@ -1,15 +1,24 @@
 import express from "express";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createProgramSchema, updateProgramSchema } from "../validators/training_provider.validator.js";
+import { createProgramSchema, updateProgramSchema, updatePublishedProgramSchema } from "../validators/training_provider.validator.js";
 import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, getTrainingProviderDashboard, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
-import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController } from "../controllers/program.controller.js";
+import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController, updatePublishedProgram } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { getProgramAttendanceController, takeAttendanceController, updateParticipantAttendanceController } from "../controllers/attendance.controller.js";
-import { takeAttendanceBodySchema } from "../validators/attendance.validator.js";
+import {
+  getProgramAttendanceGridController,
+  markAttendanceDayController,
+  updateAttendanceNotesController,
+} from "../controllers/attendanceRecord.controller.js";
+import {
+  attendanceGridQuerySchema,
+  attendanceParamsSchema,
+  markAttendanceDayBodySchema,
+  updateAttendanceNotesBodySchema,
+} from "../validators/attendanceRecord.validator.js";
 
 
 const router = express.Router();
@@ -55,24 +64,23 @@ router.get(
   "/programs/:id/participants",
   getProgramParticipantsController
 );
-//router for take attendance
-router.put(
-  "/programs/:id/attendance",
-  validate({
-    body: takeAttendanceBodySchema,
-  }),
-  takeAttendanceController
-);
-//fetch attendance data for edit
+// Daily attendance grid (tickets 0058/0059)
 router.get(
   "/programs/:id/attendance",
-  getProgramAttendanceController
+  validate({ query: attendanceGridQuerySchema }),
+  getProgramAttendanceGridController
 );
 
-//take single attendance router
 router.patch(
-  "/programs/:id/attendance/:pid",
-  updateParticipantAttendanceController
+  "/programs/:id/attendance/:enrollmentId",
+  validate({ params: attendanceParamsSchema, body: markAttendanceDayBodySchema }),
+  markAttendanceDayController
+);
+
+router.patch(
+  "/programs/:id/attendance/:enrollmentId/notes",
+  validate({ params: attendanceParamsSchema, body: updateAttendanceNotesBodySchema }),
+  updateAttendanceNotesController
 );
 
 // Drafts endpoints
@@ -108,4 +116,9 @@ router.get(
   getTrainingProviderDashboard
 );
 
+router.patch(
+  "/program/:id",
+  validate({ body: updatePublishedProgramSchema }),
+  updatePublishedProgram
+)
 export default router;

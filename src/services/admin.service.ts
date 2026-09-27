@@ -19,6 +19,7 @@ import {
   bulkWriteUsersRepo,
   getUserByEmailRepo,
   searchUsersRepo,
+  rejectUserRepo,
 } from "../repositories/user.repository.js";
 import UploadJob from "../models/uploadJob.model.js";
 import { uploadQueue } from "../queue/bullConfig.js";
@@ -106,7 +107,7 @@ export const approveUserAndAddRoleService = async (
 
     const pendingUser = await getUserByIdRepo(id);
     if (!pendingUser?.employeeCode) {
-      employeeCode = `EMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      employeeCode = `EMP-${ Date.now().toString(36) }-${ Math.random().toString(36).slice(2, 8) }`;
     }
   }
 
@@ -118,6 +119,18 @@ export const approveUserAndAddRoleService = async (
       orgId,
       employeeCode
     );
+
+  if (!updatedUser) {
+    throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  }
+};
+
+export const rejectUserService = async (
+  id: string,
+) => {
+
+  const updatedUser =
+    await rejectUserRepo(id);
 
   if (!updatedUser) {
     throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

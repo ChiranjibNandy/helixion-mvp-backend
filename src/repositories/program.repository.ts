@@ -556,6 +556,7 @@ export const getPrograms = async (
         startDate: 1,
         enrolledCount: 1,
         maxParticipants: 1,
+        confirmedEnrollmentCount: 1,
         fillRate: {
           $round: ["$fillRate", 0],
         },
@@ -594,6 +595,20 @@ export const getPrograms = async (
     },
   ]);
 };
+
+//update program data ById
+// 1* used to update title max and min participant
+
+export const updateProgramFields = async (
+  programId: string,
+  updateData: Partial<IProgram>
+): Promise<IProgram | null> => {
+  return await Program.findByIdAndUpdate(
+    programId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+}
 
 
 

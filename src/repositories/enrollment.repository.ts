@@ -73,22 +73,6 @@ export const getProgramParticipantsRepo = async (programId: string) => {
     .populate({ path: "employeeId", select: "_id name email employeeCode" });
 };
 
-// Same visibility gate as getProgramParticipantsRepo — a participant not
-// yet past CTD approval isn't "enrolled" from the Training Provider's
-// point of view, so attendance can't be taken for them yet either.
-export const validateParticipantsEnrollmentRepo = async (
-  programId: string,
-  participantIds: string[]
-) => {
-  return await enrollmentModel
-    .find({
-      programId: new mongoose.Types.ObjectId(programId),
-      employeeId: { $in: participantIds.map((id) => new mongoose.Types.ObjectId(id)) },
-      currentStage: { $nin: TP_NOT_YET_VISIBLE_STAGES },
-    })
-    .select("employeeId");
-};
-
 export const getTotalEnrollments = async (trainingProviderId: string) => {
   const result = await enrollmentModel.aggregate([
     {
@@ -376,6 +360,13 @@ const buildManagerPendingFilter = (
 
   return {
     orgId: toObjectId(orgId),
+    // managerChain[].status alone isn't enough: auto-rejection (quota-full
+    // cascade, see autoRejectRemainingPendingEnrollments) flips currentStage
+    // to REJECTED without touching the still-PENDING managerChain entries,
+    // which otherwise leaves a dead row in this queue that 404s when acted
+    // on. currentStage is the source of truth, same as
+    // getPendingEnrollmentsForStageRepo on the CTD side.
+    currentStage: ENROLLMENT_STAGE.MANAGER_REVIEW,
     managerChain: { $elemMatch: chainFilter },
   };
 };

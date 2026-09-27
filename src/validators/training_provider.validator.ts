@@ -93,3 +93,20 @@ export const bulkProgramRowSchema = z.object({
     PROGRAM_SAVED_STATUS.PUBLISHED,
   ]),
 });
+
+export const updatePublishedProgramSchema = z.object({
+  title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
+  minParticipants: z.number().int(),
+  maxParticipants: z.number().int()
+}).refine(
+  (data) => {
+    if (data.minParticipants !== undefined && data.maxParticipants !== undefined) {
+      return data.maxParticipants >= data.minParticipants;
+    }
+    return true;
+  },
+  {
+    message: MESSAGES.MAX_PARTICIPANTS_INVALID,
+    path: ["maxParticipants"], 
+  }
+);
