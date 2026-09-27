@@ -49,21 +49,34 @@ export const createProgramSchema = baseProgramSchema.superRefine((data, ctx) => 
 });
 
 // Update Program validation (for drafts)
-export const updateProgramSchema = z.object({
-   title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
-   startDate: z.string().optional(),
-   endDate: z.string().optional(),
-   venue: z.string().optional(),
-   city: z.string().optional(),
-   state: z.string().optional(),
+export const updateProgramSchema = z
+   .object({
+      title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
 
-   singleOccupancyFee: z.coerce.number().min(0).optional(),
-   twinSharingFee: z.coerce.number().min(0).optional(),
-   nonResidentialFee: z.coerce.number().min(0).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      venue: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
 
-   minParticipants: z.coerce.number().min(1).optional(),
-   maxParticipants: z.coerce.number().min(1).optional(),
-});
+      singleOccupancyFee: z.coerce.number().min(0).optional(),
+      twinSharingFee: z.coerce.number().min(0).optional(),
+      nonResidentialFee: z.coerce.number().min(0).optional(),
+
+      minParticipants: z.coerce.number().min(1).optional(),
+      maxParticipants: z.coerce.number().min(1).optional(),
+   })
+   .refine(
+      (data) =>
+         data.minParticipants === undefined ||
+         data.maxParticipants === undefined ||
+         data.maxParticipants > data.minParticipants,
+      {
+         message:
+            MESSAGES.MAX_PARTICIPANTS_INVALID,
+         path: ["maxParticipants"],
+      }
+   );
 
 //validation for bulk program creation
 
