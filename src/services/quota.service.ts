@@ -9,8 +9,10 @@ import {
    ENROLLMENT_STATUS_SUMMARY,
 } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
-import { sendEnrollmentAutoRejectedQuotaFullMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
+import { sendTrackedMail } from "../utils/sendTrackedMail.js";
+import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import { createNotification } from "../repositories/notification.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance quota enforcement.
@@ -46,6 +48,17 @@ export const reserveProgramSlot = async (
          },
       },
       { $inc: { confirmedEnrollmentCount: 1 } },
+      { session, new: true }
+   );
+};
+
+export const releaseProgramSlot = async (
+   programId: string,
+   session: mongoose.ClientSession
+) => {
+   return await programModel.findOneAndUpdate(
+      { _id: toObjectId(programId), confirmedEnrollmentCount: { $gt: 0 } },
+      { $inc: { confirmedEnrollmentCount: -1 } },
       { session, new: true }
    );
 };
@@ -98,8 +111,19 @@ export const autoRejectRemainingPendingEnrollments = async (
             String(enrollment.programId)
          );
          if (!employee) return;
-         return sendEnrollmentAutoRejectedQuotaFullMail(employee.email, employee.name, programTitle).catch(
-            logMailFailure("enrollment-auto-rejected-quota-full")
+
+         const template = NOTIFICATION_TEMPLATES.ENROLLMENT_AUTO_REJECTED_QUOTA_FULL(programTitle);
+
+         sendTrackedMail({
+            to: employee.email,
+            subject: template.emailSubject,
+            templateName: template.title,
+            html: template.emailBody,
+            relatedEntityId: String(enrollment._id),
+         }).catch(logMailFailure("enrollment-auto-rejected-quota-full"));
+
+         return createNotification(String(employee._id), template, String(enrollment._id)).catch(
+            logMailFailure("enrollment-auto-rejected-quota-full-notification")
          );
       })
    );

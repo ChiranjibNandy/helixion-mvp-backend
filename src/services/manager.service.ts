@@ -33,9 +33,15 @@ import { toObjectId } from "../utils/mongo.js";
 import { sendReimbursementRejectedByManagerMail, sendTravelRequestUnderCtdReviewMail, sendTravelRequestRejectedByManagerMail, sendTravelRequestApprovedMail } from "../utils/sendMail.js";
 import { loadNotificationContext, logMailFailure, reimbursementTimelineAction, isLocalTraining } from "../utils/notification.util.js";
 import { createNotification, createNotifications } from "../repositories/notification.repository.js";
-import { buildApprovedLocalEmailBody, buildApprovedOutstationEmailBody, buildRejectedEmailBody, NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import {
+   buildApprovedLocalEmailBody,
+   buildRejectedEmailBody,
+   buildWaitingTpConfirmationEmailBody,
+   buildTpConfirmationPendingEmailBody,
+   NOTIFICATION_TEMPLATES,
+} from "../constants/notificationTemplates.js";
 import { sendTrackedMail } from "../utils/sendTrackedMail.js";
-import { findCtdUsersByOrgId } from "../repositories/user.repository.js";
+import { findCtdUsersByOrgId, getUserByIdRepo } from "../repositories/user.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for a manager
@@ -193,7 +199,7 @@ export const takeManagerActionService = async (
    const tourManagerApprovalRequired =
       enrollment.policySnapshot?.tourApproval?.managerApprovalRequired ?? true;
 
-   let skippedCtdNotification: { employee: any; programTitle: string; isLocal: boolean } | null = null;
+   let skippedCtdNotification: { employee: any; program: any; programTitle: string; isLocal: boolean } | null = null;
 
    // Set when this specific approval must atomically reserve a program quota
    // slot (see the trainingDeptEnabled===false branch below) — routes the
@@ -256,7 +262,7 @@ export const takeManagerActionService = async (
             );
             const isLocal = isLocalTraining(employee?.placeOfPosting, program?.city);
 
-            nextStage = isLocal ? ENROLLMENT_STAGE.APPROVED : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
+            nextStage = isLocal ? ENROLLMENT_STAGE.APPROVED : ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION;
             nextEnrollmentStatus = ENROLLMENT_STATUS_SUMMARY.APPROVED;
 
             if (isLocal) {
@@ -265,7 +271,7 @@ export const takeManagerActionService = async (
                updateOps.$set["statusSummary.tourStatus"] = TOUR_STATUS.NOT_REQUIRED;
             }
 
-            skippedCtdNotification = { employee, programTitle, isLocal };
+            skippedCtdNotification = { employee, program, programTitle, isLocal };
          } else {
             // Quota isn't reserved here — CTD's approval is still the real
             // reservation point — but we block early if it's already full,
@@ -433,29 +439,53 @@ export const takeManagerActionService = async (
          logMailFailure("enrollment-rejected")(err);
       }
    } else if (skippedCtdNotification?.employee) {
-      const { employee, programTitle, isLocal } = skippedCtdNotification;
-      const template = isLocal
-         ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(programTitle)
-         : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(programTitle)
+      const { employee, program, programTitle, isLocal } = skippedCtdNotification;
 
-      try {
-         await createNotification(
-            String(enrollment.employeeId),
-            template,
-            String(enrollment._id)
-         );
+      if (isLocal) {
+         const template = NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(programTitle);
+         try {
+            await createNotification(String(enrollment.employeeId), template, String(enrollment._id));
+            await sendTrackedMail({
+               to: employee.email,
+               subject: template.emailSubject,
+               templateName: template.title,
+               html: buildApprovedLocalEmailBody(employee.name, programTitle),
+               relatedEntityId: String(enrollment._id),
+            });
+         } catch (err) {
+            logMailFailure("enrollment-approved")(err);
+         }
+      } else {
+         const waitingTemplate = NOTIFICATION_TEMPLATES.ENROLLMENT_WAITING_TP_CONFIRMATION(programTitle);
+         try {
+            await createNotification(String(enrollment.employeeId), waitingTemplate, String(enrollment._id));
+            await sendTrackedMail({
+               to: employee.email,
+               subject: waitingTemplate.emailSubject,
+               templateName: waitingTemplate.title,
+               html: buildWaitingTpConfirmationEmailBody(employee.name, programTitle),
+               relatedEntityId: String(enrollment._id),
+            });
+         } catch (err) {
+            logMailFailure("enrollment-waiting-tp-confirmation")(err);
+         }
 
-         await sendTrackedMail({
-            to: employee.email,
-            subject: template.emailSubject,
-            templateName: template.title,
-            html: isLocal
-               ? buildApprovedLocalEmailBody(employee.name, programTitle)
-               : buildApprovedOutstationEmailBody(employee.name, programTitle),
-            relatedEntityId: String(enrollment._id),
-         });
-      } catch (err) {
-         logMailFailure("enrollment-approved")(err);
+         const provider = program?.createdBy ? await getUserByIdRepo(String(program.createdBy)) : null;
+         if (provider) {
+            const pendingTemplate = NOTIFICATION_TEMPLATES.TP_CONFIRMATION_PENDING(programTitle, employee.name);
+            try {
+               await createNotification(String(provider._id), pendingTemplate, String(enrollment._id));
+               await sendTrackedMail({
+                  to: provider.email,
+                  subject: pendingTemplate.emailSubject,
+                  templateName: pendingTemplate.title,
+                  html: buildTpConfirmationPendingEmailBody(employee.name, programTitle),
+                  relatedEntityId: String(enrollment._id),
+               });
+            } catch (err) {
+               logMailFailure("tp-confirmation-pending")(err);
+            }
+         }
       }
    }
 

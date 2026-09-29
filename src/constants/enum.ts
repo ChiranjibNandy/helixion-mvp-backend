@@ -156,6 +156,7 @@ export enum ENROLLMENT_STAGE {
   MANAGER_REVIEW               = "manager_review",
   TRAINING_DEPT_REVIEW         = "training_dept_review",
   APPROVED                     = "approved",
+  TP_PENDING_CONFIRMATION      = "tp_pending_confirmation",
   TOUR_PENDING_EMPLOYEE        = "tour_pending_employee",
   TOUR_MANAGER_REVIEW          = "tour_manager_review",
   TOUR_CTD_REVIEW              = "tour_ctd_review",
@@ -171,18 +172,11 @@ export enum ENROLLMENT_STAGE {
   REIMBURSEMENT_OSD_REVIEW     = "reimbursement_osd_review",
 }
 
-/**
- * Stages at which a Training Provider must NOT yet see a participant or be
- * able to act on their attendance — the enrollment hasn't cleared CTD
- * (Training Dept senior) approval yet. Once currentStage advances past these
- * (i.e. reaches TOUR_PENDING_EMPLOYEE or later), the TP who owns the program
- * gains visibility. Expressed as an exclusion list (not an allow-list) so
- * later stages remain visible automatically without editing this constant.
- */
 export const TP_NOT_YET_VISIBLE_STAGES: ENROLLMENT_STAGE[] = [
   ENROLLMENT_STAGE.SUBMITTED,
   ENROLLMENT_STAGE.MANAGER_REVIEW,
   ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+  ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
   ENROLLMENT_STAGE.REJECTED,
 ];
 
@@ -260,6 +254,7 @@ export enum ENROLLMENT_REJECTION_REASON {
   MANAGER = "manager",
   TRAINING_DEPT = "training_dept",
   QUOTA_FULL = "quota_full",
+  TRAINING_PROVIDER = "training_provider",
 }
 
 export enum ENROLLMENT_APPROVAL_STATUS {

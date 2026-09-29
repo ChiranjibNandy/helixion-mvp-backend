@@ -9,6 +9,11 @@ import {
    deleteDraftService,
    getTrainingProviderDashboardServices
 } from "../services/training_provider.service.js";
+import {
+   getPendingTpConfirmationsService,
+   confirmEnrollmentService,
+   declineEnrollmentService,
+} from "../services/providerConfirmation.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -158,6 +163,91 @@ export const getTrainingProviderDashboard = async (
          data: dashboardData
       });
 
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getPendingTpConfirmations = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const data = await getPendingTpConfirmationsService(providerId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PENDING_TP_CONFIRMATIONS_FETCHED,
+         data,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const confirmEnrollment = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { programId, enrollmentId } = req.params;
+      const { notes } = req.body;
+
+      const result = await confirmEnrollmentService(
+         String(programId),
+         String(enrollmentId),
+         providerId,
+         notes
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.TP_CONFIRMATION_SUCCESS,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const declineEnrollment = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { programId, enrollmentId } = req.params;
+      const { notes } = req.body;
+
+      const result = await declineEnrollmentService(
+         String(programId),
+         String(enrollmentId),
+         providerId,
+         notes
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.TP_DECLINE_SUCCESS,
+         data: result,
+      });
    } catch (error) {
       next(error);
    }
