@@ -130,7 +130,7 @@ export const buildPermission = async (user: IUser) => {
       canApproveTourCtd(user),
       canReviewOsd(user),
       canApproveOsd(user),
-      canFeedback(user?._id)
+      canFeedback(String(user._id))
    ]);
 
    return {

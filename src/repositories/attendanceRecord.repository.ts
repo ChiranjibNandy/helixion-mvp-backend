@@ -269,7 +269,6 @@ export const getAttendanceActivities = async (trainingProviderId: string) => {
 };
 
 //return the full completd Program document
-
 export const findCompletedProgramsByEmployeeRepo = async (
   employeeId: string
 ): Promise<IProgram[]> => {
@@ -278,7 +277,7 @@ export const findCompletedProgramsByEmployeeRepo = async (
   const programs = await attendanceRecordModel.aggregate<IProgram>([
     {
       $match: {
-        employeeId:toObjectId(employeeId),
+        employeeId: toObjectId(employeeId),
       },
     },
     {
@@ -299,9 +298,8 @@ export const findCompletedProgramsByEmployeeRepo = async (
                     ],
                   },
                 },
-              },
-            },
-            0,
+              }
+            }, 0
           ],
         },
       },
@@ -318,13 +316,6 @@ export const findCompletedProgramsByEmployeeRepo = async (
       $unwind: "$program",
     },
     {
-      $match: {
-        "program.endDate": {
-          $lt: now,
-        },
-      },
-    },
-    {
       $replaceRoot: {
         newRoot: "$program",
       },
@@ -339,6 +330,5 @@ export const canFeedback = async (
   employeeId: string
 ): Promise<boolean> => {
   const programs = await findCompletedProgramsByEmployeeRepo(employeeId);
-
   return programs.length > 0;
 };

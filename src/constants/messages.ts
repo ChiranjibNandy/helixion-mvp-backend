@@ -148,5 +148,6 @@ export const MESSAGES = {
   //feedback
   NOT_ELIGIBLE_SUBMIT_FEEDBACK : "You are not eligible to submit feedback for this program",
   FEEDBACK_ADDED_SUCCESSFULLY : "Feedback added successfully",
-  FEEDBACK_ALREADY_SUBMITTED : "Feedback has already been submitted for this program"
+  FEEDBACK_ALREADY_SUBMITTED : "Feedback has already been submitted for this program",
+  INVALID_PROGRAM_ID : "Invalid program ID"
 } as const;

@@ -25,7 +25,8 @@ import {
    submitTourFormParamsSchema,
    submitTourFormBodySchema
 } from "../validators/employee.validator.js";
-import { getCompletedFeedbackPrograms } from "../controllers/feedback.controller.js";
+import { addFeedback, getCompletedFeedbackPrograms } from "../controllers/feedback.controller.js";
+import { addFeedbackSchema } from "../validators/feedback.validator.js";
 
 const router = express.Router();
 
@@ -80,6 +81,12 @@ router.post(
 router.get(
    "/feedback/programs",
    getCompletedFeedbackPrograms
+);
+
+router.post(
+   "/feedback",
+   validate({ body: addFeedbackSchema }),
+   addFeedback
 );
 
 export default router;
