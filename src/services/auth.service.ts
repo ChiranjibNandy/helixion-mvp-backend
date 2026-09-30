@@ -13,7 +13,7 @@ import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { ORG_ROLE, USER_STATUS } from "../constants/enum.js";
 import { buildPermission } from "../utils/permission.js";
-import { LoginResponse } from "../types/auth.js";
+import { LoginResponse, ResetLinkResult } from "../types/auth.js";
 import { createNotification } from "../repositories/notification.repository.js";
 import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
 
@@ -108,16 +108,50 @@ export const loginService = async (
 // ─────────────────────────────────────────────────────────────────────────────
 // Send password reset link
 // ─────────────────────────────────────────────────────────────────────────────
-export const sendResetLinkService = async (email: string) => {
-   const user = await getUserByEmailRepo(email);
+export const sendResetLinkService = async (
+  email: string[]
+): Promise<ResetLinkResult> => {
+  const results: ResetLinkResult = {
+    successful: [],
+    failed: [],
+  };
 
-   if (!user) {
-      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-   }
+  // Remove duplicates just in case
+  const uniqueEmails = [...new Set(email)];
 
-   await sendResetMail(email, user._id.toString(), user.name);
+  for (const email of uniqueEmails) {
+    try {
+      const user = await getUserByEmailRepo(email);
+
+      if (!user) {
+        results.failed.push({
+          email,
+          reason: MESSAGES.USER_NOT_FOUND,
+        });
+
+        continue;
+      }
+
+      await sendResetMail(
+        email,
+        user._id.toString(),
+        user.name
+      );
+
+      results.successful.push(email);
+    } catch (error) {
+      results.failed.push({
+        email,
+        reason:
+          error instanceof Error
+            ? error.message
+            : "Failed to send reset link",
+      });
+    }
+  }
+
+  return results;
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Reset password
 // ─────────────────────────────────────────────────────────────────────────────

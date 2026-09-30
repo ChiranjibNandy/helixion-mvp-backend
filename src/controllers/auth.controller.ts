@@ -146,14 +146,15 @@ export const sendResetLinkController =
   ) => {
 
     try {
-      await sendResetLinkService(
+      const result = await sendResetLinkService(
         req.body.email
       );
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message:
-          MESSAGES.RESET_LINK_SENT
+          MESSAGES.RESET_LINK_SENT,
+        data: result,
       });
     } catch (error) {
       next(error)

@@ -49,10 +49,8 @@ export const loginSchema = z.object({
 // validate only the email is required and in correct format or not
 export const sendResetMailSchema = z.object({
   email: z
-    .string()
-    .trim()
-    .min(1, { error: MESSAGES.EMAIL_REQUIRED })
-    .pipe(z.email({ error: MESSAGES.INVALID_EMAIL_FORMAT })),
+    .array(z.string().email())
+    .min(1, "At least one email is required"),
 });
 
 //validate UserId password
