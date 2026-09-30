@@ -43,6 +43,7 @@ export const MESSAGES = {
   INVALID_OBJECT: "Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
+  COMPLETED_PROGRAM_FETCH: "Completed programs fetched successfully",
 
   USER_DEACTIVATED_SUCCESSFULLY: "User deactivated successfully",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
@@ -142,5 +143,10 @@ export const MESSAGES = {
   //notification
   NOTIFICATION_ID_REQUIRED:"Notification ID is required",
   NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
-  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed."
+  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed.",
+
+  //feedback
+  NOT_ELIGIBLE_SUBMIT_FEEDBACK : "You are not eligible to submit feedback for this program",
+  FEEDBACK_ADDED_SUCCESSFULLY : "Feedback added successfully",
+  FEEDBACK_ALREADY_SUBMITTED : "Feedback has already been submitted for this program"
 } as const;

@@ -25,6 +25,7 @@ import {
    submitTourFormParamsSchema,
    submitTourFormBodySchema
 } from "../validators/employee.validator.js";
+import { getCompletedFeedbackPrograms } from "../controllers/feedback.controller.js";
 
 const router = express.Router();
 
@@ -73,6 +74,12 @@ router.post(
    "/enrollments/:enrollmentId/tour/submit",
    validate({ params: submitTourFormParamsSchema, body: submitTourFormBodySchema }),
    submitTourForm
+);
+
+//completed program list api
+router.get(
+   "/feedback/programs",
+   getCompletedFeedbackPrograms
 );
 
 export default router;

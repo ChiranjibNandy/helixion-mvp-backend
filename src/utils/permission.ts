@@ -1,17 +1,18 @@
 import { ORG_ROLE } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
+import { canFeedback } from "../repositories/attendanceRecord.repository.js";
 import { findOrgById } from "../repositories/organization.repository.js";
 import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user.repository.js";
 
 export const canEnroll = (user: IUser): boolean => {
-   if(!user.orgRole) return false
-  
+   if (!user.orgRole) return false
+
    return user.orgRole === ORG_ROLE.EMPLOYEE || user.orgRole === ORG_ROLE.MANAGER;
 };
 
 export const canRecommend = async (user: IUser) => {
    if (!user.orgId) {
-     return false
+      return false
    }
    const exists = await hasReportingEmployees(
       user.orgId,
@@ -119,6 +120,7 @@ export const buildPermission = async (user: IUser) => {
       canApproveTourCtdPermission,
       canReviewOsdPermission,
       canApproveOsdPermission,
+      canFeedbackPermission
    ] = await Promise.all([
       canEnroll(user),
       canRecommend(user),
@@ -128,6 +130,7 @@ export const buildPermission = async (user: IUser) => {
       canApproveTourCtd(user),
       canReviewOsd(user),
       canApproveOsd(user),
+      canFeedback(user?._id)
    ]);
 
    return {
@@ -139,5 +142,6 @@ export const buildPermission = async (user: IUser) => {
       canApproveTourCtd: canApproveTourCtdPermission,
       canReviewOsd: canReviewOsdPermission,
       canApproveOsd: canApproveOsdPermission,
+      canFeedback: canFeedbackPermission
    };
 };
