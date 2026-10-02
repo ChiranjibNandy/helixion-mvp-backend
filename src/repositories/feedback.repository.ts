@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import feedbackModel, { IFeedback } from "../models/feedback.model.js";
 import { toObjectId } from "../utils/mongo.js";
 
@@ -15,4 +16,17 @@ export const findFeedbackByProgramAndEmployeeRepo = async (
       programId:toObjectId(programId),
       employeeId:toObjectId(employeeId),
    });
+};
+
+export const findFeedbackProgramIdsByEmployeeRepo = async (
+   employeeId: string
+): Promise<mongoose.Types.ObjectId[]> => {
+   const feedbacks = await feedbackModel
+      .find({
+         employeeId: toObjectId(employeeId),
+      })
+      .select("programId")
+      .lean();
+
+   return feedbacks.map((feedback) => feedback.programId);
 };

@@ -1,8 +1,8 @@
 import { ORG_ROLE } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
-import { canFeedback } from "../repositories/attendanceRecord.repository.js";
 import { findOrgById } from "../repositories/organization.repository.js";
 import { hasApproveEmployees, hasReportingEmployees } from "../repositories/user.repository.js";
+import { canFeedback } from "../services/feedback.service.js";
 
 export const canEnroll = (user: IUser): boolean => {
    if (!user.orgRole) return false

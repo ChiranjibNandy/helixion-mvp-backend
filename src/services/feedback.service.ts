@@ -3,18 +3,33 @@ import { findCompletedProgramsByEmployeeRepo } from "../repositories/attendanceR
 import { AddFeedbackDto } from "../dtos/feedback.dto.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
-import { createFeedbackRepo, findFeedbackByProgramAndEmployeeRepo } from "../repositories/feedback.repository.js";
+import { createFeedbackRepo, findFeedbackByProgramAndEmployeeRepo, findFeedbackProgramIdsByEmployeeRepo } from "../repositories/feedback.repository.js";
 import { MESSAGES } from "../constants/messages.js";
 import { toObjectId } from "../utils/mongo.js";
 
 export const getCompletedFeedbackProgramsService = async (
    employeeId: string
 ) => {
-   const programs = await findCompletedProgramsByEmployeeRepo(employeeId);
-   return programs.map((program) => ({
-      _id: program._id,
-      title: program.title,
-   }));
+   const [programs, feedbackProgramIds] = await Promise.all([
+      findCompletedProgramsByEmployeeRepo(employeeId),
+      findFeedbackProgramIdsByEmployeeRepo(employeeId),
+   ]);
+
+   const submittedProgramIds = new Set(
+      feedbackProgramIds.map((id) => id.toString())
+   );
+
+   return programs
+      .filter(
+         (program) =>
+            program._id &&
+            !submittedProgramIds.has(program._id.toString()
+            )
+      )
+      .map((program) => ({
+         _id: program._id,
+         title: program.title,
+      }));
 };
 
 export const addFeedbackService = async (
@@ -51,10 +66,36 @@ export const addFeedbackService = async (
       );
    }
 
-   return await createFeedbackRepo({
-      programId: toObjectId(programId),
-      employeeId: toObjectId(employeeId),
-      rating,
-      remark,
-   });
+   if (existingFeedback) {
+      throw new AppError(
+         MESSAGES.FEEDBACK_ALREADY_SUBMITTED,
+         HTTP_STATUS.CONFLICT
+      );
+   }
+
+   try {
+      return await createFeedbackRepo({
+         programId: toObjectId(programId),
+         employeeId: toObjectId(employeeId),
+         rating,
+         remark,
+      });
+   } catch (error: any) {
+      if (error?.code === 11000) {
+         throw new AppError(
+            MESSAGES.FEEDBACK_ALREADY_SUBMITTED,
+            HTTP_STATUS.CONFLICT
+         );
+      }
+
+      throw error;
+   }
+};
+
+
+export const canFeedback = async (
+   employeeId: string
+): Promise<boolean> => {
+   const programs = await getCompletedFeedbackProgramsService(employeeId);
+   return programs.length > 0;
 };

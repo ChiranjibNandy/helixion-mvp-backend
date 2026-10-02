@@ -281,7 +281,21 @@ export const findCompletedProgramsByEmployeeRepo = async (
       },
     },
     {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program",
+      },
+    },
+    {
+      $unwind: "$program",
+    },
+    {
       $match: {
+        "program.endDate": {
+          $lt: now,
+        },
         $expr: {
           $gt: [
             {
@@ -305,17 +319,6 @@ export const findCompletedProgramsByEmployeeRepo = async (
       },
     },
     {
-      $lookup: {
-        from: "programs",
-        localField: "programId",
-        foreignField: "_id",
-        as: "program",
-      },
-    },
-    {
-      $unwind: "$program",
-    },
-    {
       $replaceRoot: {
         newRoot: "$program",
       },
@@ -326,9 +329,3 @@ export const findCompletedProgramsByEmployeeRepo = async (
 };
 
 
-export const canFeedback = async (
-  employeeId: string
-): Promise<boolean> => {
-  const programs = await findCompletedProgramsByEmployeeRepo(employeeId);
-  return programs.length > 0;
-};
