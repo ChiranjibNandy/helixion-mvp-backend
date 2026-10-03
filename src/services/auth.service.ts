@@ -109,17 +109,30 @@ export const loginService = async (
 // ─────────────────────────────────────────────────────────────────────────────
 // Send password reset link
 // ─────────────────────────────────────────────────────────────────────────────
-export const sendResetLinkService = async (
-   emails: string[]
+export const sendResetLinkService = async (email: string) => {
+   const user = await getUserByEmailRepo(email);
+
+   if (!user) {
+      throw new AppError(MESSAGES.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+   }
+
+   await sendResetMail(email, user._id.toString(), user.name);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Send bulk password reset links
+// ─────────────────────────────────────────────────────────────────────────────
+export const sendBulkResetLinksService = async (
+   emails: string[],
+   orgId: string
 ): Promise<ResetLinkResult> => {
    const MAX_RESET_LINK_RECIPIENTS = 30;
+
    const results: ResetLinkResult = {
       successful: [],
       failed: [],
    };
 
-   // Normalize emails before deduplication so that:
-   // user@example.com and User@Example.com are treated as the same user.
    const uniqueEmails = [
       ...new Set(
          emails
@@ -142,8 +155,10 @@ export const sendResetLinkService = async (
       return results;
    }
 
-   // Fetch all users in a single database query.
-   const users = await getUsersByEmailsRepo(uniqueEmails);
+   const users = await getUsersByEmailsRepo(
+      uniqueEmails,
+      orgId
+   );
 
    const usersByEmail = new Map(
       users.map((user) => [
@@ -176,7 +191,6 @@ export const sendResetLinkService = async (
                success: true,
             };
          } catch {
-
             return {
                email,
                success: false,

@@ -1,11 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { loginService, resetPasswordService, sendResetLinkService, signupService } from "../services/auth.service.js";
+import { loginService, resetPasswordService, sendBulkResetLinksService, sendResetLinkService, signupService } from "../services/auth.service.js";
 import { MESSAGES } from "../constants/messages.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { generateAccessToken, generateRefreshToken, JwtPayloadType } from "../utils/jwt.js";
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAccessTokenCookie, clearRefreshTokenCookie } from "../utils/cookies.js";
 import { LoginRequestDto } from "../dtos/login.dto.js";
-import { ORG_ROLE } from "../constants/enum.js";
 
 /**
  * Register a new user account.
@@ -146,8 +145,32 @@ export const sendResetLinkController =
   ) => {
 
     try {
-      const result = await sendResetLinkService(
+      await sendResetLinkService(
         req.body.email
+      );
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message:
+          MESSAGES.RESET_LINK_SENT
+      });
+    } catch (error) {
+      next(error)
+    }
+
+  };
+
+export const sendBulkResetLinksController =
+  async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+
+    try {
+      const result = await sendBulkResetLinksService(
+        req.body.email,
+        req.orgId!
       );
 
       res.status(HTTP_STATUS.OK).json({
