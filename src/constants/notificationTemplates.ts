@@ -208,14 +208,20 @@ export const buildRejectedEmailBody = (
    `;
 };
 
-/**
- * Generates HTML email body for approved local program enrollments.
- */
-export function buildApprovedLocalEmailBody(
-  employeeName: string,
-  programTitle: string
-): string {
-  return `
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared email wrapper — the five build*EmailBody functions below each used
+// to carry their own full copy of this HTML/CSS skeleton (DOCTYPE, meta,
+// container/header/content/footer rules); only the header color, header
+// title and inner content actually differed between them. Badge/info-box
+// styling moved inline into each caller's content since those colors vary
+// per template and aren't worth threading through as extra parameters.
+// (review comment on PR #49)
+// ─────────────────────────────────────────────────────────────────────────────
+const wrapNotificationEmail = (
+  headerColor: string,
+  headerTitle: string,
+  bodyHtml: string
+): string => `
     <!DOCTYPE html>
     <html>
       <head>
@@ -223,29 +229,18 @@ export function buildApprovedLocalEmailBody(
         <style>
           body { font-family: Arial, sans-serif; background-color: #f4f5f7; color: #333333; margin: 0; padding: 20px; }
           .container { max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin: 0 auto; border: 1px solid #e2e8f0; }
-          .header { background-color: #10b981; color: #ffffff; padding: 24px; text-align: center; }
+          .header { background-color: ${ headerColor }; color: #ffffff; padding: 24px; text-align: center; }
           .content { padding: 24px; line-height: 1.6; }
-          .badge { display: inline-block; background-color: #ecfdf5; color: #047857; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px; }
           .footer { background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin:0; font-size: 20px;">Enrollment Approved!</h1>
+            <h1 style="margin:0; font-size: 20px;">${ headerTitle }</h1>
           </div>
           <div class="content">
-            <p>Dear <strong>${ employeeName }</strong>,</p>
-            <p>Great news! Your manager has approved your request to enroll in the following program:</p>
-            
-            <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #10b981; border-radius: 4px; margin: 20px 0;">
-              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
-              <span class="badge">Type: Local Program</span>
-            </div>
-
-            <p>Since this is a local program, no outstation travel or accommodation logistics are required. Please check your dashboard for further schedule details and instructions.</p>
-            
-            <p>Best regards,<br><strong>Learning & Development Team</strong></p>
+            ${ bodyHtml }
           </div>
           <div class="footer">
             <p>This is an automated notification. Please do not reply directly to this email.</p>
@@ -254,6 +249,31 @@ export function buildApprovedLocalEmailBody(
       </body>
     </html>
   `;
+
+/**
+ * Generates HTML email body for approved local program enrollments.
+ */
+export function buildApprovedLocalEmailBody(
+  employeeName: string,
+  programTitle: string
+): string {
+  return wrapNotificationEmail(
+    "#10b981",
+    "Enrollment Approved!",
+    `
+            <p>Dear <strong>${ employeeName }</strong>,</p>
+            <p>Great news! Your manager has approved your request to enroll in the following program:</p>
+
+            <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #10b981; border-radius: 4px; margin: 20px 0;">
+              <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
+              <span style="display: inline-block; background-color: #ecfdf5; color: #047857; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">Type: Local Program</span>
+            </div>
+
+            <p>Since this is a local program, no outstation travel or accommodation logistics are required. Please check your dashboard for further schedule details and instructions.</p>
+
+            <p>Best regards,<br><strong>Learning & Development Team</strong></p>
+    `
+  );
 }
 
 /**
@@ -263,121 +283,60 @@ export function buildApprovedOutstationEmailBody(
   employeeName: string,
   programTitle: string
 ): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; background-color: #f4f5f7; color: #333333; margin: 0; padding: 20px; }
-          .container { max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin: 0 auto; border: 1px solid #e2e8f0; }
-          .header { background-color: #2563eb; color: #ffffff; padding: 24px; text-align: center; }
-          .content { padding: 24px; line-height: 1.6; }
-          .badge { display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px; }
-          .info-box { background-color: #fffbe3; border: 1px solid #fef3c7; padding: 14px; border-radius: 6px; font-size: 13px; color: #92400e; margin-top: 20px; }
-          .footer { background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0; font-size: 20px;">Enrollment Approved!</h1>
-          </div>
-          <div class="content">
+  return wrapNotificationEmail(
+    "#2563eb",
+    "Enrollment Approved!",
+    `
             <p>Dear <strong>${ employeeName }</strong>,</p>
             <p>Great news! Your manager has approved your request to enroll in the outstation program:</p>
-            
+
             <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #2563eb; border-radius: 4px; margin: 20px 0;">
               <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
-              <span class="badge">Type: Outstation Program</span>
+              <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">Type: Outstation Program</span>
             </div>
 
             <p>Please log into your portal to view travel guidelines and complete any necessary pre-travel arrangements or booking requests.</p>
-            
-            <div class="info-box">
+
+            <div style="background-color: #fffbe3; border: 1px solid #fef3c7; padding: 14px; border-radius: 6px; font-size: 13px; color: #92400e; margin-top: 20px;">
               <strong>Note for Outstation Travel:</strong> Make sure to coordinate with your department admin regarding travel desk approvals and travel expense claims.
             </div>
 
             <p style="margin-top:20px;">Best regards,<br><strong>Learning & Development Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated notification. Please do not reply directly to this email.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+    `
+  );
 }
 
 export function buildWaitingTpConfirmationEmailBody(
   employeeName: string,
   programTitle: string
 ): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; background-color: #f4f5f7; color: #333333; margin: 0; padding: 20px; }
-          .container { max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin: 0 auto; border: 1px solid #e2e8f0; }
-          .header { background-color: #d97706; color: #ffffff; padding: 24px; text-align: center; }
-          .content { padding: 24px; line-height: 1.6; }
-          .badge { display: inline-block; background-color: #fffbeb; color: #b45309; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px; }
-          .footer { background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0; font-size: 20px;">Enrollment Approved!</h1>
-          </div>
-          <div class="content">
+  return wrapNotificationEmail(
+    "#d97706",
+    "Enrollment Approved!",
+    `
             <p>Dear <strong>${ employeeName }</strong>,</p>
             <p>Your enrollment for the following program has been approved by the Training Dept:</p>
 
             <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #d97706; border-radius: 4px; margin: 20px 0;">
               <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
-              <span class="badge">Awaiting Training Provider confirmation</span>
+              <span style="display: inline-block; background-color: #fffbeb; color: #b45309; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">Awaiting Training Provider confirmation</span>
             </div>
 
             <p>The Training Provider needs to confirm your seat before the tour form is enabled. You'll get another notification as soon as that happens — no action is needed from you right now.</p>
 
             <p style="margin-top:20px;">Best regards,<br><strong>Learning & Development Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated notification. Please do not reply directly to this email.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+    `
+  );
 }
-
 
 export function buildTpConfirmationPendingEmailBody(
   employeeName: string,
   programTitle: string
 ): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; background-color: #f4f5f7; color: #333333; margin: 0; padding: 20px; }
-          .container { max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin: 0 auto; border: 1px solid #e2e8f0; }
-          .header { background-color: #d97706; color: #ffffff; padding: 24px; text-align: center; }
-          .content { padding: 24px; line-height: 1.6; }
-          .footer { background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0; font-size: 20px;">Confirmation Needed</h1>
-          </div>
-          <div class="content">
+  return wrapNotificationEmail(
+    "#d97706",
+    "Confirmation Needed",
+    `
             <p>Hello,</p>
             <p><strong>${ employeeName }</strong>'s enrollment for the following program has cleared CTD approval and is now pending your confirmation:</p>
 
@@ -388,58 +347,29 @@ export function buildTpConfirmationPendingEmailBody(
             <p>Please review and confirm this enrollment from your dashboard's Pending Confirmations section so the employee's tour form can be enabled.</p>
 
             <p style="margin-top:20px;">Best regards,<br><strong>Learning & Development Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated notification. Please do not reply directly to this email.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+    `
+  );
 }
-
 
 export function buildTpConfirmedEmailBody(
   employeeName: string,
   programTitle: string
 ): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; background-color: #f4f5f7; color: #333333; margin: 0; padding: 20px; }
-          .container { max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin: 0 auto; border: 1px solid #e2e8f0; }
-          .header { background-color: #2563eb; color: #ffffff; padding: 24px; text-align: center; }
-          .content { padding: 24px; line-height: 1.6; }
-          .badge { display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px; }
-          .footer { background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0; font-size: 20px;">Training Provider Confirmed!</h1>
-          </div>
-          <div class="content">
+  return wrapNotificationEmail(
+    "#2563eb",
+    "Training Provider Confirmed!",
+    `
             <p>Dear <strong>${ employeeName }</strong>,</p>
             <p>The Training Provider has confirmed your enrollment for the following program:</p>
 
             <div style="background-color: #f8fafc; padding: 16px; border-left: 4px solid #2563eb; border-radius: 4px; margin: 20px 0;">
               <h3 style="margin: 0 0 8px 0; color: #0f172a;">${ programTitle }</h3>
-              <span class="badge">Tour form ready</span>
+              <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">Tour form ready</span>
             </div>
 
             <p>Please log into your portal to complete the tour form and proceed with the required travel arrangements.</p>
 
             <p style="margin-top:20px;">Best regards,<br><strong>Learning & Development Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated notification. Please do not reply directly to this email.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+    `
+  );
 }
