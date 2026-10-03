@@ -186,6 +186,12 @@ const enrollmentSchema = new Schema<IEnrollment>(
          seniorActedAt: { type: Date },
       },
 
+      tpConfirmation: {
+         confirmedBy: { type: Schema.Types.ObjectId, ref: "User" },
+         confirmedAt: { type: Date },
+         notes: { type: String, default: "" },
+      },
+
       travelAndStay: {
          stayType: { type: String },
          placeOfTour: { type: String },

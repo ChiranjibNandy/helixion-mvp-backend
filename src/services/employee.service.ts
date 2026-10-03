@@ -584,7 +584,7 @@ const NOTIFICATION_RULES: NotificationRule[] = [
       buildMessage: ({ programTitle, program, employee }) =>
          isLocalTraining(employee?.placeOfPosting, program?.city)
             ? `Your enrollment for ${ programTitle } has been approved. No travel action is required.`
-            : `Your enrollment for ${ programTitle } has been approved. Please coordinate travel arrangements with the Training Department.`,
+            : `Your enrollment for ${ programTitle } has been approved. Waiting for the Training Provider to confirm before the tour form is enabled.`,
    },
    {
       // For orgs with Training Dept review disabled, takeManagerActionService
@@ -597,10 +597,11 @@ const NOTIFICATION_RULES: NotificationRule[] = [
          `Your enrollment for ${ programTitle } has been approved. No travel action is required.`,
    },
    {
+
       type: "enrollment_approved",
-      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+      matches: (entry) => entry.actorType === ACTOR_TYPE.MANAGER && entry.action === MANAGER_ACTION.APPROVE && entry.stage === ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
       buildMessage: ({ programTitle }) =>
-         `Your enrollment for ${ programTitle } has been approved. Please coordinate travel arrangements with the Training Department.`,
+         `Your enrollment for ${ programTitle } has been approved. Waiting for the Training Provider to confirm before the tour form is enabled.`,
    },
    {
       // Not one of the ticket's 12 named events, but its approval counterpart

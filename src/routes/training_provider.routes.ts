@@ -1,7 +1,25 @@
 import express from "express";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createProgramSchema, updateProgramSchema, updatePublishedProgramSchema } from "../validators/training_provider.validator.js";
-import { bulkCreateProgram, createProgram, deleteDraft, getDraftById, getDraftPrograms, getTrainingProviderDashboard, publishDraft, updateDraft } from "../controllers/training_provider.controller.js";
+import {
+  createProgramSchema,
+  updateProgramSchema,
+  updatePublishedProgramSchema,
+  confirmEnrollmentParamsSchema,
+  confirmEnrollmentBodySchema,
+} from "../validators/training_provider.validator.js";
+import {
+  bulkCreateProgram,
+  createProgram,
+  deleteDraft,
+  getDraftById,
+  getDraftPrograms,
+  getTrainingProviderDashboard,
+  publishDraft,
+  updateDraft,
+  getPendingTpConfirmations,
+  confirmEnrollment,
+  declineEnrollment,
+} from "../controllers/training_provider.controller.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
@@ -121,4 +139,22 @@ router.patch(
   validate({ body: updatePublishedProgramSchema }),
   updatePublishedProgram
 )
+
+router.get(
+  "/enrollments/pending-confirmations",
+  getPendingTpConfirmations
+);
+
+router.patch(
+  "/programs/:programId/enrollments/:enrollmentId/confirm",
+  validate({ params: confirmEnrollmentParamsSchema, body: confirmEnrollmentBodySchema }),
+  confirmEnrollment
+);
+
+router.patch(
+  "/programs/:programId/enrollments/:enrollmentId/decline",
+  validate({ params: confirmEnrollmentParamsSchema, body: confirmEnrollmentBodySchema }),
+  declineEnrollment
+);
+
 export default router;

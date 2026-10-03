@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 import enrollmentModel from "../models/enrollment.model.js";
+import programModel from "../models/program.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY, ACTOR_TYPE, ENROLLMENT_REJECTION_REASON } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -818,6 +819,128 @@ export const countPendingTourApprovalsForManagerRepo = async (
     currentStage: ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
     "managerApproval.assignedApproverId": toObjectId(managerId),
   });
+};
+
+// ─── TP confirmation queue (ticket 0066) ───────────────────────────────────────
+// Scoped by program.createdBy (the provider), not orgId — an enrollment's
+// orgId is the EMPLOYER's org, not the provider's, same reason
+// getTotalEnrollments/getTodayEnrollmentCount join through "programs" below
+// instead of matching a field on the enrollment doc directly.
+export const getPendingTpConfirmationsRepo = async (trainingProviderId: string) => {
+  // Resolve the provider's programs first so the enrollment match below can
+  // use the { programId, currentStage } index instead of scanning every
+  // pending-confirmation enrollment platform-wide.
+  const providerProgramIds = await programModel
+    .find({ createdBy: toObjectId(trainingProviderId) })
+    .distinct("_id");
+  if (providerProgramIds.length === 0) return [];
+
+  return await enrollmentModel.aggregate([
+    {
+      $match: {
+        programId: { $in: providerProgramIds },
+        currentStage: ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
+      },
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program",
+      },
+    },
+    { $unwind: "$program" },
+    {
+      $lookup: {
+        from: "users",
+        localField: "employeeId",
+        foreignField: "_id",
+        as: "employee",
+      },
+    },
+    { $unwind: "$employee" },
+    {
+      $project: {
+        _id: 1,
+        programId: "$program._id",
+        programTitle: "$program.title",
+        employeeId: "$employee._id",
+        employeeName: "$employee.name",
+        employeeCode: "$employee.employeeCode",
+        ctdApprovedAt: "$trainingDeptReview.seniorActedAt",
+      },
+    },
+    { $sort: { programTitle: 1, programId: 1, ctdApprovedAt: 1 } },
+  ]);
+};
+
+export const confirmEnrollmentByTpRepo = async (
+  enrollmentId: string,
+  programId: string,
+  providerId: string,
+  notes: string | undefined
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      programId: toObjectId(programId),
+      currentStage: ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
+    },
+    {
+      $set: {
+        currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+        "tpConfirmation.confirmedBy": toObjectId(providerId),
+        "tpConfirmation.confirmedAt": new Date(),
+        "tpConfirmation.notes": notes || "",
+      },
+      $push: {
+        timeline: {
+          stage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+          actorId: toObjectId(providerId),
+          actorType: ACTOR_TYPE.PROVIDER,
+          action: "confirm",
+          note: notes || "",
+          at: new Date(),
+        },
+      },
+    },
+    { new: true }
+  );
+};
+
+export const declineEnrollmentByTpRepo = async (
+  enrollmentId: string,
+  programId: string,
+  providerId: string,
+  notes: string | undefined,
+  session: mongoose.ClientSession
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      programId: toObjectId(programId),
+      currentStage: ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
+    },
+    {
+      $set: {
+        currentStage: ENROLLMENT_STAGE.REJECTED,
+        "statusSummary.enrollmentStatus": ENROLLMENT_STATUS_SUMMARY.REJECTED,
+        rejectionReason: ENROLLMENT_REJECTION_REASON.TRAINING_PROVIDER,
+      },
+      $push: {
+        timeline: {
+          stage: ENROLLMENT_STAGE.REJECTED,
+          actorId: toObjectId(providerId),
+          actorType: ACTOR_TYPE.PROVIDER,
+          action: "decline",
+          note: notes || "",
+          at: new Date(),
+        },
+      },
+    },
+    { new: true, session }
+  );
 };
 
 export const getPendingTourApprovalsForCtdRepo = async (orgId: string) => {

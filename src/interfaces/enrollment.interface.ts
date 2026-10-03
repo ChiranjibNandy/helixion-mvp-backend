@@ -102,6 +102,12 @@ export interface IEnrollment {
       seniorActedAt?: Date;
    };
 
+   tpConfirmation?: {
+      confirmedBy?: Types.ObjectId;  
+      confirmedAt?: Date;
+      notes?: string;
+   };
+
    travelAndStay?: {
       stayType: string;
       placeOfTour?: string;
