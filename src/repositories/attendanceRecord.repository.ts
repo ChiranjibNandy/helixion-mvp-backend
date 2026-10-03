@@ -2,11 +2,12 @@ import mongoose from "mongoose";
 import attendanceRecordModel from "../models/attendanceRecord.model.js";
 import enrollmentModel from "../models/enrollment.model.js";
 import programModel from "../models/program.model.js";
-import { TP_NOT_YET_VISIBLE_STAGES } from "../constants/enum.js";
+import { ATTENDANCE_DAY_STATUS, TP_NOT_YET_VISIBLE_STAGES } from "../constants/enum.js";
 import { toObjectId } from "../utils/mongo.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { getUTCStartOfDay } from "../utils/date.js";
 import { IAttendanceDayEntry } from "../interfaces/attendanceRecord.interface.js";
+import { IProgram } from "../interfaces/program.interface.js";
 
 const VISIBLE_ENROLLMENT_FILTER = (programId: string) => ({
   programId: toObjectId(programId),
@@ -48,7 +49,7 @@ export const getProgramEnrollmentsForGridRepo = async (
   pipeline.push({
     $facet: {
       data: [
-        { $sort: { [`employee.${sortBy}`]: sortOrder } },
+        { $sort: { [`employee.${ sortBy }`]: sortOrder } },
         { $skip: (page - 1) * limit },
         { $limit: limit },
         {
@@ -151,7 +152,7 @@ const upsertAttendanceRecord = async (
   }
 
   if (!record) {
-    throw new Error(`AttendanceRecord for enrollment ${enrollmentId} vanished during a concurrent write`);
+    throw new Error(`AttendanceRecord for enrollment ${ enrollmentId } vanished during a concurrent write`);
   }
   return record;
 };
@@ -164,7 +165,7 @@ export const upsertAttendanceDayRepo = async (
   entry: IAttendanceDayEntry
 ) => {
   return await upsertAttendanceRecord(enrollmentId, programId, employeeId, {
-    $set: { [`attendanceByDay.${date}`]: entry },
+    $set: { [`attendanceByDay.${ date }`]: entry },
   });
 };
 
@@ -261,8 +262,70 @@ export const getAttendanceActivities = async (trainingProviderId: string) => {
   return [
     {
       type: "attendance",
-      message: `Attendance uploaded for ${result[0].program.title}`,
+      message: `Attendance uploaded for ${ result[0].program.title }`,
       time: result[0].updatedAt,
     },
   ];
 };
+
+//return the full completd Program document
+export const findCompletedProgramsByEmployeeRepo = async (
+  employeeId: string
+): Promise<IProgram[]> => {
+  const now = new Date();
+
+  const programs = await attendanceRecordModel.aggregate<IProgram>([
+    {
+      $match: {
+        employeeId: toObjectId(employeeId),
+      },
+    },
+    {
+      $lookup: {
+        from: "programs",
+        localField: "programId",
+        foreignField: "_id",
+        as: "program",
+      },
+    },
+    {
+      $unwind: "$program",
+    },
+    {
+      $match: {
+        "program.endDate": {
+          $lt: now,
+        },
+        $expr: {
+          $gt: [
+            {
+              $size: {
+                $filter: {
+                  input: {
+                    $objectToArray: "$attendanceByDay",
+                  },
+                  as: "day",
+                  cond: {
+                    $eq: [
+                      "$$day.v.status",
+                      ATTENDANCE_DAY_STATUS.PRESENT,
+                    ],
+                  },
+                },
+              }
+            }, 0
+          ],
+        },
+      },
+    },
+    {
+      $replaceRoot: {
+        newRoot: "$program",
+      },
+    },
+  ]);
+
+  return programs;
+};
+
+

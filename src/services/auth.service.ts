@@ -98,7 +98,6 @@ export const loginService = async (
    }
    const permissions = await buildPermission(user);
 
-
    return {
       user,
       permissions,
