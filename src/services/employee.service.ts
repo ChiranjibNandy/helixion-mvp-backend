@@ -88,6 +88,7 @@ export const getEmployeeProgramsListService = async (params: {
    venue?: string;
    fromDate?: string;
    toDate?: string;
+   hidePast?: boolean;
 }) => {
    return await getEmployeeProgramsListRepo(params);
 };
