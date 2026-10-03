@@ -19,6 +19,7 @@ export const MESSAGES = {
   PASSWORD_COMPLEXITY: "Password must contain at least one letter, one number, and one special character",
   EMAIL_REQUIRED: "Email is required",
   INVALID_EMAIL_FORMAT: "Email must be a valid format",
+  EMAIL_RESET_LINK_ERROR: "Failed to send reset link",
   USER_APPROVED_SUCCESSFULLY: "User approved successfully",
   USER_REJECTED_SUCCESSFULLY: "User rejected successfully",
   NOT_APPROVED: "Your ID is awaiting role assignment and approval by Administrator",

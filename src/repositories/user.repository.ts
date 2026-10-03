@@ -14,8 +14,16 @@ export const getUserByIdRepo = async (userId: string): Promise<IUser | null> => 
    return await User.findById(userId);
 };
 
-export const getUsersByEmailsRepo = async (emails: string[]): Promise<IUser[]> => {
-   return await User.find({ email: { $in: emails } });
+export const getUsersByEmailsRepo = async (emails: string[]) => {
+  const normalizedEmails = emails.map((email) =>
+    email.trim().toLowerCase()
+  );
+
+  return User.find({
+    email: {
+      $in: normalizedEmails,
+    },
+  });
 };
 
 export const getUsersByIdsRepo = async (userIds: string[]): Promise<IUser[]> => {

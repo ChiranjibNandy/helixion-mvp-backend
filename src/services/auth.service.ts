@@ -5,6 +5,7 @@ import {
    findAdminUser,
    getUserByEmailRepo,
    getUserByIdRepo,
+   getUsersByEmailsRepo,
    updatePasswordRepo,
 } from "../repositories/user.repository.js";
 import { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
@@ -109,49 +110,96 @@ export const loginService = async (
 // Send password reset link
 // ─────────────────────────────────────────────────────────────────────────────
 export const sendResetLinkService = async (
-  email: string[]
+   emails: string[]
 ): Promise<ResetLinkResult> => {
-  const results: ResetLinkResult = {
-    successful: [],
-    failed: [],
-  };
+   const MAX_RESET_LINK_RECIPIENTS = 30;
+   const results: ResetLinkResult = {
+      successful: [],
+      failed: [],
+   };
 
-  // Remove duplicates just in case
-  const uniqueEmails = [...new Set(email)];
+   // Normalize emails before deduplication so that:
+   // user@example.com and User@Example.com are treated as the same user.
+   const uniqueEmails = [
+      ...new Set(
+         emails
+            .map((email) => email.trim().toLowerCase())
+            .filter(Boolean)
+      ),
+   ];
 
-  for (const email of uniqueEmails) {
-    try {
-      const user = await getUserByEmailRepo(email);
+   if (uniqueEmails.length > MAX_RESET_LINK_RECIPIENTS) {
+      return {
+         successful: [],
+         failed: uniqueEmails.map((email) => ({
+            email,
+            reason: `A maximum of ${MAX_RESET_LINK_RECIPIENTS} reset links can be requested at once`,
+         })),
+      };
+   }
 
-      if (!user) {
-        results.failed.push({
-          email,
-          reason: MESSAGES.USER_NOT_FOUND,
-        });
+   if (uniqueEmails.length === 0) {
+      return results;
+   }
 
-        continue;
+   // Fetch all users in a single database query.
+   const users = await getUsersByEmailsRepo(uniqueEmails);
+
+   const usersByEmail = new Map(
+      users.map((user) => [
+         user.email.trim().toLowerCase(),
+         user,
+      ])
+   );
+
+   const resetResults = await Promise.all(
+      uniqueEmails.map(async (email) => {
+         const user = usersByEmail.get(email);
+
+         if (!user) {
+            return {
+               email,
+               success: false,
+               reason: MESSAGES.USER_NOT_FOUND,
+            };
+         }
+
+         try {
+            await sendResetMail(
+               email,
+               user._id.toString(),
+               user.name
+            );
+
+            return {
+               email,
+               success: true,
+            };
+         } catch {
+
+            return {
+               email,
+               success: false,
+               reason: MESSAGES.EMAIL_RESET_LINK_ERROR,
+            };
+         }
+      })
+   );
+
+   for (const result of resetResults) {
+      if (result.success) {
+         results.successful.push(result.email);
+      } else {
+         results.failed.push({
+            email: result.email,
+            reason: result.reason!,
+         });
       }
+   }
 
-      await sendResetMail(
-        email,
-        user._id.toString(),
-        user.name
-      );
-
-      results.successful.push(email);
-    } catch (error) {
-      results.failed.push({
-        email,
-        reason:
-          error instanceof Error
-            ? error.message
-            : "Failed to send reset link",
-      });
-    }
-  }
-
-  return results;
+   return results;
 };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Reset password
 // ─────────────────────────────────────────────────────────────────────────────
