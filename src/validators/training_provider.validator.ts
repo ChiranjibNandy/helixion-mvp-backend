@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
 import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { objectIdSchema } from "./common.validator.js";
 
 export const baseProgramSchema = z.object({
    title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
@@ -120,6 +121,15 @@ export const updatePublishedProgramSchema = z.object({
   },
   {
     message: MESSAGES.MAX_PARTICIPANTS_INVALID,
-    path: ["maxParticipants"], 
+    path: ["maxParticipants"],
   }
 );
+
+export const confirmEnrollmentParamsSchema = z.object({
+  programId: objectIdSchema,
+  enrollmentId: objectIdSchema,
+});
+
+export const confirmEnrollmentBodySchema = z.object({
+  notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
+});

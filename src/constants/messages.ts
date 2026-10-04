@@ -43,6 +43,7 @@ export const MESSAGES = {
   INVALID_OBJECT: "Invalid ObjectId",
 
   ACTIVE_ENROLL_AND_AVAILABLE_PROGRAM: "Active enrollments and available programs fetched successfully",
+  COMPLETED_PROGRAM_FETCH: "Completed programs fetched successfully",
 
   USER_DEACTIVATED_SUCCESSFULLY: "User deactivated successfully",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
@@ -105,6 +106,11 @@ export const MESSAGES = {
   DASHBOARD_DATA_FETCH: "Dashboard data fetched successfully",
   ENROLLMENT_CREATED: "Enrollment request submitted successfully",
   ENROLLMENT_NOT_FOUND: "Enrollment not found",
+  ENROLLMENT_NOT_PENDING_TP_CONFIRMATION: "This enrollment is not pending your confirmation",
+  TP_CONFIRMATION_SUCCESS: "Enrollment confirmed successfully",
+  TP_DECLINE_SUCCESS: "Enrollment declined successfully",
+  PENDING_TP_CONFIRMATIONS_FETCHED: "Pending confirmations fetched successfully",
+  NOTES_TOO_LONG: "Notes cannot exceed 500 characters",
   ENROLLMENT_ALREADY_EXISTS: "You are already enrolled in this program",
   NO_REPORTING_MANAGER: "You cannot enroll in a program until a reporting manager is assigned to your account. Contact your admin.",
   PROGRAMS_FETCHED: "Programs fetched successfully",
@@ -142,5 +148,11 @@ export const MESSAGES = {
   //notification
   NOTIFICATION_ID_REQUIRED:"Notification ID is required",
   NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
-  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed."
+  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed.",
+
+  //feedback
+  NOT_ELIGIBLE_SUBMIT_FEEDBACK : "You are not eligible to submit feedback for this program",
+  FEEDBACK_ADDED_SUCCESSFULLY : "Feedback added successfully",
+  FEEDBACK_ALREADY_SUBMITTED : "Feedback has already been submitted for this program",
+  INVALID_PROGRAM_ID : "Invalid program ID"
 } as const;

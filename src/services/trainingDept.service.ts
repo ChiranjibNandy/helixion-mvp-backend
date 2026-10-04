@@ -26,14 +26,19 @@ import {
 import { toObjectId } from "../utils/mongo.js";
 import {
    sendEnrollmentApprovedLocalMail,
-   sendEnrollmentApprovedOutstationMail,
    sendEnrollmentRejectedByTrainingDeptMail,
    sendTravelRequestApprovedMail,
    sendTravelRequestNotApprovedByCtdMail,
 } from "../utils/sendMail.js";
 import { isLocalTraining, loadNotificationContext, logMailFailure } from "../utils/notification.util.js";
-import { NOTIFICATION_TEMPLATES } from "../constants/notificationTemplates.js";
+import {
+   NOTIFICATION_TEMPLATES,
+   buildWaitingTpConfirmationEmailBody,
+   buildTpConfirmationPendingEmailBody,
+} from "../constants/notificationTemplates.js";
 import { createNotification } from "../repositories/notification.repository.js";
+import { sendTrackedMail } from "../utils/sendTrackedMail.js";
+import { getUserByIdRepo } from "../repositories/user.repository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get pending enrollments for Training Dept queue
@@ -259,7 +264,7 @@ export const takeSeniorActionService = async (
       ? ENROLLMENT_STAGE.REJECTED
       : isLocal
          ? ENROLLMENT_STAGE.APPROVED
-         : ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE;
+         : ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION;
 
    const nextEnrollmentStatus = approving ? "approved" : "rejected";
 
@@ -361,62 +366,75 @@ export const takeSeniorActionService = async (
       }
    }
 
-   const { employee, programTitle } = notificationContext;
+   const { employee, program, programTitle } = notificationContext;
 
    if (employee) {
-      // -----------------------------
-      // Email notification
-      // -----------------------------
-      (
-         approving
-            ? (
-               isLocal
-                  ? sendEnrollmentApprovedLocalMail(
-                     employee.email,
-                     employee.name,
-                     programTitle
-                  )
-                  : sendEnrollmentApprovedOutstationMail(
-                     employee.email,
-                     employee.name,
-                     programTitle
-                  )
-            )
-            : sendEnrollmentRejectedByTrainingDeptMail(
-               employee.email,
-               employee.name,
-               programTitle
-            )
-      ).catch(
-         logMailFailure(
-            approving
-               ? "enrollment-approved"
-               : "enrollment-rejected-by-training-dept"
-         )
-      );
-
-      // -----------------------------
-      // In-app notification
-      // -----------------------------
-      const notification = approving
-         ? (
-            isLocal
-               ? NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(
-                  programTitle
-               )
-               : NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_OUTSTATION(
-                  programTitle
-               )
-         )
-         : NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(
+      if (approving && isLocal) {
+         sendEnrollmentApprovedLocalMail(
+            employee.email,
+            employee.name,
             programTitle
+         ).catch(logMailFailure("enrollment-approved"));
+
+         await createNotification(
+            String(employee._id),
+            NOTIFICATION_TEMPLATES.ENROLLMENT_APPROVED_LOCAL(programTitle),
+            String(enrollmentId)
+         );
+      } else if (approving && !isLocal) {
+         const waitingTemplate = NOTIFICATION_TEMPLATES.ENROLLMENT_WAITING_TP_CONFIRMATION(programTitle);
+
+         sendTrackedMail({
+            to: employee.email,
+            subject: waitingTemplate.emailSubject,
+            templateName: waitingTemplate.title,
+            html: buildWaitingTpConfirmationEmailBody(employee.name, programTitle),
+            relatedEntityId: String(enrollmentId),
+         }).catch(logMailFailure("enrollment-waiting-tp-confirmation"));
+
+         await createNotification(
+            String(employee._id),
+            waitingTemplate,
+            String(enrollmentId)
          );
 
-      await createNotification(
-         String(employee._id),
-         notification,
-         String(enrollmentId)
-      );
+         const provider = program?.createdBy
+            ? await getUserByIdRepo(String(program.createdBy))
+            : null;
+
+         if (provider) {
+            const pendingTemplate = NOTIFICATION_TEMPLATES.TP_CONFIRMATION_PENDING(
+               programTitle,
+               employee.name
+            );
+
+            sendTrackedMail({
+               to: provider.email,
+               subject: pendingTemplate.emailSubject,
+               templateName: pendingTemplate.title,
+               html: buildTpConfirmationPendingEmailBody(employee.name, programTitle),
+               relatedEntityId: String(enrollmentId),
+            }).catch(logMailFailure("tp-confirmation-pending"));
+
+            await createNotification(
+               String(provider._id),
+               pendingTemplate,
+               String(enrollmentId)
+            );
+         }
+      } else {
+         sendEnrollmentRejectedByTrainingDeptMail(
+            employee.email,
+            employee.name,
+            programTitle
+         ).catch(logMailFailure("enrollment-rejected-by-training-dept"));
+
+         await createNotification(
+            String(employee._id),
+            NOTIFICATION_TEMPLATES.ENROLLMENT_REJECTED(programTitle),
+            String(enrollmentId)
+         );
+      }
    }
 
    return { currentStage: nextStage };

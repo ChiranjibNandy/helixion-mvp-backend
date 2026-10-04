@@ -8,6 +8,7 @@ export interface IPermission {
    canApproveTrainingDept: boolean;
    canReviewOsd: boolean;
    canApproveOsd: boolean;
+   canFeedback:boolean
 
 }
 
