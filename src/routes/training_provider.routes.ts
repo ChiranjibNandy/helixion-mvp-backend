@@ -26,6 +26,8 @@ import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController, updatePublishedProgram } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
+import { generateProgramInvoice, getInvoiceCompanies, listProgramInvoices, downloadInvoicePdf } from "../controllers/invoice.controller.js";
+import { generateInvoiceBodySchema, invoiceIdParamsSchema, invoiceProgramParamsSchema } from "../validators/invoice.validator.js";
 import {
   getProgramAttendanceGridController,
   markAttendanceDayController,
@@ -155,6 +157,30 @@ router.patch(
   "/programs/:programId/enrollments/:enrollmentId/decline",
   validate({ params: confirmEnrollmentParamsSchema, body: confirmEnrollmentBodySchema }),
   declineEnrollment
+);
+
+router.get(
+  "/programs/:id/invoice-companies",
+  validate({ params: invoiceProgramParamsSchema }),
+  getInvoiceCompanies
+);
+
+router.post(
+  "/programs/:id/invoices",
+  validate({ params: invoiceProgramParamsSchema, body: generateInvoiceBodySchema }),
+  generateProgramInvoice
+);
+
+router.get(
+  "/programs/:id/invoices",
+  validate({ params: invoiceProgramParamsSchema }),
+  listProgramInvoices
+);
+
+router.get(
+  "/invoices/:invoiceId/pdf",
+  validate({ params: invoiceIdParamsSchema }),
+  downloadInvoicePdf
 );
 
 export default router;
