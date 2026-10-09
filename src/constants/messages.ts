@@ -101,7 +101,7 @@ export const MESSAGES = {
   DRAFT_UPDATED: "Draft updated successfully",
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
-  PROGRAM_UPDATES_SUCCESS:"program updated successfully",
+  PROGRAM_UPDATES_SUCCESS: "program updated successfully",
   PROGRAM_NOT_FOUND: "Program not found",
   DASHBOARD_DATA_FETCH: "Dashboard data fetched successfully",
   ENROLLMENT_CREATED: "Enrollment request submitted successfully",
@@ -117,7 +117,7 @@ export const MESSAGES = {
   PROGRAM_ALREADY_ENROLLED: "You are already enrolled in this program",
   NOTIFICATIONS_FETCHED: "Notifications fetched successfully",
   ENROLLMENT_SUCCESSFUL: "Enrolled in program successfully",
-  ENROLLMENT_DATA_FETCH : "Enrollment data fetched successfully",
+  ENROLLMENT_DATA_FETCH: "Enrollment data fetched successfully",
   PROGRAM_FULL: "Could not approve enrollment request now. Please contact the Training Provider",
   STAY_TYPE_INVALID: "stayType must be one of: single_occupancy, twin_sharing, non_residential",
 
@@ -146,13 +146,24 @@ export const MESSAGES = {
   ENROLLDATE_LESSTHAN_STARTDATE: "Enrollment Date is should be less than start date of the program",
 
   //notification
-  NOTIFICATION_ID_REQUIRED:"Notification ID is required",
-  NOTIFICATION_MARKED_AS_READ:"Notification marked as read",
-  ONLY_ALLOW_FORMAT_FILE:"Only .csv, .xls and .xlsx files are allowed.",
+  NOTIFICATION_ID_REQUIRED: "Notification ID is required",
+  NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
+  ONLY_ALLOW_FORMAT_FILE: "Only .csv, .xls and .xlsx files are allowed.",
 
   //feedback
-  NOT_ELIGIBLE_SUBMIT_FEEDBACK : "You are not eligible to submit feedback for this program",
-  FEEDBACK_ADDED_SUCCESSFULLY : "Feedback added successfully",
-  FEEDBACK_ALREADY_SUBMITTED : "Feedback has already been submitted for this program",
-  INVALID_PROGRAM_ID : "Invalid program ID"
+  NOT_ELIGIBLE_SUBMIT_FEEDBACK: "You are not eligible to submit feedback for this program",
+  FEEDBACK_ADDED_SUCCESSFULLY: "Feedback added successfully",
+  FEEDBACK_ALREADY_SUBMITTED: "Feedback has already been submitted for this program",
+  INVALID_PROGRAM_ID: "Invalid program ID",
+
+  //settings
+  GST_NUMBER_INVALID: "Invalid GSTIN format.",
+  PAN_NUMBER_INVALID: "Invalid PAN format.",
+  OWNER_ID_REQUIRED: "Owner ID is required.",
+  PROFILE_TYPE_REQUIRED: "Profile type is required.",
+  INVALID_PROFILE_TYPE: "Invalid profile type.",
+  ATLEAST_PROVIDE_ONE_SETTING_FIELD: "At least one settings field must be provided.",
+  UNSUPPORTED_SETTING_PROFILE_TYPE: "Unsupported settings profile type.",
+  SETTINGS_PROFILE_FETCHED: "Setting profile fetched successfully",
+  SETTINGS_PROFILE_UPDATED: "Setting profile updated successfully"
 } as const;
