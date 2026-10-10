@@ -24,8 +24,8 @@ const SettingsProfileSchema = new Schema<ISettingsProfile>(
          type: String,
          trim: true,
          uppercase: true,
-         minlength: SETTINGS_VALIDATION.GST_NUMBER_MAX_LENGTH,
-         maxlength: SETTINGS_VALIDATION.GST_NUMBER_MAX_LENGTH,
+         set: (value: string | undefined) =>
+            value === "" ? undefined : value,
          match: [
             SETTINGS_VALIDATION.GST_NUMBER_REGEX,
             MESSAGES.GST_NUMBER_INVALID,
@@ -35,8 +35,8 @@ const SettingsProfileSchema = new Schema<ISettingsProfile>(
          type: String,
          trim: true,
          uppercase: true,
-         minlength: SETTINGS_VALIDATION.PAN_NUMBER_MAX_LENGTH,
-         maxlength: SETTINGS_VALIDATION.PAN_NUMBER_MAX_LENGTH,
+         set: (value: string | undefined) =>
+            value === "" ? undefined : value,
          match: [
             SETTINGS_VALIDATION.PAN_NUMBER_REGEX,
             MESSAGES.PAN_NUMBER_INVALID,
@@ -49,8 +49,8 @@ const SettingsProfileSchema = new Schema<ISettingsProfile>(
 );
 
 const SettingsProfile = mongoose.model<ISettingsProfile>(
-  "Settings",
-  SettingsProfileSchema
+   "Settings",
+   SettingsProfileSchema
 );
 
 export default SettingsProfile;
