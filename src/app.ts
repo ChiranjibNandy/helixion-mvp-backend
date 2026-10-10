@@ -5,6 +5,7 @@ import employeeRoutes from './routes/employee.routes.js'
 import trainingProviderRoutes from './routes/training_provider.routes.js'
 import managerRoutes from './routes/manager.routes.js'
 import trainingDeptRoutes from './routes/trainingDept.routes.js'
+import settingRoutes from './routes/settings.routes.js'
 import osdRoutes from './routes/osd.routes.js'
 import notificationRoutes from './routes/notification.routes.js'
 import { corsMiddleware } from "./middlewares/cors.middleware.js";
@@ -27,6 +28,7 @@ app.use("/api/manager", managerRoutes);
 app.use("/api/training-dept", trainingDeptRoutes);
 app.use("/api/osd", osdRoutes);
 app.use("/api/notifications",notificationRoutes)
+app.use("/api/settings",settingRoutes)
 
 app.use(errorMiddleware);
 
