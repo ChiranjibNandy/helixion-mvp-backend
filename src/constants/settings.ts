@@ -1,6 +1,6 @@
 export enum ProfileType {
    CORPORATE_ADMIN = 'admin',
-   TRADING_PARTNER = 'training_provider',
+   TRAINING_PROVIDER = 'training_provider',
 }
 
 export const SETTINGS_VALIDATION = {

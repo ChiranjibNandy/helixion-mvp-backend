@@ -4,53 +4,59 @@ import { ProfileType, SETTINGS_VALIDATION } from "../constants/settings.js";
 import { MESSAGES } from "../constants/messages.js";
 
 const SettingsProfileSchema = new Schema<ISettingsProfile>(
-   {
-      ownerId: {
-         type: Schema.Types.ObjectId,
-         ref: "User",
-         required: [true, MESSAGES.OWNER_ID_REQUIRED],
-         index: true,
+  {
+    ownerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, MESSAGES.OWNER_ID_REQUIRED],
+      index: true,
+    },
+    profileType: {
+      type: String,
+      enum: {
+        values: Object.values(ProfileType),
+        message: MESSAGES.INVALID_PROFILE_TYPE,
       },
-      profileType: {
-         type: String,
-         enum: {
-            values: Object.values(ProfileType),
-            message: MESSAGES.INVALID_PROFILE_TYPE,
-         },
-         required: [true, MESSAGES.PROFILE_TYPE_REQUIRED],
-         index: true
-      },
-      gstNumber: {
-         type: String,
-         trim: true,
-         uppercase: true,
-         set: (value: string | undefined) =>
-            value === "" ? undefined : value,
-         match: [
-            SETTINGS_VALIDATION.GST_NUMBER_REGEX,
-            MESSAGES.GST_NUMBER_INVALID,
-         ],
-      },
-      panNumber: {
-         type: String,
-         trim: true,
-         uppercase: true,
-         set: (value: string | undefined) =>
-            value === "" ? undefined : value,
-         match: [
-            SETTINGS_VALIDATION.PAN_NUMBER_REGEX,
-            MESSAGES.PAN_NUMBER_INVALID,
-         ],
-      },
-   },
-   {
-      timestamps: true
-   }
+      required: [true, MESSAGES.PROFILE_TYPE_REQUIRED],
+      index: true,
+    },
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      set: (value: string | undefined) =>
+        value === "" ? undefined : value,
+      match: [
+        SETTINGS_VALIDATION.GST_NUMBER_REGEX,
+        MESSAGES.GST_NUMBER_INVALID,
+      ],
+    },
+    panNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      set: (value: string | undefined) =>
+        value === "" ? undefined : value,
+      match: [
+        SETTINGS_VALIDATION.PAN_NUMBER_REGEX,
+        MESSAGES.PAN_NUMBER_INVALID,
+      ],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// One profile per owner and profile type.
+SettingsProfileSchema.index(
+  { ownerId: 1, profileType: 1 },
+  { unique: true }
 );
 
 const SettingsProfile = mongoose.model<ISettingsProfile>(
-   "Settings",
-   SettingsProfileSchema
+  "Settings",
+  SettingsProfileSchema
 );
 
 export default SettingsProfile;

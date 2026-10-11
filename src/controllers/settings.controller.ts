@@ -14,18 +14,18 @@ export const getSettingsProfile = async (
    next: NextFunction
 ) => {
    try {
-      let ownerId = null;
-      const role = req.orgRole
-      if (role == ORG_ROLE.TRAINING_PROVIDER) {
-         ownerId = req.userId
-      } else {
-         ownerId = req.orgId
-      }
+      const role = req.orgRole;
+
+      const ownerId =
+         role === ORG_ROLE.TRAINING_PROVIDER
+            ? req.userId
+            : req.orgId;
 
       if (!ownerId) {
-         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-            success: false,
-            message: MESSAGES.ACCESS_DENIED,
+         return res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: MESSAGES.SETTINGS_PROFILE_FETCHED,
+            profile:{}
          });
       }
 
@@ -49,20 +49,20 @@ export const updateSettingsProfile = async (
    next: NextFunction
 ) => {
    try {
-      let ownerId = null;
-      const role = req.orgRole
-      if (role == ORG_ROLE.TRAINING_PROVIDER) {
-         ownerId = req.userId
-      } else {
-         ownerId = req.orgId
-      }
-      const profileType = req.orgRole as ProfileType;
+      const role = req.orgRole;
+
+      const ownerId =
+         role === ORG_ROLE.TRAINING_PROVIDER
+            ? req.userId
+            : req.orgId;
+
       if (!ownerId) {
-         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+         return res.status(HTTP_STATUS.FORBIDDEN).json({
             success: false,
             message: MESSAGES.ACCESS_DENIED,
          });
       }
+      const profileType = req.orgRole as ProfileType;
       if (!profileType) {
          return res.status(HTTP_STATUS.BAD_REQUEST).json({
             success: false,
