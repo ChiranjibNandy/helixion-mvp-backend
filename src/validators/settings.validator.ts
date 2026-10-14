@@ -38,25 +38,11 @@ const panNumberSchema = z
   )
   .optional();
 
-const commonSettingsSchema = z.object({
-  gstNumber: gstNumberSchema,
-  panNumber: panNumberSchema,
-});
-
-const corporateSettingsSchema = commonSettingsSchema
-  .extend({})
-  .strict()
-  .refine(
-    (data) =>
-      data.gstNumber !== undefined ||
-      data.panNumber !== undefined,
-    {
-      message: MESSAGES.ATLEAST_PROVIDE_ONE_SETTING_FIELD,
-    }
-  );
-
-const trainingProviderSettingsSchema = commonSettingsSchema
-  .extend({})
+const settingsUpdateSchema = z
+  .object({
+    gstNumber: gstNumberSchema,
+    panNumber: panNumberSchema,
+  })
   .strict()
   .refine(
     (data) =>
@@ -75,25 +61,7 @@ export const getSettingsUpdateSchema = (
   try {
     let schema: z.ZodType;
 
-    switch (req.orgRole) {
-      case ORG_ROLE.ADMIN:
-        schema = corporateSettingsSchema;
-        break;
-
-      case ORG_ROLE.TRAINING_PROVIDER:
-        schema = trainingProviderSettingsSchema;
-        break;
-
-      default:
-        return next(
-          new AppError(
-            MESSAGES.UNSUPPORTED_SETTING_PROFILE_TYPE,
-            HTTP_STATUS.BAD_REQUEST
-          )
-        );
-    }
-
-    const result = schema.safeParse(req.body);
+    const result = settingsUpdateSchema.safeParse(req.body);
 
     if (!result.success) {
       const message = result.error.issues
