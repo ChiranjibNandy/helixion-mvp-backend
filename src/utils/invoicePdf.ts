@@ -1,9 +1,11 @@
 import PDFDocument from "pdfkit";
 import { GST_RATE_PERCENT } from "./invoiceTax.js";
+import { amountInWords } from "./numberToWords.js";
 
 interface PdfLine {
    participantName: string;
    employeeCode?: string;
+   designation?: string;
    stayType: string;
    feePaise: number;
    daysPresent: number;
@@ -11,11 +13,18 @@ interface PdfLine {
    attendance: { day: string; status: string }[];
 }
 
-interface PdfCompany {
-   companyName: string;
+interface PdfParty {
    gstin: string;
+   pan?: string;
    stateCode: string;
    stateName: string;
+   address?: string;
+   email?: string;
+   phone?: string;
+}
+
+interface PdfCompany extends PdfParty {
+   companyName: string;
    discountPercent: number;
    lines: PdfLine[];
    subtotalPaise: number;
@@ -30,7 +39,8 @@ interface PdfCompany {
 export interface InvoicePdfData {
    invoiceNumber: string;
    invoiceDate: Date;
-   provider: { name: string; gstin: string; pan: string; stateCode: string; stateName: string };
+   provider: PdfParty & { name: string };
+   program: { title: string; venue?: string; city?: string; startDate?: Date; endDate?: Date };
    companies: PdfCompany[];
    totalPaise: number;
 }
@@ -39,27 +49,19 @@ const LEFT = 40;
 const RIGHT = 555;
 const WIDTH = RIGHT - LEFT;
 const BOTTOM = 770;
-const HEADER_FILL = "#e8edf5";
-const BAND_FILL = "#1e293b";
-const GRID = "#9aa5b5";
-const ROW_HEIGHT = 17;
-const TEXT_PAD = 4;
+
+const TEXT = "#111827";
+const MUTED = "#6b7280";
+const RULE = "#d1d5db";
+const INFO_BAR_FILL = "#f1f3f8";
 
 const money = (paise: number) =>
    (paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const dateText = (date: Date) =>
-   date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const dateText = (date?: Date) =>
+   date ? date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
 
-const shortDate = (day: string) =>
-   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" });
-
-interface Column {
-   header: string;
-   width: number;
-   align?: "left" | "right" | "center";
-   value: (row: any, index: number) => string;
-}
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
 
 export const renderInvoicePdf = (invoice: InvoicePdfData): Promise<Buffer> =>
    new Promise((resolve, reject) => {
@@ -70,204 +72,207 @@ export const renderInvoicePdf = (invoice: InvoicePdfData): Promise<Buffer> =>
       doc.on("error", reject);
 
       let y = 40;
-
-      const ensureSpace = (needed: number, onNewPage?: () => void) => {
+      const ensureSpace = (needed: number) => {
          if (y + needed > BOTTOM) {
             doc.addPage();
             y = 40;
-            onNewPage?.();
          }
       };
 
-      const cell = (text: string, x: number, width: number, align: "left" | "right" | "center" = "left") =>
-         doc.text(text, x + TEXT_PAD, y + 4, { width: width - TEXT_PAD * 2, align, lineBreak: false, ellipsis: true });
-
-      const drawTableHeader = (columns: Column[]) => {
-         doc.save();
-         doc.rect(LEFT, y, WIDTH, ROW_HEIGHT).fill(HEADER_FILL);
-         doc.restore();
-         doc.fillColor("#000").font("Helvetica-Bold").fontSize(8);
-         let x = LEFT;
-         columns.forEach((col) => {
-            cell(col.header, x, col.width, col.align);
-            x += col.width;
-         });
-         doc.rect(LEFT, y, WIDTH, ROW_HEIGHT).strokeColor(GRID).stroke();
-         y += ROW_HEIGHT;
-      };
-
-      const drawTable = (columns: Column[], rows: any[], totalsRow?: { label: string; value: string }) => {
-         const drawHeader = () => drawTableHeader(columns);
-         ensureSpace(ROW_HEIGHT * 2);
-         drawHeader();
-         doc.font("Helvetica").fontSize(8).fillColor("#000");
-         rows.forEach((row, index) => {
-            ensureSpace(ROW_HEIGHT, drawHeader);
-            let x = LEFT;
-            columns.forEach((col) => {
-               doc.rect(x, y, col.width, ROW_HEIGHT).strokeColor(GRID).stroke();
-               cell(col.value(row, index), x, col.width, col.align);
-               x += col.width;
-            });
-            y += ROW_HEIGHT;
-         });
-         if (totalsRow) {
-            ensureSpace(ROW_HEIGHT);
-            doc.rect(LEFT, y, WIDTH, ROW_HEIGHT).fill(HEADER_FILL);
-            doc.fillColor("#000").font("Helvetica-Bold").fontSize(8);
-            doc.rect(LEFT, y, WIDTH, ROW_HEIGHT).strokeColor(GRID).stroke();
-            doc.text(totalsRow.label, LEFT + TEXT_PAD, y + 4, { width: WIDTH - 120 - TEXT_PAD * 2, align: "right" });
-            doc.text(totalsRow.value, RIGHT - 120, y + 4, { width: 120 - TEXT_PAD, align: "right" });
-            y += ROW_HEIGHT;
+      // Manual truncation: bounded by string length, so a mis-sized column
+      // can never make pdfkit's own text-fitting loop forever.
+      const fitText = (text: string, maxWidth: number) => {
+         if (doc.widthOfString(text) <= maxWidth) return text;
+         let truncated = text;
+         while (truncated.length > 1 && doc.widthOfString(`${truncated}…`) > maxWidth) {
+            truncated = truncated.slice(0, -1);
          }
-         y += 10;
+         return `${truncated}…`;
       };
 
-      const sectionTitle = (text: string) => {
-         ensureSpace(24);
-         doc.font("Helvetica-Bold").fontSize(9).fillColor("#000").text(text.toUpperCase(), LEFT, y, { lineBreak: false });
-         y += 14;
+      const label = (text: string, x: number, width: number) => {
+         doc.font("Helvetica-Bold").fontSize(7.5).fillColor(MUTED)
+            .text(text.toUpperCase(), x, y, { width, characterSpacing: 0.5 });
       };
 
-      // Header box
-      doc.rect(LEFT, y, WIDTH, 92).strokeColor(GRID).stroke();
-      doc.font("Helvetica-Bold").fontSize(16).fillColor("#000").text("TAX INVOICE", LEFT, y + 10, { width: WIDTH, align: "center" });
-      doc.font("Helvetica-Bold").fontSize(11).text(invoice.provider.name, LEFT + 10, y + 34);
-      doc.font("Helvetica").fontSize(9)
-         .text(`GSTIN: ${invoice.provider.gstin}`, LEFT + 10, y + 52)
-         .text(`PAN: ${invoice.provider.pan}`, LEFT + 10, y + 64)
-         .text(`State: ${invoice.provider.stateName} (Code ${invoice.provider.stateCode})`, LEFT + 10, y + 76);
-      doc.font("Helvetica").fontSize(9)
-         .text(`Invoice No: ${invoice.invoiceNumber}`, RIGHT - 210, y + 34, { width: 200, align: "right" })
-         .text(`Date: ${dateText(invoice.invoiceDate)}`, RIGHT - 210, y + 50, { width: 200, align: "right" });
-      y += 92 + 16;
+      const programRange = () => {
+         const start = dateText(invoice.program.startDate);
+         const end = dateText(invoice.program.endDate);
+         return start !== "-" && end !== "-" ? `${start} – ${end}` : start !== "-" ? start : "-";
+      };
 
-      invoice.companies.forEach((company) => {
-         const intraState = company.stateCode === invoice.provider.stateCode;
-         const taxLabels = intraState ? ["CGST", "SGST"] : ["IGST", ""];
+      invoice.companies.forEach((company, index) => {
+         if (index > 0) {
+            doc.addPage();
+            y = 40;
+         }
 
-         ensureSpace(60);
-         doc.rect(LEFT, y, WIDTH, 22).fill(BAND_FILL);
-         doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(10)
-            .text(company.companyName, LEFT + 8, y + 6, { width: WIDTH * 0.6, lineBreak: false, ellipsis: true });
-         doc.font("Helvetica").fontSize(8)
-            .text(`GSTIN ${company.gstin}  |  ${company.stateName} (Code ${company.stateCode})`, LEFT + WIDTH * 0.4, y + 7, {
-               width: WIDTH * 0.6 - 8,
-               align: "right",
-               lineBreak: false,
-            });
-         doc.fillColor("#000");
-         y += 30;
+         // ── Header ──────────────────────────────────────────────────
+         doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(invoice.provider.name, LEFT, y);
+         doc.font("Helvetica-Bold").fontSize(22).fillColor(TEXT).text("TAX INVOICE", LEFT, y + 16);
 
-         const feeColumns: Column[] = [
-            { header: "Sr.", width: 22, value: (_l, i) => String(i + 1) },
-            { header: "Participant", width: 110, value: (l: PdfLine) => l.participantName },
-            { header: "Emp. code", width: 52, value: (l: PdfLine) => l.employeeCode ?? "-" },
-            { header: "Stay", width: 68, value: (l: PdfLine) => l.stayType.replace(/_/g, " ") },
-            { header: "Days", width: 36, align: "center", value: (l: PdfLine) => `${l.daysPresent}/${l.totalDays}` },
-            { header: "Fee (Rs.)", width: 62, align: "right", value: (l: PdfLine) => money(l.feePaise) },
-            {
-               header: taxLabels[0],
-               width: 50,
-               align: "right",
-               value: (l: PdfLine) => {
-                  const tax = Math.round((l.feePaise * GST_RATE_PERCENT) / 100);
-                  return money(intraState ? Math.round(tax / 2) : tax);
-               },
-            },
-            {
-               header: taxLabels[1] || "-",
-               width: 50,
-               align: "right",
-               value: (l: PdfLine) => {
-                  if (!intraState) return "-";
-                  const tax = Math.round((l.feePaise * GST_RATE_PERCENT) / 100);
-                  return money(tax - Math.round(tax / 2));
-               },
-            },
-            {
-               header: "Line total",
-               width: 0,
-               align: "right",
-               value: (l: PdfLine) => money(l.feePaise + Math.round((l.feePaise * GST_RATE_PERCENT) / 100)),
-            },
-         ];
-         const used = feeColumns.reduce((sum, col) => sum + col.width, 0);
-         feeColumns[feeColumns.length - 1].width = WIDTH - used;
+         const dueDate = addDays(invoice.invoiceDate, 30);
+         doc.font("Helvetica").fontSize(9).fillColor(MUTED)
+            .text(`Invoice No: `, 330, y, { continued: true }).font("Helvetica-Bold").fillColor(TEXT).text(invoice.invoiceNumber, { align: "right", width: RIGHT - 330 - doc.widthOfString("Invoice No: ") });
+         doc.font("Helvetica").fontSize(9).fillColor(MUTED)
+            .text(`Invoice Date: `, 330, y + 16, { continued: true }).font("Helvetica-Bold").fillColor(TEXT).text(dateText(invoice.invoiceDate), { align: "right", width: RIGHT - 330 - doc.widthOfString("Invoice Date: ") });
+         doc.font("Helvetica").fontSize(9).fillColor(MUTED)
+            .text(`Due Date: `, 330, y + 32, { continued: true }).font("Helvetica-Bold").fillColor(TEXT).text(dateText(dueDate), { align: "right", width: RIGHT - 330 - doc.widthOfString("Due Date: ") });
 
-         drawTable(feeColumns, company.lines);
+         y += 56;
+         doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(TEXT).lineWidth(1.2).stroke();
+         y += 18;
 
-         const summaryRows: [string, number][] = [["Subtotal", company.subtotalPaise]];
+         // ── From / Bill To ──────────────────────────────────────────
+         const colWidth = (WIDTH - 24) / 2;
+         const renderParty = (heading: string, name: string, party: PdfParty, x: number) => {
+            let py = y;
+            label(heading, x, colWidth);
+            py += 12;
+            doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXT).text(name, x, py, { width: colWidth });
+            py = doc.y + 2;
+            if (party.address) {
+               doc.font("Helvetica").fontSize(8.5).fillColor(MUTED).text(party.address, x, py, { width: colWidth });
+               py = doc.y + 2;
+            }
+            doc.font("Helvetica").fontSize(8.5).fillColor(MUTED)
+               .text(`GSTIN: ${party.gstin || "-"}${party.pan ? `  ·  PAN: ${party.pan}` : ""}`, x, py, { width: colWidth });
+            py = doc.y + 2;
+            doc.text(`State: ${party.stateName || "-"} (${party.stateCode || "-"})`, x, py, { width: colWidth });
+            py = doc.y + 2;
+            if (party.email || party.phone) {
+               doc.text([party.email, party.phone].filter(Boolean).join("  ·  "), x, py, { width: colWidth });
+               py = doc.y + 2;
+            }
+            return py;
+         };
+
+         const leftBottom = renderParty("From (Training Provider)", invoice.provider.name, invoice.provider, LEFT);
+         const rightBottom = renderParty("Bill To (Company)", company.companyName, company, LEFT + colWidth + 24);
+         y = Math.max(leftBottom, rightBottom) + 10;
+
+         // ── Program info bar ────────────────────────────────────────
+         ensureSpace(50);
+         const barHeight = 44;
+         doc.roundedRect(LEFT, y, WIDTH, barHeight, 6).fill(INFO_BAR_FILL);
+         const infoColWidth = WIDTH / 3;
+         const infoY = y + 8;
+         label("Training Program", LEFT + 12, infoColWidth - 16);
+         label("Dates", LEFT + infoColWidth + 12, infoColWidth - 16);
+         label("Venue", LEFT + infoColWidth * 2 + 12, infoColWidth - 16);
+         doc.font("Helvetica-Bold").fontSize(9.5).fillColor(TEXT)
+            .text(fitText(invoice.program.title, infoColWidth - 16), LEFT + 12, infoY + 12, { width: infoColWidth - 16 });
+         doc.text(programRange(), LEFT + infoColWidth + 12, infoY + 12, { width: infoColWidth - 16 });
+         doc.text(fitText([invoice.program.venue, invoice.program.city].filter(Boolean).join(", ") || "-", infoColWidth - 16), LEFT + infoColWidth * 2 + 12, infoY + 12, { width: infoColWidth - 16 });
+         y += barHeight + 20;
+
+         // ── Participant table ───────────────────────────────────────
+         const cols = {
+            sr: { x: LEFT, w: 24 },
+            participant: { x: LEFT + 24, w: 160 },
+            stay: { x: LEFT + 184, w: 90 },
+            days: { x: LEFT + 274, w: 90 },
+            rate: { x: LEFT + 364, w: 75 },
+            amount: { x: LEFT + 439, w: RIGHT - (LEFT + 439) },
+         };
+         const drawTableHeader = () => {
+            doc.font("Helvetica-Bold").fontSize(7.5).fillColor(MUTED);
+            doc.text("#", cols.sr.x, y, { width: cols.sr.w });
+            doc.text("PARTICIPANT", cols.participant.x, y, { width: cols.participant.w });
+            doc.text("STAY TYPE", cols.stay.x, y, { width: cols.stay.w });
+            doc.text("DAYS ATTENDED", cols.days.x, y, { width: cols.days.w, align: "center" });
+            doc.text("RATE", cols.rate.x, y, { width: cols.rate.w, align: "right" });
+            doc.text("AMOUNT", cols.amount.x, y, { width: cols.amount.w, align: "right" });
+            y += 14;
+            doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(RULE).lineWidth(1).stroke();
+            y += 8;
+         };
+
+         ensureSpace(40);
+         drawTableHeader();
+
+         company.lines.forEach((line) => {
+            ensureSpace(28);
+            const rowTop = y;
+            doc.font("Helvetica").fontSize(9).fillColor(TEXT);
+            doc.text(fitText(line.participantName, cols.participant.w), cols.participant.x, rowTop, { width: cols.participant.w });
+            if (line.designation) {
+               doc.font("Helvetica").fontSize(7.5).fillColor(MUTED)
+                  .text(fitText(line.designation, cols.participant.w), cols.participant.x, rowTop + 12, { width: cols.participant.w });
+            }
+            doc.font("Helvetica").fontSize(9).fillColor(TEXT);
+            doc.text(fitText(line.stayType.replace(/_/g, " "), cols.stay.w), cols.stay.x, rowTop, { width: cols.stay.w });
+            doc.text(`${line.daysPresent} / ${line.totalDays}`, cols.days.x, rowTop, { width: cols.days.w, align: "center" });
+            doc.text(`Rs. ${money(line.feePaise)}`, cols.rate.x, rowTop, { width: cols.rate.w, align: "right" });
+            doc.text(`Rs. ${money(line.feePaise)}`, cols.amount.x, rowTop, { width: cols.amount.w, align: "right" });
+
+            y = rowTop + (line.designation ? 24 : 18);
+            doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(RULE).lineWidth(0.5).stroke();
+            y += 8;
+         });
+
+         // ── Totals ───────────────────────────────────────────────────
+         ensureSpace(90);
+         const totalsX = RIGHT - 220;
+         const totalsRow = (text: string, value: string, bold = false) => {
+            doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(bold ? 10 : 9).fillColor(bold ? TEXT : MUTED);
+            doc.text(text, totalsX, y, { width: 120 });
+            doc.font(bold ? "Helvetica-Bold" : "Helvetica").fillColor(TEXT).text(value, totalsX + 120, y, { width: 100, align: "right" });
+            y += bold ? 18 : 14;
+         };
+
+         totalsRow("Subtotal", `Rs. ${money(company.subtotalPaise)}`);
          if (company.discountPaise > 0) {
-            summaryRows.push([`Discount (${company.discountPercent}%)`, -company.discountPaise]);
+            totalsRow(`Discount (${company.discountPercent}%)`, `-Rs. ${money(company.discountPaise)}`);
          }
-         summaryRows.push(["Taxable value", company.taxablePaise]);
+         totalsRow("Taxable value", `Rs. ${money(company.taxablePaise)}`);
          if (company.igstPaise > 0) {
-            summaryRows.push([`IGST @ ${GST_RATE_PERCENT}%`, company.igstPaise]);
+            totalsRow(`IGST @ ${GST_RATE_PERCENT}%`, `Rs. ${money(company.igstPaise)}`);
          } else {
-            summaryRows.push([`CGST @ ${GST_RATE_PERCENT / 2}%`, company.cgstPaise]);
-            summaryRows.push([`SGST @ ${GST_RATE_PERCENT / 2}%`, company.sgstPaise]);
+            totalsRow(`CGST @ ${GST_RATE_PERCENT / 2}%`, `Rs. ${money(company.cgstPaise)}`);
+            totalsRow(`SGST @ ${GST_RATE_PERCENT / 2}%`, `Rs. ${money(company.sgstPaise)}`);
          }
-         ensureSpace(summaryRows.length * ROW_HEIGHT + ROW_HEIGHT + 10);
-         summaryRows.forEach(([label, paise]) => {
-            doc.rect(RIGHT - 240, y, 240, ROW_HEIGHT).strokeColor(GRID).stroke();
-            doc.font("Helvetica").fontSize(8).fillColor("#000");
-            doc.text(label, RIGHT - 240 + TEXT_PAD, y + 4, { width: 150, lineBreak: false });
-            doc.text(money(paise), RIGHT - 120, y + 4, { width: 116, align: "right", lineBreak: false });
-            y += ROW_HEIGHT;
-         });
-         doc.rect(RIGHT - 240, y, 240, ROW_HEIGHT).fill(HEADER_FILL);
-         doc.rect(RIGHT - 240, y, 240, ROW_HEIGHT).strokeColor(GRID).stroke();
-         doc.font("Helvetica-Bold").fontSize(8).fillColor("#000");
-         doc.text(`Total: ${company.companyName}`, RIGHT - 240 + TEXT_PAD, y + 4, { width: 150, lineBreak: false });
-         doc.text(money(company.totalPaise), RIGHT - 120, y + 4, { width: 116, align: "right", lineBreak: false });
-         y += ROW_HEIGHT + 14;
+         doc.moveTo(totalsX, y).lineTo(RIGHT, y).strokeColor(RULE).lineWidth(1).stroke();
+         y += 6;
+         totalsRow("Total payable", `Rs. ${money(company.totalPaise)}`, true);
+         y += 10;
 
-         const days = [...new Set(company.lines.flatMap((line) => line.attendance.map((entry) => entry.day)))].sort();
-         if (days.length > 0) {
-            sectionTitle("Attendance register");
-            const fixed = 150 + 40 + 40;
-            const dayWidth = Math.min(60, (WIDTH - fixed) / days.length);
-            const registerColumns: Column[] = [
-               { header: "Participant", width: 150, value: (l: PdfLine) => l.participantName },
-               ...days.map((day) => ({
-                  header: shortDate(day),
-                  width: dayWidth,
-                  align: "center" as const,
-                  value: (l: PdfLine) => {
-                     const status = l.attendance.find((entry) => entry.day === day)?.status;
-                     return status === "present" ? "P" : status === "absent" ? "A" : "-";
-                  },
-               })),
-               { header: "Present", width: 40, align: "center", value: (l: PdfLine) => String(l.attendance.filter((e) => e.status === "present").length) },
-               { header: "Absent", width: 40, align: "center", value: (l: PdfLine) => String(l.attendance.filter((e) => e.status === "absent").length) },
-            ];
-            const registerUsed = registerColumns.reduce((sum, col) => sum + col.width, 0);
-            registerColumns[0].width += WIDTH - registerUsed;
-            drawTable(registerColumns, company.lines);
+         // ── Amount in words ─────────────────────────────────────────
+         ensureSpace(24);
+         doc.font("Helvetica-Bold").fontSize(8.5).fillColor(MUTED).text("Amount Chargeable (in words): ", LEFT, y, { continued: true });
+         doc.font("Helvetica").fillColor(TEXT).text(amountInWords(Math.round(company.totalPaise / 100)));
+         y = doc.y + 14;
+
+         // ── Note on fully-absent participants ───────────────────────
+         const fullyAbsent = company.lines.filter((l) => l.totalDays > 0 && l.daysPresent === 0);
+         if (fullyAbsent.length > 0) {
+            ensureSpace(16 * fullyAbsent.length);
+            doc.font("Helvetica").fontSize(7.5).fillColor(MUTED);
+            fullyAbsent.forEach((l) => {
+               doc.text(`Note: ${l.participantName} was absent for the entire programme. The fee is still payable as per enrolment confirmation.`, LEFT, y, { width: WIDTH });
+               y = doc.y + 3;
+            });
+            y += 10;
          }
+
+         // ── Terms + signatory ────────────────────────────────────────
+         ensureSpace(60);
+         doc.font("Helvetica").fontSize(7.5).fillColor(MUTED)
+            .text("This is a computer generated invoice and does not require a physical signature.", LEFT, y, { width: WIDTH });
+         y = doc.y + 24;
+         doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(`for ${invoice.provider.name}`, RIGHT - 200, y, { width: 200, align: "right" });
+         doc.font("Helvetica-Bold").text("Authorised Signatory", RIGHT - 200, y + 20, { width: 200, align: "right" });
       });
-
-      ensureSpace(90);
-      sectionTitle("Summary");
-      const summaryColumns: Column[] = [
-         { header: "Company", width: 260, value: (c: PdfCompany) => c.companyName },
-         { header: "Taxable value (Rs.)", width: 120, align: "right", value: (c: PdfCompany) => money(c.taxablePaise) },
-         { header: "Tax (Rs.)", width: 85, align: "right", value: (c: PdfCompany) => money(c.cgstPaise + c.sgstPaise + c.igstPaise) },
-         { header: "Total (Rs.)", width: WIDTH - 465, align: "right", value: (c: PdfCompany) => money(c.totalPaise) },
-      ];
-      drawTable(summaryColumns, invoice.companies, { label: "Grand total (Rs.)", value: money(invoice.totalPaise) });
 
       const pageCount = doc.bufferedPageRange().count;
       for (let i = 0; i < pageCount; i++) {
          doc.switchToPage(i);
-         doc.font("Helvetica").fontSize(8).fillColor("#555")
-            .text(
-               `This is a computer generated invoice.   Page ${i + 1} of ${pageCount}`,
-               LEFT,
-               790,
-               { width: WIDTH, align: "center", lineBreak: false }
-            );
+         doc.font("Helvetica").fontSize(7.5).fillColor(MUTED)
+            .text(`This is a computer generated invoice.   Page ${i + 1} of ${pageCount}`, LEFT, 792, {
+               width: WIDTH,
+               align: "center",
+               lineBreak: false,
+            });
       }
 
       doc.end();

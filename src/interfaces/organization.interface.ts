@@ -16,6 +16,15 @@ export interface IOrganization {
    orgType: OrganizationType;
    status: OrganizationStatus;
 
+   billing?: {
+      gstin?: string;
+      stateCode?: string;
+      stateName?: string;
+      address?: string;
+      email?: string;
+      phone?: string;
+   };
+
    policy: {
       managerApproval: ApprovalPolicy;
       trainingDeptApproval: ApprovalPolicy;

@@ -3,6 +3,7 @@ import {
    generateProgramInvoiceService,
    getInvoiceCompaniesService,
    getInvoiceForProviderService,
+   getInvoicePreviewDataService,
    listProgramInvoicesService,
 } from "../services/invoice.service.js";
 import { renderInvoicePdf } from "../utils/invoicePdf.js";
@@ -18,11 +19,21 @@ export const getInvoiceCompanies = async (req: Request, res: Response, next: Nex
    }
 };
 
+export const getInvoicePreviewData = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const previews = await getInvoicePreviewDataService(req.params.id as string, req.userId as string);
+      return res.status(HTTP_STATUS.OK).json({ success: true, data: previews });
+   } catch (error) {
+      next(error);
+   }
+};
+
 export const generateProgramInvoice = async (req: Request, res: Response, next: NextFunction) => {
    try {
       const invoice = await generateProgramInvoiceService(
          req.params.id as string,
          req.userId as string,
+         req.body.companyOrgId,
          req.body
       );
       return res.status(HTTP_STATUS.CREATED).json({

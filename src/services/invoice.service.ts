@@ -12,13 +12,14 @@ import { ENROLLMENT_STAGE, ATTENDANCE_DAY_STATUS } from "../constants/enum.js";
 import { PROVIDER_BILLING } from "../constants/providerBilling.js";
 import { computeInvoiceTax } from "../utils/invoiceTax.js";
 
-export interface CompanyBillingInput {
-   companyOrgId: string;
-   gstin: string;
-   stateCode: string;
-   stateName: string;
+export interface CompanyBillingOverride {
+   gstin?: string;
+   stateCode?: string;
+   stateName?: string;
    discountPercent: number;
 }
+
+const BILLABLE_STAGES = [ENROLLMENT_STAGE.ATTENDED, ENROLLMENT_STAGE.ABSENT];
 
 const loadProgramForProvider = async (programId: string, providerId: string) => {
    const program = await getProgramByIdRepo(programId, providerId);
@@ -26,14 +27,18 @@ const loadProgramForProvider = async (programId: string, providerId: string) => 
    return program;
 };
 
-const loadBillableEnrollments = async (programId: Types.ObjectId, invoicedIds: Types.ObjectId[]) =>
+const loadBillableEnrollments = async (programId: Types.ObjectId, invoicedIds: Types.ObjectId[], onlyOrgId?: string) =>
    enrollmentModel
       .find({
          programId,
-         currentStage: ENROLLMENT_STAGE.ATTENDED,
+         currentStage: { $in: BILLABLE_STAGES },
          _id: { $nin: invoicedIds },
+         ...(onlyOrgId ? { orgId: new Types.ObjectId(onlyOrgId) } : {}),
       })
-      .populate<{ employeeId: { name: string; employeeCode?: string } }>("employeeId", "name employeeCode");
+      .populate<{ employeeId: { name: string; employeeCode?: string; designation?: string } }>(
+         "employeeId",
+         "name employeeCode designation"
+      );
 
 const groupByCompany = <T extends { orgId?: Types.ObjectId }>(items: T[]) => {
    const groups = new Map<string, T[]>();
@@ -50,20 +55,28 @@ export const getInvoiceCompaniesService = async (programId: string, providerId: 
    const enrollments = await loadBillableEnrollments(program._id, invoicedIds);
    const groups = groupByCompany(enrollments);
 
-   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name");
-   const nameById = new Map(orgs.map((org) => [String(org._id), org.name]));
+   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name billing");
+   const byId = new Map(orgs.map((org) => [String(org._id), org]));
 
-   return [...groups.entries()].map(([orgId, items]) => ({
-      companyOrgId: orgId,
-      companyName: nameById.get(orgId) ?? "",
-      billableCount: items.length,
-   }));
+   return [...groups.entries()].map(([orgId, items]) => {
+      const org = byId.get(orgId);
+      return {
+         companyOrgId: orgId,
+         companyName: org?.name ?? "",
+         billableCount: items.length,
+         hasBillingDetails: !!org?.billing?.gstin && !!org?.billing?.stateCode,
+      };
+   });
 };
 
-export const generateProgramInvoiceService = async (
+// Shared by the preview list (every billable company at once, nothing
+// persisted) and real generation (one company, persisted as its own
+// invoice), so what gets previewed matches what gets generated.
+const computeCompanies = async (
    programId: string,
    providerId: string,
-   input: { companies: CompanyBillingInput[] }
+   overridesByOrg: Map<string, CompanyBillingOverride>,
+   onlyOrgId?: string
 ) => {
    const program = await loadProgramForProvider(programId, providerId);
    if (!program.endDate || program.endDate > new Date()) {
@@ -71,28 +84,22 @@ export const generateProgramInvoiceService = async (
    }
 
    const invoicedIds = (await invoiceModel.find({ programId: program._id }).distinct("companies.lines.enrollmentId")) as Types.ObjectId[];
-   const enrollments = await loadBillableEnrollments(program._id, invoicedIds);
+   const enrollments = await loadBillableEnrollments(program._id, invoicedIds, onlyOrgId);
    if (enrollments.length === 0) {
       throw new AppError(MESSAGES.INVOICE_NO_BILLABLE_PARTICIPANTS, HTTP_STATUS.BAD_REQUEST);
    }
 
    const groups = groupByCompany(enrollments);
-   const inputByOrg = new Map(input.companies.map((company) => [company.companyOrgId, company]));
-   for (const orgId of groups.keys()) {
-      if (!inputByOrg.has(orgId)) {
-         throw new AppError(MESSAGES.INVOICE_COMPANY_DETAILS_MISSING, HTTP_STATUS.BAD_REQUEST);
-      }
-   }
+   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name billing");
+   const orgById = new Map(orgs.map((org) => [String(org._id), org]));
 
    const enrollmentIds = enrollments.map((enrollment) => enrollment._id);
    const attendance = await attendanceRecordModel.find({ enrollmentId: { $in: enrollmentIds } });
    const attendanceByEnrollment = new Map(attendance.map((record) => [String(record.enrollmentId), record]));
 
-   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name");
-   const nameById = new Map(orgs.map((org) => [String(org._id), org.name]));
-
    const companies: IInvoiceCompany[] = [...groups.entries()].map(([orgId, items]) => {
-      const details = inputByOrg.get(orgId)!;
+      const org = orgById.get(orgId);
+      const override = overridesByOrg.get(orgId);
 
       const lines: IInvoiceLine[] = items.map((enrollment) => {
          const stayType = enrollment.travelAndStay?.stayType;
@@ -100,41 +107,49 @@ export const generateProgramInvoiceService = async (
          if (!stayOption) {
             throw new AppError(MESSAGES.INVOICE_STAY_PRICE_MISSING, HTTP_STATUS.BAD_REQUEST);
          }
-         const employee = enrollment.employeeId as unknown as { name: string; employeeCode?: string };
+         const employee = enrollment.employeeId as unknown as { name: string; employeeCode?: string; designation?: string };
          const days = attendanceByEnrollment.get(String(enrollment._id))?.attendanceByDay;
-         const attendance = days
+         const attendanceEntries = days
             ? [...days.entries()]
                .sort(([a], [b]) => a.localeCompare(b))
                .map(([day, entry]) => ({ day, status: entry.status }))
             : [];
-         const dayStatuses = attendance.map((entry) => entry.status);
          return {
             enrollmentId: enrollment._id,
             participantName: employee.name,
             employeeCode: employee.employeeCode,
+            designation: employee.designation,
             stayType: stayType!,
             feePaise: Math.round(stayOption.price * 100),
-            daysPresent: dayStatuses.filter((status) => status === ATTENDANCE_DAY_STATUS.PRESENT).length,
-            totalDays: dayStatuses.length,
-            attendance,
+            daysPresent: attendanceEntries.filter((entry) => entry.status === ATTENDANCE_DAY_STATUS.PRESENT).length,
+            totalDays: attendanceEntries.length,
+            attendance: attendanceEntries,
          };
       });
 
       const subtotalPaise = lines.reduce((sum, line) => sum + line.feePaise, 0);
+      const gstin = override?.gstin ?? org?.billing?.gstin ?? "";
+      const stateCode = override?.stateCode ?? org?.billing?.stateCode ?? "";
+      const stateName = override?.stateName ?? org?.billing?.stateName ?? "";
+      const discountPercent = override?.discountPercent ?? 0;
+
       const tax = computeInvoiceTax({
          subtotalPaise,
-         discountPercent: details.discountPercent,
+         discountPercent,
          providerStateCode: PROVIDER_BILLING.stateCode,
-         buyerStateCode: details.stateCode,
+         buyerStateCode: stateCode,
       });
 
       return {
          companyOrgId: items[0].orgId,
-         companyName: nameById.get(orgId) ?? "",
-         gstin: details.gstin,
-         stateCode: details.stateCode,
-         stateName: details.stateName,
-         discountPercent: details.discountPercent,
+         companyName: org?.name ?? "",
+         gstin,
+         stateCode,
+         stateName,
+         address: org?.billing?.address,
+         email: org?.billing?.email,
+         phone: org?.billing?.phone,
+         discountPercent,
          lines,
          subtotalPaise: tax.subtotalPaise,
          discountPaise: tax.discountPaise,
@@ -146,10 +161,77 @@ export const generateProgramInvoiceService = async (
       } as IInvoiceCompany;
    });
 
-   const sum = (pick: (company: IInvoiceCompany) => number) =>
-      companies.reduce((total, company) => total + pick(company), 0);
-
    const provider = await userModel.findById(providerId).select("name");
+
+   return {
+      programId: program._id,
+      providerId,
+      program: {
+         title: program.title,
+         venue: program.venueName,
+         city: program.city,
+         startDate: program.startDate,
+         endDate: program.endDate,
+      },
+      hsnSac: "998311",
+      provider: {
+         name: provider?.name ?? "",
+         gstin: PROVIDER_BILLING.gstin,
+         pan: PROVIDER_BILLING.pan,
+         stateCode: PROVIDER_BILLING.stateCode,
+         stateName: PROVIDER_BILLING.stateName,
+         address: PROVIDER_BILLING.address || undefined,
+         email: PROVIDER_BILLING.email || undefined,
+         phone: PROVIDER_BILLING.phone || undefined,
+      },
+      companies,
+   };
+};
+
+const sumCompanies = (companies: IInvoiceCompany[], pick: (company: IInvoiceCompany) => number) =>
+   companies.reduce((total, company) => total + pick(company), 0);
+
+// One preview "invoice" per still-billable company, none of them persisted —
+// lets the provider look at every company before generating any of them.
+export const getInvoicePreviewDataService = async (programId: string, providerId: string) => {
+   let base;
+   try {
+      base = await computeCompanies(programId, providerId, new Map());
+   } catch (error) {
+      if (error instanceof AppError && error.statusCode === HTTP_STATUS.BAD_REQUEST) {
+         return [];
+      }
+      throw error;
+   }
+
+   return base.companies.map((company) => ({
+      invoiceNumber: "PREVIEW",
+      invoiceDate: new Date(),
+      program: base.program,
+      provider: base.provider,
+      hsnSac: base.hsnSac,
+      companies: [company],
+      subtotalPaise: company.subtotalPaise,
+      discountPaise: company.discountPaise,
+      taxablePaise: company.taxablePaise,
+      cgstPaise: company.cgstPaise,
+      sgstPaise: company.sgstPaise,
+      igstPaise: company.igstPaise,
+      totalPaise: company.totalPaise,
+   }));
+};
+
+// Generates and persists an invoice for exactly one company. Each company is
+// billed, numbered, and exported independently.
+export const generateProgramInvoiceService = async (
+   programId: string,
+   providerId: string,
+   companyOrgId: string,
+   override: CompanyBillingOverride
+) => {
+   const overridesByOrg = new Map([[companyOrgId, override]]);
+   const base = await computeCompanies(programId, providerId, overridesByOrg, companyOrgId);
+   const company = base.companies[0];
 
    const invoiceSeq = await invoiceCounterModel.findOneAndUpdate(
       { _id: "invoice" },
@@ -159,24 +241,20 @@ export const generateProgramInvoiceService = async (
 
    return await invoiceModel.create({
       invoiceNumber: `INV-${String(invoiceSeq!.seq).padStart(4, "0")}`,
-      programId: program._id,
-      providerId,
+      programId: base.programId,
+      providerId: base.providerId,
       invoiceDate: new Date(),
-      provider: {
-         name: provider?.name ?? "",
-         gstin: PROVIDER_BILLING.gstin,
-         pan: PROVIDER_BILLING.pan,
-         stateCode: PROVIDER_BILLING.stateCode,
-         stateName: PROVIDER_BILLING.stateName,
-      },
-      companies,
-      subtotalPaise: sum((c) => c.subtotalPaise),
-      discountPaise: sum((c) => c.discountPaise),
-      taxablePaise: sum((c) => c.taxablePaise),
-      cgstPaise: sum((c) => c.cgstPaise),
-      sgstPaise: sum((c) => c.sgstPaise),
-      igstPaise: sum((c) => c.igstPaise),
-      totalPaise: sum((c) => c.totalPaise),
+      program: base.program,
+      hsnSac: base.hsnSac,
+      provider: base.provider,
+      companies: [company],
+      subtotalPaise: sumCompanies([company], (c) => c.subtotalPaise),
+      discountPaise: sumCompanies([company], (c) => c.discountPaise),
+      taxablePaise: sumCompanies([company], (c) => c.taxablePaise),
+      cgstPaise: sumCompanies([company], (c) => c.cgstPaise),
+      sgstPaise: sumCompanies([company], (c) => c.sgstPaise),
+      igstPaise: sumCompanies([company], (c) => c.igstPaise),
+      totalPaise: sumCompanies([company], (c) => c.totalPaise),
    });
 };
 

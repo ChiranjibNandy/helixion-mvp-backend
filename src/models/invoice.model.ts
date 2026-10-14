@@ -4,6 +4,7 @@ export interface IInvoiceLine {
    enrollmentId: Types.ObjectId;
    participantName: string;
    employeeCode?: string;
+   designation?: string;
    stayType: string;
    feePaise: number;
    daysPresent: number;
@@ -17,6 +18,9 @@ export interface IInvoiceCompany {
    gstin: string;
    stateCode: string;
    stateName: string;
+   address?: string;
+   email?: string;
+   phone?: string;
    discountPercent: number;
    lines: IInvoiceLine[];
    subtotalPaise: number;
@@ -33,7 +37,9 @@ export interface IInvoice extends Document {
    programId: Types.ObjectId;
    providerId: Types.ObjectId;
    invoiceDate: Date;
-   provider: { name: string; gstin: string; pan: string; stateCode: string; stateName: string };
+   provider: { name: string; gstin: string; pan: string; stateCode: string; stateName: string; address?: string; email?: string; phone?: string };
+   program: { title: string; venue?: string; city?: string; startDate?: Date; endDate?: Date };
+   hsnSac: string;
    companies: IInvoiceCompany[];
    subtotalPaise: number;
    discountPaise: number;
@@ -60,6 +66,20 @@ const invoiceSchema = new Schema<IInvoice>(
       programId: { type: Schema.Types.ObjectId, ref: "Program", required: true, index: true },
       providerId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
       invoiceDate: { type: Date, required: true },
+      program: {
+         type: new Schema(
+            {
+               title: { type: String, required: true },
+               venue: { type: String },
+               city: { type: String },
+               startDate: { type: Date },
+               endDate: { type: Date },
+            },
+            { _id: false }
+         ),
+         required: true,
+      },
+      hsnSac: { type: String, default: "998311" },
       provider: {
          type: new Schema(
             {
@@ -68,6 +88,9 @@ const invoiceSchema = new Schema<IInvoice>(
                pan: { type: String, required: true, trim: true },
                stateCode: { type: String, required: true, trim: true },
                stateName: { type: String, required: true, trim: true },
+               address: { type: String, trim: true },
+               email: { type: String, trim: true },
+               phone: { type: String, trim: true },
             },
             { _id: false }
          ),
@@ -79,9 +102,12 @@ const invoiceSchema = new Schema<IInvoice>(
                {
                   companyOrgId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
                   companyName: { type: String, required: true },
-                  gstin: { type: String, required: true, trim: true },
-                  stateCode: { type: String, required: true, trim: true },
-                  stateName: { type: String, required: true, trim: true },
+                  gstin: { type: String, trim: true, default: "" },
+                  stateCode: { type: String, trim: true, default: "" },
+                  stateName: { type: String, trim: true, default: "" },
+                  address: { type: String, trim: true },
+                  email: { type: String, trim: true },
+                  phone: { type: String, trim: true },
                   discountPercent: { type: Number, min: 0, max: 100, default: 0 },
                   lines: {
                      type: [
@@ -90,6 +116,7 @@ const invoiceSchema = new Schema<IInvoice>(
                               enrollmentId: { type: Schema.Types.ObjectId, ref: "Enrollment", required: true },
                               participantName: { type: String, required: true },
                               employeeCode: { type: String },
+                              designation: { type: String },
                               stayType: { type: String, required: true },
                               feePaise: { type: Number, required: true, min: 0 },
                               daysPresent: { type: Number, required: true, min: 0 },

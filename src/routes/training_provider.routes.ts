@@ -26,7 +26,7 @@ import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
 import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController, updatePublishedProgram } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
-import { generateProgramInvoice, getInvoiceCompanies, listProgramInvoices, downloadInvoicePdf } from "../controllers/invoice.controller.js";
+import { generateProgramInvoice, getInvoiceCompanies, getInvoicePreviewData, listProgramInvoices, downloadInvoicePdf } from "../controllers/invoice.controller.js";
 import { generateInvoiceBodySchema, invoiceIdParamsSchema, invoiceProgramParamsSchema } from "../validators/invoice.validator.js";
 import {
   getProgramAttendanceGridController,
@@ -163,6 +163,12 @@ router.get(
   "/programs/:id/invoice-companies",
   validate({ params: invoiceProgramParamsSchema }),
   getInvoiceCompanies
+);
+
+router.get(
+  "/programs/:id/invoice-preview-data",
+  validate({ params: invoiceProgramParamsSchema }),
+  getInvoicePreviewData
 );
 
 router.post(
