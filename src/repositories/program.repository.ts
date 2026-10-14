@@ -554,6 +554,7 @@ export const getPrograms = async (
       $project: {
         title: 1,
         startDate: 1,
+        endDate: 1,
         enrolledCount: 1,
         maxParticipants: 1,
         confirmedEnrollmentCount: 1,
