@@ -2,9 +2,6 @@ import mongoose from "mongoose";
 import SettingsProfile from "../models/settingProfile.model.js";
 import { ISettingsProfile } from "../interfaces/settings.interface.js";
 import { SettingsProfileInput } from "../types/settings.js";
-import { ProfileType } from "../constants/settings.js";
-import { ORG_ROLE } from "../constants/enum.js";
-
 
 
 /**

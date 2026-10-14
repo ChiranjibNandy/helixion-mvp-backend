@@ -14,12 +14,9 @@ export const getSettingsProfile = async (
    next: NextFunction
 ) => {
    try {
-      const role = req.orgRole;
 
-      const ownerId =
-         role === ORG_ROLE.TRAINING_PROVIDER
-            ? req.userId
-            : req.orgId;
+      const ownerId = req.userId
+      const orgRole = req.orgRole as ProfileType;
 
       if (!ownerId) {
          return res.status(HTTP_STATUS.OK).json({
@@ -30,7 +27,8 @@ export const getSettingsProfile = async (
       }
 
       const profile = await getSettingsProfileService(
-         ownerId
+         ownerId,
+         orgRole
       );
 
       return res.status(HTTP_STATUS.OK).json({
@@ -69,7 +67,7 @@ export const updateSettingsProfile = async (
             message: MESSAGES.PROFILE_TYPE_REQUIRED,
          });
       }
-      const profile = await updateSettingsProfileService({
+       await updateSettingsProfileService({
          ownerId,
          profileType,
          ...req.body,
@@ -77,7 +75,6 @@ export const updateSettingsProfile = async (
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.SETTINGS_PROFILE_UPDATED,
-         profile
       });
    } catch (error) {
       next(error);

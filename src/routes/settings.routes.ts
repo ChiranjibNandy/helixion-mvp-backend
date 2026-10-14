@@ -18,18 +18,19 @@ router.use(
   requirePasswordChange,
 );
 
-router.get(
-  "/profile",
-  getSettingsProfile
-);
-
 router.use(
   authorizeRole(
     ORG_ROLE.ADMIN,
     ORG_ROLE.TRAINING_PROVIDER
   ))
 
-router.put(
+router.get(
+  "/profile",
+  getSettingsProfile
+);
+
+
+router.patch(
   "/profile",
   getSettingsUpdateSchema,
   updateSettingsProfile
