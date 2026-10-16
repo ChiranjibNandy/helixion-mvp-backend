@@ -27,6 +27,7 @@ export const getSettingsProfileService = async (
          profileId: profile?._id,
          gstNumber: profile?.gstNumber,
          panNumber: profile?.panNumber,
+         location: profile?.location,
          email: user.email,
       };
    }
@@ -41,6 +42,7 @@ export const getSettingsProfileService = async (
       profileId: profile?._id,
       gstNumber: profile?.gstNumber,
       panNumber: profile?.panNumber,
+      location: profile?.location,
       email: user.email,
       orgName: organization?.name,
       slug: organization?.slug,

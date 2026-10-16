@@ -3,6 +3,17 @@ import { ISettingsProfile } from "../interfaces/settings.interface.js";
 import { ProfileType, SETTINGS_VALIDATION } from "../constants/settings.js";
 import { MESSAGES } from "../constants/messages.js";
 
+const AddressSchema = new Schema(
+  {
+    addressLine1: { type: String, required: true, trim: true },
+    addressLine2: { type: String, trim: true },
+    city: { type: String, required: true, trim: true },
+    state: { type: String, required: true, trim: true },
+    postalCode: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
 const SettingsProfileSchema = new Schema<ISettingsProfile>(
   {
     ownerId: {
@@ -41,6 +52,10 @@ const SettingsProfileSchema = new Schema<ISettingsProfile>(
         SETTINGS_VALIDATION.PAN_NUMBER_REGEX,
         MESSAGES.PAN_NUMBER_INVALID,
       ],
+    },
+    location: {
+      type: AddressSchema,
+      required: false,
     },
   },
   {

@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   SETTINGS_VALIDATION,
 } from "../constants/settings.js";
-import { ORG_ROLE } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -38,16 +37,29 @@ const panNumberSchema = z
   )
   .optional();
 
+const locationSchema = z
+  .object({
+    addressLine1: z.string().trim().min(1, MESSAGES.ADDRESS_LINE1_REQUIRED), 
+    addressLine2: z.string().trim().optional(),
+    city: z.string().trim().min(1, MESSAGES.CITY_REQUIRED),
+    state: z.string().trim().min(1, MESSAGES.STATE_REQUIRED),
+    postalCode: z.string().trim().min(1, MESSAGES.POSTAL_CODE_REQUIRED),
+  })
+  .strict()
+  .optional();
+
 const settingsUpdateSchema = z
   .object({
     gstNumber: gstNumberSchema,
     panNumber: panNumberSchema,
+    location: locationSchema,
   })
   .strict()
   .refine(
     (data) =>
       data.gstNumber !== undefined ||
-      data.panNumber !== undefined,
+      data.panNumber !== undefined ||
+      data.location !== undefined,
     {
       message: MESSAGES.ATLEAST_PROVIDE_ONE_SETTING_FIELD,
     }
@@ -59,8 +71,6 @@ export const getSettingsUpdateSchema = (
   next: NextFunction
 ): void => {
   try {
-    let schema: z.ZodType;
-
     const result = settingsUpdateSchema.safeParse(req.body);
 
     if (!result.success) {

@@ -165,5 +165,9 @@ export const MESSAGES = {
   ATLEAST_PROVIDE_ONE_SETTING_FIELD: "At least one settings field must be provided.",
   UNSUPPORTED_SETTING_PROFILE_TYPE: "Unsupported settings profile type.",
   SETTINGS_PROFILE_FETCHED: "Setting profile fetched successfully",
-  SETTINGS_PROFILE_UPDATED: "Setting profile updated successfully"
+  SETTINGS_PROFILE_UPDATED: "Setting profile updated successfully",
+  ADDRESS_LINE1_REQUIRED: "Address line 1 is required",
+  CITY_REQUIRED: "City is required",
+  STATE_REQUIRED: "State is required",
+  POSTAL_CODE_REQUIRED: "Postal code is required"
 } as const;
