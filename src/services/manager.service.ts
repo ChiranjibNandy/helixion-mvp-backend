@@ -390,10 +390,8 @@ export const takeManagerActionService = async (
 
    if (action == MANAGER_ACTION.APPROVE) {
       const ctdUsers = await findCtdUsersByOrgId(orgId);
-      console.log(ctdUsers,"ctdUsers")
 
       const ctdUserIds = ctdUsers.map((user) => user._id.toString());
-      console.log(ctdUserIds,"ctdUserIds")
 
       if (ctdUserIds.length > 0) {
          await createNotifications(
