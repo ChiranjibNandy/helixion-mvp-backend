@@ -1,8 +1,5 @@
 import z from "zod";
 
-// One-click generation, per company: GSTIN/state come from the
-// Organization's billing record (populated elsewhere). An optional override
-// is still accepted in case that data isn't set yet.
 export const generateInvoiceBodySchema = z.object({
   companyOrgId: z.string().length(24),
   gstin: z.string().trim().optional(),

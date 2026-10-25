@@ -15,6 +15,14 @@ export const findSettingsProfileRepo = async (
    }).exec();
 };
 
+export const findSettingsProfilesByOwnerIdsRepo = async (
+   ownerIds: string[],
+): Promise<ISettingsProfile[]> => {
+   return SettingsProfile.find({
+      ownerId: { $in: ownerIds.map((id) => new mongoose.Types.ObjectId(id)) },
+   }).exec();
+};
+
 /**
  * Create a settings profile if it does not exist,
  * otherwise update the existing profile.

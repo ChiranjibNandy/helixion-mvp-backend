@@ -12,7 +12,6 @@ const belowThousand = (n: number): string => {
   return `${ONES[Math.floor(n / 100)]} Hundred${n % 100 ? ` ${belowThousand(n % 100)}` : ""}`;
 };
 
-// Indian numbering: crore / lakh / thousand / hundred.
 export const numberToWordsIndian = (value: number): string => {
   if (value === 0) return "Zero";
   const crore = Math.floor(value / 10000000);

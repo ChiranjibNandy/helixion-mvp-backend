@@ -72,18 +72,6 @@ const organizationSchema = new Schema<IOrganization>(
          default: OrganizationStatus.ACTIVE,
       },
 
-      // Populated by the billing-master-data work on another branch; invoice
-      // generation reads this instead of asking the training provider to
-      // type it in each time.
-      billing: {
-         gstin: { type: String, trim: true },
-         stateCode: { type: String, trim: true },
-         stateName: { type: String, trim: true },
-         address: { type: String, trim: true },
-         email: { type: String, trim: true },
-         phone: { type: String, trim: true },
-      },
-
       policy: {
          managerApproval: approvalPolicySchema,
          trainingDeptApproval: approvalPolicySchema,

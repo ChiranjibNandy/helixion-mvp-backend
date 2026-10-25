@@ -9,7 +9,9 @@ import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { ENROLLMENT_STAGE, ATTENDANCE_DAY_STATUS } from "../constants/enum.js";
-import { PROVIDER_BILLING } from "../constants/providerBilling.js";
+import { getProviderBillingDetails } from "../utils/providerBilling.js";
+import { getStateCodeFromGstin, formatBillingAddress } from "../utils/billingProfile.js";
+import { findSettingsProfilesByOwnerIdsRepo } from "../repositories/settings.repository.js";
 import { computeInvoiceTax } from "../utils/invoiceTax.js";
 
 export interface CompanyBillingOverride {
@@ -55,23 +57,26 @@ export const getInvoiceCompaniesService = async (programId: string, providerId: 
    const enrollments = await loadBillableEnrollments(program._id, invoicedIds);
    const groups = groupByCompany(enrollments);
 
-   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name billing");
+   const orgIds = [...groups.keys()];
+   const [orgs, settingsProfiles] = await Promise.all([
+      organizationModel.find({ _id: { $in: orgIds } }).select("name"),
+      findSettingsProfilesByOwnerIdsRepo(orgIds),
+   ]);
    const byId = new Map(orgs.map((org) => [String(org._id), org]));
+   const settingsByOrgId = new Map(settingsProfiles.map((profile) => [String(profile.ownerId), profile]));
 
    return [...groups.entries()].map(([orgId, items]) => {
       const org = byId.get(orgId);
+      const settings = settingsByOrgId.get(orgId);
       return {
          companyOrgId: orgId,
          companyName: org?.name ?? "",
          billableCount: items.length,
-         hasBillingDetails: !!org?.billing?.gstin && !!org?.billing?.stateCode,
+         hasBillingDetails: !!settings?.gstNumber,
       };
    });
 };
 
-// Shared by the preview list (every billable company at once, nothing
-// persisted) and real generation (one company, persisted as its own
-// invoice), so what gets previewed matches what gets generated.
 const computeCompanies = async (
    programId: string,
    providerId: string,
@@ -90,8 +95,15 @@ const computeCompanies = async (
    }
 
    const groups = groupByCompany(enrollments);
-   const orgs = await organizationModel.find({ _id: { $in: [...groups.keys()] } }).select("name billing");
+   const orgIds = [...groups.keys()];
+   const [orgs, settingsProfiles, providerUser] = await Promise.all([
+      organizationModel.find({ _id: { $in: orgIds } }).select("name"),
+      findSettingsProfilesByOwnerIdsRepo(orgIds),
+      userModel.findById(providerId).select("name email"),
+   ]);
    const orgById = new Map(orgs.map((org) => [String(org._id), org]));
+   const settingsByOrgId = new Map(settingsProfiles.map((profile) => [String(profile.ownerId), profile]));
+   const providerBilling = await getProviderBillingDetails(providerId, providerUser?.email);
 
    const enrollmentIds = enrollments.map((enrollment) => enrollment._id);
    const attendance = await attendanceRecordModel.find({ enrollmentId: { $in: enrollmentIds } });
@@ -99,6 +111,7 @@ const computeCompanies = async (
 
    const companies: IInvoiceCompany[] = [...groups.entries()].map(([orgId, items]) => {
       const org = orgById.get(orgId);
+      const settings = settingsByOrgId.get(orgId);
       const override = overridesByOrg.get(orgId);
 
       const lines: IInvoiceLine[] = items.map((enrollment) => {
@@ -128,15 +141,15 @@ const computeCompanies = async (
       });
 
       const subtotalPaise = lines.reduce((sum, line) => sum + line.feePaise, 0);
-      const gstin = override?.gstin ?? org?.billing?.gstin ?? "";
-      const stateCode = override?.stateCode ?? org?.billing?.stateCode ?? "";
-      const stateName = override?.stateName ?? org?.billing?.stateName ?? "";
+      const gstin = override?.gstin ?? String(settings?.gstNumber ?? "");
+      const stateCode = override?.stateCode ?? getStateCodeFromGstin(gstin);
+      const stateName = override?.stateName ?? settings?.location?.state ?? "";
       const discountPercent = override?.discountPercent ?? 0;
 
       const tax = computeInvoiceTax({
          subtotalPaise,
          discountPercent,
-         providerStateCode: PROVIDER_BILLING.stateCode,
+         providerStateCode: providerBilling.stateCode,
          buyerStateCode: stateCode,
       });
 
@@ -146,9 +159,7 @@ const computeCompanies = async (
          gstin,
          stateCode,
          stateName,
-         address: org?.billing?.address,
-         email: org?.billing?.email,
-         phone: org?.billing?.phone,
+         address: formatBillingAddress(settings?.location),
          discountPercent,
          lines,
          subtotalPaise: tax.subtotalPaise,
@@ -160,8 +171,6 @@ const computeCompanies = async (
          totalPaise: tax.totalPaise,
       } as IInvoiceCompany;
    });
-
-   const provider = await userModel.findById(providerId).select("name");
 
    return {
       programId: program._id,
@@ -175,14 +184,14 @@ const computeCompanies = async (
       },
       hsnSac: "998311",
       provider: {
-         name: provider?.name ?? "",
-         gstin: PROVIDER_BILLING.gstin,
-         pan: PROVIDER_BILLING.pan,
-         stateCode: PROVIDER_BILLING.stateCode,
-         stateName: PROVIDER_BILLING.stateName,
-         address: PROVIDER_BILLING.address || undefined,
-         email: PROVIDER_BILLING.email || undefined,
-         phone: PROVIDER_BILLING.phone || undefined,
+         name: providerUser?.name ?? "",
+         gstin: providerBilling.gstin,
+         pan: providerBilling.pan,
+         stateCode: providerBilling.stateCode,
+         stateName: providerBilling.stateName,
+         address: providerBilling.address,
+         email: providerBilling.email,
+         phone: providerBilling.phone,
       },
       companies,
    };
@@ -191,8 +200,6 @@ const computeCompanies = async (
 const sumCompanies = (companies: IInvoiceCompany[], pick: (company: IInvoiceCompany) => number) =>
    companies.reduce((total, company) => total + pick(company), 0);
 
-// One preview "invoice" per still-billable company, none of them persisted —
-// lets the provider look at every company before generating any of them.
 export const getInvoicePreviewDataService = async (programId: string, providerId: string) => {
    let base;
    try {
@@ -221,8 +228,6 @@ export const getInvoicePreviewDataService = async (programId: string, providerId
    }));
 };
 
-// Generates and persists an invoice for exactly one company. Each company is
-// billed, numbered, and exported independently.
 export const generateProgramInvoiceService = async (
    programId: string,
    providerId: string,

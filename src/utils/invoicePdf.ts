@@ -79,8 +79,7 @@ export const renderInvoicePdf = (invoice: InvoicePdfData): Promise<Buffer> =>
          }
       };
 
-      // Manual truncation: bounded by string length, so a mis-sized column
-      // can never make pdfkit's own text-fitting loop forever.
+
       const fitText = (text: string, maxWidth: number) => {
          if (doc.widthOfString(text) <= maxWidth) return text;
          let truncated = text;
@@ -262,6 +261,109 @@ export const renderInvoicePdf = (invoice: InvoicePdfData): Promise<Buffer> =>
          y = doc.y + 24;
          doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(`for ${invoice.provider.name}`, RIGHT - 200, y, { width: 200, align: "right" });
          doc.font("Helvetica-Bold").text("Authorised Signatory", RIGHT - 200, y + 20, { width: 200, align: "right" });
+
+        
+         doc.addPage();
+         y = 40;
+
+         const dateSet = new Set<string>();
+         company.lines.forEach((line) => line.attendance.forEach((entry) => dateSet.add(entry.day)));
+         const dates = [...dateSet].sort();
+
+         const statusByDate = new Map(company.lines.map((line) => [line, new Map(line.attendance.map((entry) => [entry.day, entry.status]))]));
+
+         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+         const dayLabel = (iso: string) => {
+            const [yy, mm, dd] = iso.split("-").map(Number);
+            return yy && mm && dd ? `${String(dd).padStart(2, "0")} ${monthNames[mm - 1]}` : iso;
+         };
+
+         const annexHeader = (continued: boolean) => {
+            doc.font("Helvetica-Bold").fontSize(12).fillColor(TEXT)
+               .text(`Annexure 1: Attendance Record${continued ? " (contd.)" : ""}`, LEFT, y, { width: WIDTH });
+            y = doc.y + 4;
+            doc.font("Helvetica").fontSize(8.5).fillColor(MUTED)
+               .text(`Invoice No: ${invoice.invoiceNumber}  ·  ${company.companyName}  ·  ${invoice.program.title}`, LEFT, y, { width: WIDTH });
+            y = doc.y + 12;
+            doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(TEXT).lineWidth(1).stroke();
+            y += 14;
+         };
+
+         const annexSrW = 20;
+         const annexNameW = 150;
+         const annexSummaryW = 50;
+         const annexDateAreaW = WIDTH - annexSrW - annexNameW - annexSummaryW;
+         const maxDateCols = Math.max(1, Math.floor(annexDateAreaW / 26));
+
+         const dateChunks: string[][] = [];
+         for (let i = 0; i < dates.length; i += maxDateCols) dateChunks.push(dates.slice(i, i + maxDateCols));
+         if (dateChunks.length === 0) dateChunks.push([]);
+
+         dateChunks.forEach((chunk, chunkIndex) => {
+            if (chunkIndex > 0) {
+               doc.addPage();
+               y = 40;
+            }
+            annexHeader(chunkIndex > 0);
+
+            if (dates.length === 0) {
+               doc.font("Helvetica").fontSize(9).fillColor(MUTED).text("No attendance records available for this programme.", LEFT, y, { width: WIDTH });
+               y = doc.y + 10;
+               return;
+            }
+
+            const dateColW = chunk.length > 0 ? annexDateAreaW / chunk.length : annexDateAreaW;
+            const annexCols = {
+               sr: { x: LEFT, w: annexSrW },
+               name: { x: LEFT + annexSrW, w: annexNameW },
+               dates: chunk.map((_, i) => ({ x: LEFT + annexSrW + annexNameW + i * dateColW, w: dateColW })),
+               summary: { x: LEFT + annexSrW + annexNameW + chunk.length * dateColW, w: annexSummaryW },
+            };
+
+            const drawAnnexHeader = () => {
+               doc.font("Helvetica-Bold").fontSize(7).fillColor(MUTED);
+               doc.text("#", annexCols.sr.x, y, { width: annexCols.sr.w });
+               doc.text("PARTICIPANT", annexCols.name.x, y, { width: annexCols.name.w });
+               chunk.forEach((date, i) => {
+                  doc.text(dayLabel(date), annexCols.dates[i].x, y, { width: annexCols.dates[i].w, align: "center" });
+               });
+               doc.text("TOTAL", annexCols.summary.x, y, { width: annexCols.summary.w, align: "center" });
+               y += 12;
+               doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(RULE).lineWidth(1).stroke();
+               y += 6;
+            };
+
+            ensureSpace(30);
+            drawAnnexHeader();
+
+            company.lines.forEach((line, lineIndex) => {
+               ensureSpace(20);
+               const rowTop = y;
+               const byDate = statusByDate.get(line)!;
+               doc.font("Helvetica").fontSize(8.5).fillColor(TEXT);
+               doc.text(String(lineIndex + 1), annexCols.sr.x, rowTop, { width: annexCols.sr.w });
+               doc.text(fitText(line.participantName, annexCols.name.w), annexCols.name.x, rowTop, { width: annexCols.name.w });
+               chunk.forEach((date, i) => {
+                  const status = byDate.get(date);
+                  const mark = status === "present" ? "P" : status === "absent" ? "A" : "-";
+                  const color = status === "present" ? "#15803d" : status === "absent" ? "#b91c1c" : MUTED;
+                  doc.font("Helvetica-Bold").fontSize(8.5).fillColor(color)
+                     .text(mark, annexCols.dates[i].x, rowTop, { width: annexCols.dates[i].w, align: "center" });
+               });
+               doc.font("Helvetica").fontSize(8.5).fillColor(TEXT)
+                  .text(`${line.daysPresent}/${line.totalDays}`, annexCols.summary.x, rowTop, { width: annexCols.summary.w, align: "center" });
+
+               y = rowTop + 16;
+               doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(RULE).lineWidth(0.5).stroke();
+               y += 6;
+            });
+
+            if (chunkIndex === dateChunks.length - 1) {
+               y += 6;
+               doc.font("Helvetica").fontSize(7).fillColor(MUTED).text("P = Present   A = Absent   - = Not marked", LEFT, y, { width: WIDTH });
+               y = doc.y + 6;
+            }
+         });
       });
 
       const pageCount = doc.bufferedPageRange().count;
