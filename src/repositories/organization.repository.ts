@@ -14,6 +14,12 @@ export const createOrganization = async (
    return await organizationModel.create(data);
 };
 
+// Lightweight org lookups (name only) for a set of ids, e.g. the billing
+// companies on an invoice.
+export const findOrganizationsByIdsRepo = async (ids: string[]) => {
+   return organizationModel.find({ _id: { $in: ids } }).select("name");
+};
+
 export const updateOrganizationPolicy = async (
    organizationId: string,
    data: {
