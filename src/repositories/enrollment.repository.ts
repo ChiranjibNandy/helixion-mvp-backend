@@ -322,6 +322,24 @@ export const findExistingEnrollmentRepo = async (userId: string, programId: stri
   });
 };
 
+export const getBillableEnrollmentsRepo = async (
+  programId: Types.ObjectId,
+  stages: ENROLLMENT_STAGE[],
+  invoicedIds: Types.ObjectId[],
+  onlyOrgId?: string
+) =>
+  enrollmentModel
+    .find({
+      programId,
+      currentStage: { $in: stages },
+      _id: { $nin: invoicedIds },
+      ...(onlyOrgId ? { orgId: toObjectId(onlyOrgId) } : {}),
+    })
+    .populate<{ employeeId: { name: string; employeeCode?: string; designation?: string } }>(
+      "employeeId",
+      "name employeeCode designation"
+    );
+
 export const findEnrollmentByEmployeeIds = async (employeeIds: Types.ObjectId[]) => {
   return enrollmentModel.find({
     employeeId: { $in: employeeIds },

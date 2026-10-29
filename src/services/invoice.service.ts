@@ -1,9 +1,16 @@
 import { Types } from "mongoose";
-import enrollmentModel from "../models/enrollment.model.js";
-import invoiceModel, { invoiceCounterModel, IInvoiceCompany, IInvoiceLine } from "../models/invoice.model.js";
-import userModel from "../models/user.model.js";
-import attendanceRecordModel from "../models/attendanceRecord.model.js";
-import { organizationModel } from "../models/organization.model.js";
+import { getBillableEnrollmentsRepo } from "../repositories/enrollment.repository.js";
+import { IInvoiceCompany, IInvoiceLine } from "../models/invoice.model.js";
+import {
+   getInvoicedEnrollmentIdsRepo,
+   listProgramInvoicesRepo,
+   findInvoiceForProviderRepo,
+   createInvoiceRepo,
+   nextInvoiceSequenceRepo,
+} from "../repositories/invoice.repository.js";
+import { getUserByIdRepo } from "../repositories/user.repository.js";
+import { getAttendanceRecordsByEnrollmentIdsRepo } from "../repositories/attendanceRecord.repository.js";
+import { findOrganizationsByIdsRepo } from "../repositories/organization.repository.js";
 import { getProgramByIdRepo } from "../repositories/program.repository.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
@@ -29,18 +36,8 @@ const loadProgramForProvider = async (programId: string, providerId: string) => 
    return program;
 };
 
-const loadBillableEnrollments = async (programId: Types.ObjectId, invoicedIds: Types.ObjectId[], onlyOrgId?: string) =>
-   enrollmentModel
-      .find({
-         programId,
-         currentStage: { $in: BILLABLE_STAGES },
-         _id: { $nin: invoicedIds },
-         ...(onlyOrgId ? { orgId: new Types.ObjectId(onlyOrgId) } : {}),
-      })
-      .populate<{ employeeId: { name: string; employeeCode?: string; designation?: string } }>(
-         "employeeId",
-         "name employeeCode designation"
-      );
+const loadBillableEnrollments = (programId: Types.ObjectId, invoicedIds: Types.ObjectId[], onlyOrgId?: string) =>
+   getBillableEnrollmentsRepo(programId, BILLABLE_STAGES, invoicedIds, onlyOrgId);
 
 const groupByCompany = <T extends { orgId?: Types.ObjectId }>(items: T[]) => {
    const groups = new Map<string, T[]>();
@@ -53,13 +50,13 @@ const groupByCompany = <T extends { orgId?: Types.ObjectId }>(items: T[]) => {
 
 export const getInvoiceCompaniesService = async (programId: string, providerId: string) => {
    const program = await loadProgramForProvider(programId, providerId);
-   const invoicedIds = (await invoiceModel.find({ programId: program._id }).distinct("companies.lines.enrollmentId")) as Types.ObjectId[];
+   const invoicedIds = await getInvoicedEnrollmentIdsRepo(program._id);
    const enrollments = await loadBillableEnrollments(program._id, invoicedIds);
    const groups = groupByCompany(enrollments);
 
    const orgIds = [...groups.keys()];
    const [orgs, settingsProfiles] = await Promise.all([
-      organizationModel.find({ _id: { $in: orgIds } }).select("name"),
+      findOrganizationsByIdsRepo(orgIds),
       findSettingsProfilesByOwnerIdsRepo(orgIds),
    ]);
    const byId = new Map(orgs.map((org) => [String(org._id), org]));
@@ -88,7 +85,7 @@ const computeCompanies = async (
       throw new AppError(MESSAGES.INVOICE_PROGRAM_NOT_ENDED, HTTP_STATUS.BAD_REQUEST);
    }
 
-   const invoicedIds = (await invoiceModel.find({ programId: program._id }).distinct("companies.lines.enrollmentId")) as Types.ObjectId[];
+   const invoicedIds = await getInvoicedEnrollmentIdsRepo(program._id);
    const enrollments = await loadBillableEnrollments(program._id, invoicedIds, onlyOrgId);
    if (enrollments.length === 0) {
       throw new AppError(MESSAGES.INVOICE_NO_BILLABLE_PARTICIPANTS, HTTP_STATUS.BAD_REQUEST);
@@ -97,16 +94,16 @@ const computeCompanies = async (
    const groups = groupByCompany(enrollments);
    const orgIds = [...groups.keys()];
    const [orgs, settingsProfiles, providerUser] = await Promise.all([
-      organizationModel.find({ _id: { $in: orgIds } }).select("name"),
+      findOrganizationsByIdsRepo(orgIds),
       findSettingsProfilesByOwnerIdsRepo(orgIds),
-      userModel.findById(providerId).select("name email"),
+      getUserByIdRepo(providerId),
    ]);
    const orgById = new Map(orgs.map((org) => [String(org._id), org]));
    const settingsByOrgId = new Map(settingsProfiles.map((profile) => [String(profile.ownerId), profile]));
    const providerBilling = await getProviderBillingDetails(providerId, providerUser?.email);
 
-   const enrollmentIds = enrollments.map((enrollment) => enrollment._id);
-   const attendance = await attendanceRecordModel.find({ enrollmentId: { $in: enrollmentIds } });
+   const enrollmentIds = enrollments.map((enrollment) => String(enrollment._id));
+   const attendance = await getAttendanceRecordsByEnrollmentIdsRepo(enrollmentIds);
    const attendanceByEnrollment = new Map(attendance.map((record) => [String(record.enrollmentId), record]));
 
    const companies: IInvoiceCompany[] = [...groups.entries()].map(([orgId, items]) => {
@@ -121,9 +118,11 @@ const computeCompanies = async (
             throw new AppError(MESSAGES.INVOICE_STAY_PRICE_MISSING, HTTP_STATUS.BAD_REQUEST);
          }
          const employee = enrollment.employeeId as unknown as { name: string; employeeCode?: string; designation?: string };
-         const days = attendanceByEnrollment.get(String(enrollment._id))?.attendanceByDay;
+         const days = attendanceByEnrollment.get(String(enrollment._id))?.attendanceByDay as
+            | Record<string, { status: string }>
+            | undefined;
          const attendanceEntries = days
-            ? [...days.entries()]
+            ? Object.entries(days)
                .sort(([a], [b]) => a.localeCompare(b))
                .map(([day, entry]) => ({ day, status: entry.status }))
             : [];
@@ -205,7 +204,7 @@ export const getInvoicePreviewDataService = async (programId: string, providerId
    try {
       base = await computeCompanies(programId, providerId, new Map());
    } catch (error) {
-      if (error instanceof AppError && error.statusCode === HTTP_STATUS.BAD_REQUEST) {
+      if (error instanceof AppError && error.message === MESSAGES.INVOICE_NO_BILLABLE_PARTICIPANTS) {
          return [];
       }
       throw error;
@@ -238,16 +237,12 @@ export const generateProgramInvoiceService = async (
    const base = await computeCompanies(programId, providerId, overridesByOrg, companyOrgId);
    const company = base.companies[0];
 
-   const invoiceSeq = await invoiceCounterModel.findOneAndUpdate(
-      { _id: "invoice" },
-      { $inc: { seq: 1 } },
-      { upsert: true, returnDocument: "after" }
-   );
+   const sequence = await nextInvoiceSequenceRepo();
 
-   return await invoiceModel.create({
-      invoiceNumber: `INV-${String(invoiceSeq!.seq).padStart(4, "0")}`,
+   return await createInvoiceRepo({
+      invoiceNumber: `INV-${String(sequence).padStart(4, "0")}`,
       programId: base.programId,
-      providerId: base.providerId,
+      providerId: new Types.ObjectId(base.providerId),
       invoiceDate: new Date(),
       program: base.program,
       hsnSac: base.hsnSac,
@@ -265,11 +260,11 @@ export const generateProgramInvoiceService = async (
 
 export const listProgramInvoicesService = async (programId: string, providerId: string) => {
    const program = await loadProgramForProvider(programId, providerId);
-   return await invoiceModel.find({ programId: program._id }).sort({ createdAt: -1 });
+   return await listProgramInvoicesRepo(program._id);
 };
 
 export const getInvoiceForProviderService = async (invoiceId: string, providerId: string) => {
-   const invoice = await invoiceModel.findOne({ _id: invoiceId, providerId });
+   const invoice = await findInvoiceForProviderRepo(invoiceId, providerId);
    if (!invoice) throw new AppError(MESSAGES.INVOICE_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    return invoice;
 };
