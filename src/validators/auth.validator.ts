@@ -46,13 +46,26 @@ export const loginSchema = z.object({
     .min(1, { error: MESSAGES.PASSWORD_REQUIRED }),
 });
 
-// validate only the email is required and in correct format or not
 export const sendResetMailSchema = z.object({
   email: z
     .string()
     .trim()
     .min(1, { error: MESSAGES.EMAIL_REQUIRED })
     .pipe(z.email({ error: MESSAGES.INVALID_EMAIL_FORMAT })),
+});
+
+// validate only the email is required and in correct format or not
+export const sendBulkResetMailSchema = z.object({
+  email: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1, { error: MESSAGES.EMAIL_REQUIRED })
+        .max(30)
+        .pipe(z.email({ error: MESSAGES.INVALID_EMAIL_FORMAT }))
+    )
+    .min(1, { error: MESSAGES.EMAIL_REQUIRED }),
 });
 
 //validate UserId password

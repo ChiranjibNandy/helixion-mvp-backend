@@ -16,3 +16,11 @@ export interface LoginResponse {
    user: IUserWithOrganization;
    permissions: IPermission
 }
+
+export interface ResetLinkResult {
+  successful: string[];
+  failed: Array<{
+    email: string;
+    reason: string;
+  }>;
+}
