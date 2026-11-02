@@ -437,7 +437,8 @@ export const getEmployeeProgramsListRepo = async ({
   search,
   venue,
   fromDate,
-  toDate
+  toDate,
+  hidePast
 }: {
   page: number;
   limit: number;
@@ -445,6 +446,7 @@ export const getEmployeeProgramsListRepo = async ({
   venue?: string;
   fromDate?: string;
   toDate?: string;
+  hidePast?: boolean;
 }) => {
   const skip = (page - 1) * limit;
   const filter: any = {
@@ -464,6 +466,13 @@ export const getEmployeeProgramsListRepo = async ({
     }
     if (toDate) {
       filter.startDate.$lte = new Date(toDate);
+    }
+  }
+  if (hidePast) {
+    const now = new Date();
+    filter.startDate = filter.startDate || {};
+    if (!filter.startDate.$gte || filter.startDate.$gte < now) {
+      filter.startDate.$gte = now;
     }
   }
 
