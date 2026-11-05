@@ -450,8 +450,8 @@ export const getPendingEnrollmentsForStageRepo = async (
       orgId: toObjectId(orgId),
       currentStage: stage,
     })
-    .populate("employeeId", "name email employeeCode placeOfPosting")
-    .populate("programId", "title startDate endDate city venueName")
+    .populate("employeeId", "name email employeeCode placeOfPosting department designation")
+    .populate("programId", "title startDate endDate city venueName brochureUrl trainingInstitute")
     .sort({ createdAt: -1 })
     .limit(DASHBOARD_LIST_CAP);
 };
