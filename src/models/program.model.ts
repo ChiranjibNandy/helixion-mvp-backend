@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IProgram, IStayOption } from "../interfaces/program.interface.js";
-import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, STAY_TYPE } from "../constants/enum.js";
 import { MESSAGES } from "../constants/messages.js";
 
 const stayOptionSchema = new Schema<IStayOption>(
@@ -105,6 +105,18 @@ const programSchema = new Schema<IProgram>(
          type:    String,
          enum:    Object.values(PROGRAM_SAVED_STATUS),
          default: PROGRAM_SAVED_STATUS.DRAFT,
+      },
+
+      cancellation: {
+         type: new Schema(
+            {
+               reason:      { type: String, enum: Object.values(PROGRAM_CANCELLATION_REASON), required: true },
+               note:        { type: String, trim: true },
+               cancelledBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+               cancelledAt: { type: Date, required: true },
+            },
+            { _id: false }
+         ),
       },
 
       batchId: {
