@@ -74,6 +74,14 @@ export const getProgramParticipantsRepo = async (programId: string) => {
     .populate({ path: "employeeId", select: "_id name email employeeCode" });
 };
 
+export const getProgramEnrollmentsForManagementRepo = async (programId: string) => {
+  return await enrollmentModel
+    .find({ programId: toObjectId(programId) })
+    .populate({ path: "employeeId", select: "_id name email employeeCode" })
+    .populate({ path: "orgId", select: "_id name", model: "Organization" })
+    .sort({ createdAt: -1 });
+};
+
 export const getTotalEnrollments = async (trainingProviderId: string) => {
   const result = await enrollmentModel.aggregate([
     {
@@ -959,6 +967,97 @@ export const declineEnrollmentByTpRepo = async (
     },
     { new: true, session }
   );
+};
+
+// Stages an enrollment can still be cancelled from — anything before it's
+// reached a terminal outcome of its own (ATTENDED/ABSENT/REJECTED/COMPLETED)
+// or already been cancelled.
+const CANCELLABLE_STAGES: ENROLLMENT_STAGE[] = [
+  ENROLLMENT_STAGE.SUBMITTED,
+  ENROLLMENT_STAGE.MANAGER_REVIEW,
+  ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW,
+  ENROLLMENT_STAGE.APPROVED,
+  ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
+  ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+  ENROLLMENT_STAGE.TOUR_MANAGER_REVIEW,
+  ENROLLMENT_STAGE.TOUR_CTD_REVIEW,
+];
+
+export const getEnrollmentByIdForProgramRepo = async (enrollmentId: string, programId: string) => {
+  return enrollmentModel.findOne({
+    _id: toObjectId(enrollmentId),
+    programId: toObjectId(programId),
+  });
+};
+
+export const cancelEnrollmentByTpRepo = async (
+  enrollmentId: string,
+  programId: string,
+  providerId: string,
+  notes: string | undefined
+) => {
+  return await enrollmentModel.findOneAndUpdate(
+    {
+      _id: toObjectId(enrollmentId),
+      programId: toObjectId(programId),
+      currentStage: { $in: CANCELLABLE_STAGES },
+    },
+    {
+      $set: {
+        currentStage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+        "statusSummary.enrollmentStatus": ENROLLMENT_STATUS_SUMMARY.CANCELLED,
+      },
+      $push: {
+        timeline: {
+          stage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+          actorId: toObjectId(providerId),
+          actorType: ACTOR_TYPE.PROVIDER,
+          action: "cancel",
+          note: notes || "",
+          at: new Date(),
+        },
+      },
+    },
+    { new: true }
+  );
+};
+
+export const cancelProgramEnrollmentsRepo = async (
+  programId: string,
+  providerId: string,
+  session: mongoose.ClientSession
+) => {
+  const affected = await enrollmentModel
+    .find({
+      programId: toObjectId(programId),
+      currentStage: { $in: CANCELLABLE_STAGES },
+    })
+    .session(session);
+
+  if (affected.length === 0) return affected;
+
+  await enrollmentModel.updateMany(
+    { _id: { $in: affected.map((e) => e._id) } },
+    {
+      $set: {
+        currentStage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+        "statusSummary.enrollmentStatus": ENROLLMENT_STATUS_SUMMARY.CANCELLED,
+      },
+      $push: {
+        timeline: {
+          stage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+          actorId: toObjectId(providerId),
+          actorType: ACTOR_TYPE.PROVIDER,
+          action: "cancel_program",
+          note: "",
+          at: new Date(),
+        },
+      },
+    },
+    { session }
+  );
+
+  return affected;
 };
 
 export const getPendingTourApprovalsForCtdRepo = async (orgId: string) => {

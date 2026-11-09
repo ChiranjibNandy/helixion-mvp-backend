@@ -171,6 +171,26 @@ export const NOTIFICATION_TEMPLATES = {
     color: "red",
   }),
 
+  ENROLLMENT_CANCELLED_BY_PROVIDER: (programTitle: string) => ({
+    title: "Enrollment Cancelled by Training Provider",
+    message: `Your enrollment for ${ programTitle } was cancelled by the Training Provider.`,
+    emailSubject: "Enrollment Cancelled by Training Provider",
+    emailBody: `Your enrollment for <strong>${ programTitle }</strong> was cancelled by the Training Provider. Please contact the Training Provider or your Training Department for details.`,
+    type: "enrollment_cancelled_by_provider",
+    icon: "x-circle",
+    color: "red",
+  }),
+
+  PROGRAM_CANCELLED_BY_PROVIDER: (programTitle: string) => ({
+    title: "Training Program Cancelled",
+    message: `${ programTitle } has been cancelled by the Training Provider.`,
+    emailSubject: "Training Program Cancelled",
+    emailBody: `<strong>${ programTitle }</strong> has been cancelled by the Training Provider. Your enrollment for this programme has been cancelled as a result. Please contact the Training Provider or your Training Department for details.`,
+    type: "program_cancelled_by_provider",
+    icon: "x-circle",
+    color: "red",
+  }),
+
   ENROLLMENT_PENDING_CTD_APPROVAL: (programTitle: string, employeeName: string) => ({
     title: "Enrollment Pending CTD Approval",
     message: `Manager has approved the enrollment for ${ programTitle } of employee ${ employeeName }. It is now pending CTD approval.`,

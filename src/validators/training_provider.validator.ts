@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
-import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, STAY_TYPE } from "../constants/enum.js";
 import { objectIdSchema } from "./common.validator.js";
 
 export const baseProgramSchema = z.object({
@@ -133,3 +133,26 @@ export const confirmEnrollmentParamsSchema = z.object({
 export const confirmEnrollmentBodySchema = z.object({
   notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
 });
+
+export const programIdParamSchema = z.object({
+  id: objectIdSchema,
+});
+
+export const cancelEnrollmentParamsSchema = z.object({
+  programId: objectIdSchema,
+  enrollmentId: objectIdSchema,
+});
+
+export const cancelEnrollmentBodySchema = z.object({
+  notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
+});
+
+export const cancelProgramBodySchema = z
+  .object({
+    reason: z.enum(Object.values(PROGRAM_CANCELLATION_REASON)),
+    note: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
+  })
+  .refine(
+    (data) => data.reason !== PROGRAM_CANCELLATION_REASON.OTHER || !!data.note?.length,
+    { message: MESSAGES.CANCELLATION_NOTE_REQUIRED, path: ["note"] }
+  );
