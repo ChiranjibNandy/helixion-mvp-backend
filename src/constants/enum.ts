@@ -294,3 +294,9 @@ export enum AssignmentMode {
   ASSIGNED = "assigned",
   POOL = "pool",
 }
+
+export enum PROGRAM_ENROLLMENT_STATUS {
+  BELOW_MINIMUM = "BELOW_MINIMUM",
+  ON_TRACK = "ON_TRACK",
+  OVER_ENROLLED = "OVER_ENROLLED",
+}

@@ -1,5 +1,5 @@
 import { BulkInput, createProgramReq } from "../dtos/program.dto.js";
-import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo, getLiveProgramsCount, getDraftProgramsCount, getTopPrograms, getAverageFillRate, getPublishedActivities, getDraftActivities, getBulkUploadActivities } from "../repositories/program.repository.js";
+import { createProgramRepo, getLastBatchId, programBulkInsert, getDraftProgramsRepo, getProgramByIdRepo, updateProgramRepo, deleteProgramRepo, getLiveProgramsCount, getDraftProgramsCount, getTopPrograms, getAverageFillRate, getPublishedActivities, getDraftActivities, getBulkUploadActivities, getUpcomingPrograms } from "../repositories/program.repository.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { parseBulkFileBuffer } from "../utils/parseBulkFile.js";
 import { validateBulkRows } from "../utils/bulkValidator.js";
@@ -175,6 +175,7 @@ export const getTrainingProviderDashboardServices = async (
     totalEnrollments,
     averageFillRate,
     topPrograms,
+    upcomingPrograms,
     recentActivities,
     todayEnrollmentCount,
     todayAttendance
@@ -199,8 +200,13 @@ export const getTrainingProviderDashboardServices = async (
     getTopPrograms(
       trainingProviderId
     ),
+    getUpcomingPrograms(
+      trainingProviderId
+    ),
 
-    getRecentActivities(trainingProviderId),
+    getRecentActivities(
+      trainingProviderId
+    ),
 
     getTodayEnrollmentCount(
       trainingProviderId
@@ -220,9 +226,8 @@ export const getTrainingProviderDashboardServices = async (
       todayEnrollmentCount,
       todayAttendance
     },
-
     topPrograms,
-
+    upcomingPrograms,
     recentActivities
   };
 };

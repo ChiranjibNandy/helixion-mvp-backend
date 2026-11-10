@@ -1,4 +1,4 @@
-import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
+import { PROGRAM_ENROLLMENT_STATUS, PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
@@ -242,7 +242,7 @@ export const getAverageFillRate = async (
   );
 };
 
-// TOP PROGRAMS that display in training provider dashboard
+// TOP PROGRAMS that display in training provider dashboard - most enrollcount program fetch first
 export const getTopPrograms = async (
   trainingProviderId: string
 ) => {
@@ -619,6 +619,115 @@ export const updateProgramFields = async (
     { new: true, runValidators: true }
   );
 }
+
+
+
+export const getUpcomingPrograms = async (
+  trainingProviderId: string
+) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return await Program.aggregate([
+    {
+      $match: {
+        createdBy: toObjectId(trainingProviderId),
+        status: PROGRAM_SAVED_STATUS.PUBLISHED,
+        startDate: { $gte: today }
+      }
+    },
+    {
+      $lookup: {
+        from: "enrollments",
+        localField: "_id",
+        foreignField: "programId",
+        as: "enrollments"
+      }
+    },
+    {
+      $addFields: {
+
+        enrolledCount: {
+          $size: "$enrollments"
+        },
+
+        fillRate: {
+          $cond: [
+            { $gt: ["$maxParticipants", 0] },
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $size: "$enrollments" },
+                    "$maxParticipants"
+                  ]
+                },
+                100
+              ]
+            },
+            0
+          ]
+        },
+
+        daysToGo: {
+          $dateDiff: {
+            startDate: today,
+            endDate: "$startDate",
+            unit: "day"
+          }
+        }
+      }
+    },
+    {
+      $addFields: {
+        programStatus: {
+          $switch: {
+            branches: [
+              {
+                case: {
+                  $lt: ["$enrolledCount", "$minParticipants"]
+                },
+                then: PROGRAM_ENROLLMENT_STATUS.BELOW_MINIMUM
+              },
+              {
+                case: {
+                  $gt: ["$enrolledCount", "$maxParticipants"]
+                },
+                then: PROGRAM_ENROLLMENT_STATUS.OVER_ENROLLED
+              }
+            ],
+            default: PROGRAM_ENROLLMENT_STATUS.ON_TRACK
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        _id: 1,
+        title: 1,
+        startDate: 1,
+        endDate: 1,
+        enrolledCount: 1,
+        minParticipants: 1,
+        maxParticipants: 1,
+        daysToGo: 1,
+        programStatus: 1,
+        fillRate: {
+          $round: ["$fillRate", 0]
+        }
+      }
+    },
+    {
+      $sort: {
+        startDate: 1
+      }
+    },
+    {
+      $limit: 5
+    }
+
+  ]);
+};
 
 
 
