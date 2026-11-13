@@ -1,8 +1,8 @@
-import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
+import { PROGRAM_SAVED_STATUS, ENROLLMENT_STATUS_SUMMARY } from '../constants/enum.js';
+import enrollmentModel from '../models/enrollment.model.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
-import programModel from '../models/program.model.js';
 import { getUTCStartOfDay } from '../utils/date.js';
 import { toObjectId } from '../utils/mongo.js';
 
@@ -24,13 +24,32 @@ export interface ProgramFilterParams {
   venue?: string;
   fromDate?: string;
   toDate?: string;
+  userId: string;
 }
 
 // paginated + filter program list for the employee browse view
 export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterParams) => {
-  const { page, limit, search, venue, fromDate, toDate } = params;
+  const { page, limit, search, venue, fromDate, toDate, userId } = params;
   const skip = (page - 1) * limit;
-  const filter: any = { status: PROGRAM_SAVED_STATUS.PUBLISHED };
+
+  const enrolledProgramIds = await enrollmentModel.distinct("programId", {
+    $or: [
+      { employeeId: toObjectId(userId) },
+      { userId: toObjectId(userId) },
+    ],
+    "statusSummary.enrollmentStatus": {
+      $in: [
+        ENROLLMENT_STATUS_SUMMARY.SUBMITTED,
+        ENROLLMENT_STATUS_SUMMARY.RECOMMENDED,
+        ENROLLMENT_STATUS_SUMMARY.APPROVED,
+      ],
+    },
+  });
+
+  const filter: any = { 
+    status: PROGRAM_SAVED_STATUS.PUBLISHED,
+    _id: { $nin: enrolledProgramIds },
+   };
 
   if (search) filter.title = { $regex: search, $options: "i" };
   if (venue) filter.venue = { $regex: venue, $options: "i" };
@@ -421,11 +440,11 @@ export const getBulkUploadActivities = async (
 
 //return program byId
 export const findProgramById = async (id: string) => {
-  return await programModel.findById(id);
+  return await Program.findById(id);
 };
 
 export const getEmployeeProgramByIdRepo = async (id: string) => {
-  return await programModel.findOne({
+  return await Program.findOne({
     _id: toObjectId(id),
     status: PROGRAM_SAVED_STATUS.PUBLISHED
   }).populate("createdBy", "name");
@@ -438,7 +457,8 @@ export const getEmployeeProgramsListRepo = async ({
   venue,
   fromDate,
   toDate,
-  hidePast
+  hidePast,
+  userId,
 }: {
   page: number;
   limit: number;
@@ -447,10 +467,27 @@ export const getEmployeeProgramsListRepo = async ({
   fromDate?: string;
   toDate?: string;
   hidePast?: boolean;
+  userId: string;
 }) => {
   const skip = (page - 1) * limit;
+
+  const enrolledProgramIds = await enrollmentModel.distinct("programId", {
+    $or: [
+      { employeeId: toObjectId(userId) },
+      { userId: toObjectId(userId) },
+    ],
+    "statusSummary.enrollmentStatus": {
+      $in: [
+        ENROLLMENT_STATUS_SUMMARY.SUBMITTED,
+        ENROLLMENT_STATUS_SUMMARY.RECOMMENDED,
+        ENROLLMENT_STATUS_SUMMARY.APPROVED,
+      ],
+    },
+  });
+
   const filter: any = {
-    status: PROGRAM_SAVED_STATUS.PUBLISHED
+    status: PROGRAM_SAVED_STATUS.PUBLISHED,
+    _id: { $nin: enrolledProgramIds },
   };
 
   if (search) {
@@ -477,13 +514,13 @@ export const getEmployeeProgramsListRepo = async ({
   }
 
   const [programs, total] = await Promise.all([
-    programModel.find(filter)
+    Program.find(filter)
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit)
       .populate("createdBy", "name")
       .lean(),
-    programModel.countDocuments(filter)
+    Program.countDocuments(filter)
   ]);
 
   return {
