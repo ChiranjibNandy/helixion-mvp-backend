@@ -166,7 +166,9 @@ export const deleteDraftService = async (id: string, providerId: string) => {
 //
 
 export const getTrainingProviderDashboardServices = async (
-  trainingProviderId: string
+  trainingProviderId: string,
+  page: number,
+  limit: number
 ) => {
 
   const [
@@ -201,7 +203,9 @@ export const getTrainingProviderDashboardServices = async (
       trainingProviderId
     ),
     getUpcomingPrograms(
-      trainingProviderId
+      trainingProviderId,
+      page,
+      limit
     ),
 
     getRecentActivities(

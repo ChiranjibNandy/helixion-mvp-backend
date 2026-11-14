@@ -1,10 +1,11 @@
-import { PROGRAM_ENROLLMENT_STATUS, PROGRAM_SAVED_STATUS } from '../constants/enum.js';
+import { ENROLLMENT_STAGE, PROGRAM_ENROLLMENT_STATUS, PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
 import programModel from '../models/program.model.js';
 import { getUTCStartOfDay } from '../utils/date.js';
 import { toObjectId } from '../utils/mongo.js';
+import { UPCOMING_PROGRAMS_DAYS_THRESHOLD } from '../constants/program.js';
 
 /** Reusable filter for owner-scoped program queries */
 const buildOwnerFilter = (id: string, providerId: string) => ({
@@ -619,38 +620,63 @@ export const updateProgramFields = async (
     { new: true, runValidators: true }
   );
 }
-
-
+//send upcoming programs
 
 export const getUpcomingPrograms = async (
-  trainingProviderId: string
+  trainingProviderId: string,
+  page: number = 1,
+  limit: number = 5
 ) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return await Program.aggregate([
+  const skip = (page - 1) * limit;
+
+  const result = await Program.aggregate([
     {
       $match: {
         createdBy: toObjectId(trainingProviderId),
         status: PROGRAM_SAVED_STATUS.PUBLISHED,
-        startDate: { $gte: today }
-      }
+        startDate: { $gte: today },
+      },
     },
     {
       $lookup: {
         from: "enrollments",
-        localField: "_id",
-        foreignField: "programId",
-        as: "enrollments"
-      }
+        let: { programId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ["$programId", "$$programId"],
+              },
+              currentStage: {
+                $nin: [
+                  ENROLLMENT_STAGE.REJECTED,
+                  ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+                ],
+              },
+            },
+          },
+          {
+            $count: "count",
+          },
+        ],
+        as: "enrollmentStats",
+      },
     },
     {
       $addFields: {
-
         enrolledCount: {
-          $size: "$enrollments"
+          $ifNull: [
+            { $arrayElemAt: ["$enrollmentStats.count", 0] },
+            0,
+          ],
         },
-
+      },
+    },
+    {
+      $addFields: {
         fillRate: {
           $cond: [
             { $gt: ["$maxParticipants", 0] },
@@ -658,25 +684,24 @@ export const getUpcomingPrograms = async (
               $multiply: [
                 {
                   $divide: [
-                    { $size: "$enrollments" },
-                    "$maxParticipants"
-                  ]
+                    "$enrolledCount",
+                    "$maxParticipants",
+                  ],
                 },
-                100
-              ]
+                100,
+              ],
             },
-            0
-          ]
+            0,
+          ],
         },
-
         daysToGo: {
           $dateDiff: {
             startDate: today,
             endDate: "$startDate",
-            unit: "day"
-          }
-        }
-      }
+            unit: "day",
+          },
+        },
+      },
     },
     {
       $addFields: {
@@ -685,50 +710,91 @@ export const getUpcomingPrograms = async (
             branches: [
               {
                 case: {
-                  $lt: ["$enrolledCount", "$minParticipants"]
+                  $gt: [
+                    "$enrolledCount",
+                    "$maxParticipants",
+                  ],
                 },
-                then: PROGRAM_ENROLLMENT_STATUS.BELOW_MINIMUM
+                then: PROGRAM_ENROLLMENT_STATUS.OVER_ENROLLED,
               },
               {
                 case: {
-                  $gt: ["$enrolledCount", "$maxParticipants"]
+                  $gte: [
+                    "$enrolledCount",
+                    "$minParticipants",
+                  ],
                 },
-                then: PROGRAM_ENROLLMENT_STATUS.OVER_ENROLLED
-              }
+                then: PROGRAM_ENROLLMENT_STATUS.ON_TRACK,
+              },
+              {
+                case: {
+                  $lte: ["$daysToGo", UPCOMING_PROGRAMS_DAYS_THRESHOLD.CRITICAL],
+                },
+                then: PROGRAM_ENROLLMENT_STATUS.CRITICAL,
+              },
+              {
+                case: {
+                  $lt: [
+                    "$enrolledCount",
+                    "$minParticipants",
+                  ],
+                },
+                then: PROGRAM_ENROLLMENT_STATUS.BELOW_MINIMUM,
+              },
             ],
-            default: PROGRAM_ENROLLMENT_STATUS.ON_TRACK
-          }
-        }
-      }
-    },
-    {
-      $project: {
-        _id: 1,
-        title: 1,
-        startDate: 1,
-        endDate: 1,
-        enrolledCount: 1,
-        minParticipants: 1,
-        maxParticipants: 1,
-        daysToGo: 1,
-        programStatus: 1,
-        fillRate: {
-          $round: ["$fillRate", 0]
-        }
-      }
+            default: PROGRAM_ENROLLMENT_STATUS.ON_TRACK,
+          },
+        },
+      },
     },
     {
       $sort: {
-        startDate: 1
-      }
+        startDate: 1,
+        _id: 1,
+      },
     },
     {
-      $limit: 5
-    }
-
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              startDate: 1,
+              endDate: 1,
+              enrolledCount: 1,
+              minParticipants: 1,
+              maxParticipants: 1,
+              daysToGo: 1,
+              programStatus: 1,
+              fillRate: {
+                $round: ["$fillRate", 0],
+              },
+            },
+          },
+        ],
+        metadata: [
+          { $count: "total" },
+        ],
+      },
+    },
   ]);
-};
 
+  const programs = result[0]?.data ?? [];
+  const total = result[0]?.metadata[0]?.total ?? 0;
+
+  return {
+    programs,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
 
 
 
