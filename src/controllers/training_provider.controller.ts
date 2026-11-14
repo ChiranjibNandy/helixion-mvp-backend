@@ -149,12 +149,16 @@ export const getTrainingProviderDashboard = async (
    try {
 
       const trainingProviderId = req.userId as string;
-       if (!trainingProviderId) {
-        throw new AppError(MESSAGES.UNAUTHORIZED,HTTP_STATUS.UNAUTHORIZED)
+      const page = Number(req.query.page ?? 1);
+      const limit = Number(req.query.limit ?? 5);
+      if (!trainingProviderId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
       }
       const dashboardData =
          await getTrainingProviderDashboardServices(
-            trainingProviderId
+            trainingProviderId,
+            page,
+            limit
          );
 
       return res.status(HTTP_STATUS.OK).json({

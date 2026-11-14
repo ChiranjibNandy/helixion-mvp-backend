@@ -170,6 +170,7 @@ export enum ENROLLMENT_STAGE {
   COMPLETED                    = "completed",
   REIMBURSEMENT_MANAGER_REVIEW = "reimbursement_manager_review",
   REIMBURSEMENT_OSD_REVIEW     = "reimbursement_osd_review",
+  CANCELLED_BY_PROVIDER        = "cancelled_by_provider"
 }
 
 export const TP_NOT_YET_VISIBLE_STAGES: ENROLLMENT_STAGE[] = [
@@ -293,4 +294,11 @@ export enum OrganizationStatus {
 export enum AssignmentMode {
   ASSIGNED = "assigned",
   POOL = "pool",
+}
+
+export enum PROGRAM_ENROLLMENT_STATUS {
+  BELOW_MINIMUM = "BELOW_MINIMUM",
+  CRITICAL = "CRITICAL",
+  ON_TRACK = "ON_TRACK",
+  OVER_ENROLLED = "OVER_ENROLLED",
 }
