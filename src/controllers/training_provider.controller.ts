@@ -14,6 +14,11 @@ import {
    confirmEnrollmentService,
    declineEnrollmentService,
 } from "../services/providerConfirmation.service.js";
+import {
+   getProgramEnrollmentsForManagementService,
+   cancelEnrollmentService,
+   cancelProgramService,
+} from "../services/enrollmentManagement.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -246,6 +251,87 @@ export const declineEnrollment = async (
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.TP_DECLINE_SUCCESS,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const getProgramEnrollmentsForManagement = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { id: programId } = req.params;
+      const data = await getProgramEnrollmentsForManagementService(String(programId), providerId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PROGRAM_ENROLLMENTS_FETCHED,
+         data,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const cancelEnrollment = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { programId, enrollmentId } = req.params;
+      const { notes } = req.body;
+
+      const result = await cancelEnrollmentService(
+         String(programId),
+         String(enrollmentId),
+         providerId,
+         notes
+      );
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ENROLLMENT_CANCELLED,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const cancelProgram = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { id: programId } = req.params;
+      const { reason, note } = req.body;
+
+      const result = await cancelProgramService(String(programId), providerId, reason, note);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PROGRAM_CANCELLED,
          data: result,
       });
    } catch (error) {

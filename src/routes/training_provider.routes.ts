@@ -6,6 +6,10 @@ import {
   updatePublishedProgramSchema,
   confirmEnrollmentParamsSchema,
   confirmEnrollmentBodySchema,
+  programIdParamSchema,
+  cancelEnrollmentParamsSchema,
+  cancelEnrollmentBodySchema,
+  cancelProgramBodySchema,
 } from "../validators/training_provider.validator.js";
 import {
   bulkCreateProgram,
@@ -19,6 +23,9 @@ import {
   getPendingTpConfirmations,
   confirmEnrollment,
   declineEnrollment,
+  getProgramEnrollmentsForManagement,
+  cancelEnrollment,
+  cancelProgram,
 } from "../controllers/training_provider.controller.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
@@ -157,6 +164,24 @@ router.patch(
   "/programs/:programId/enrollments/:enrollmentId/decline",
   validate({ params: confirmEnrollmentParamsSchema, body: confirmEnrollmentBodySchema }),
   declineEnrollment
+);
+
+router.get(
+  "/programs/:id/enrollments",
+  validate({ params: programIdParamSchema }),
+  getProgramEnrollmentsForManagement
+);
+
+router.patch(
+  "/programs/:programId/enrollments/:enrollmentId/cancel",
+  validate({ params: cancelEnrollmentParamsSchema, body: cancelEnrollmentBodySchema }),
+  cancelEnrollment
+);
+
+router.patch(
+  "/programs/:id/cancel",
+  validate({ params: programIdParamSchema, body: cancelProgramBodySchema }),
+  cancelProgram
 );
 
 router.get(

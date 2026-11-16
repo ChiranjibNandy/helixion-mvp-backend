@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { PROGRAM_SAVED_STATUS, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, STAY_TYPE } from "../constants/enum.js";
 
 export interface IStayOption {
    type: STAY_TYPE;
@@ -43,6 +43,13 @@ export interface IProgram {
    confirmedEnrollmentCount: number;
 
    status: PROGRAM_SAVED_STATUS;
+
+   cancellation?: {
+      reason: PROGRAM_CANCELLATION_REASON;
+      note?: string; 
+      cancelledBy: Types.ObjectId;
+      cancelledAt: Date;
+   };
 
    /** Batch ID for bulk-uploaded programs */
    batchId?: string;

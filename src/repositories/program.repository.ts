@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { PROGRAM_SAVED_STATUS } from '../constants/enum.js';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
@@ -138,11 +139,16 @@ export const getProgramByIdRepo = async (id: string, providerId: string) => {
   return await Program.findOne(buildOwnerFilter(id, providerId));
 };
 
-export const updateProgramRepo = async (id: string, providerId: string, data: Partial<IProgram>) => {
+export const updateProgramRepo = async (
+  id: string,
+  providerId: string,
+  data: Partial<IProgram>,
+  session?: mongoose.ClientSession
+) => {
   return await Program.findOneAndUpdate(
     buildOwnerFilter(id, providerId),
     { $set: data },
-    { returnDocument: 'after', runValidators: true }
+    { returnDocument: 'after', runValidators: true, session }
   );
 };
 
