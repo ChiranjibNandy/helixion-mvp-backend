@@ -55,7 +55,6 @@ export const getPendingEnrollmentsService = async (orgId: string) => {
 export const getTrainingDeptDashboardService = async (userId: string, orgId: string) => {
    const [ownSummary, pendingReviewsRaw, pendingReviewCount, pendingTourCount, approvalStats] = await Promise.all([
       getManagerOwnDashboardSummaryRepo(userId),
-
       getPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
       countPendingEnrollmentsForStageRepo(orgId, ENROLLMENT_STAGE.TRAINING_DEPT_REVIEW),
       countPendingTourApprovalsForCtdRepo(orgId),
@@ -73,7 +72,6 @@ export const getTrainingDeptDashboardService = async (userId: string, orgId: str
          fromDate: program?.startDate ? new Date(program.startDate).toISOString() : "",
          toDate: program?.endDate ? new Date(program.endDate).toISOString() : "",
          venue: program?.venueName || program?.city || "",
-
          status: "Pending Approval",
       };
    });
