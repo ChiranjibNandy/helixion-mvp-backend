@@ -128,6 +128,16 @@ export enum PROGRAM_SAVED_STATUS {
   DRAFT = "draft",
   PUBLISHED = "published",
   COMPLETED = "completed",
+  CANCELLED = "cancelled",
+}
+
+export enum PROGRAM_CANCELLATION_REASON {
+  INSUFFICIENT_ENROLMENTS = "insufficient_enrolments",
+  EXCESS_ENROLMENTS = "excess_enrolments",
+  OPERATIONAL_CONSTRAINTS = "operational_constraints",
+  TRAINER_UNAVAILABLE = "trainer_unavailable",
+  VENUE_UNAVAILABLE = "venue_unavailable",
+  OTHER = "other",
 }
 
 // ─── User status ──────────────────────────────────────────────────────────────
@@ -187,6 +197,7 @@ export enum ENROLLMENT_STATUS_SUMMARY {
   RECOMMENDED = "recommended",
   APPROVED = "approved",
   REJECTED = "rejected",
+  CANCELLED = "cancelled",
 }
 
 export enum TRAVEL_TYPE {
