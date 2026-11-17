@@ -1,10 +1,13 @@
-import { PROGRAM_SAVED_STATUS, ENROLLMENT_STATUS_SUMMARY } from '../constants/enum.js';
+import { PROGRAM_SAVED_STATUS, ENROLLMENT_STATUS_SUMMARY, ENROLLMENT_STAGE } from '../constants/enum.js';
 import enrollmentModel from '../models/enrollment.model.js';
+import mongoose from 'mongoose';
 import { IProgram } from '../interfaces/program.interface.js';
 import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
 import { getUTCStartOfDay } from '../utils/date.js';
 import { toObjectId } from '../utils/mongo.js';
+import { UPCOMING_PROGRAMS_DAYS_THRESHOLD } from '../constants/program.js';
+import { getProgramEnrollmentStatusExpression } from '../utils/program.helpers.js';
 
 /** Reusable filter for owner-scoped program queries */
 const buildOwnerFilter = (id: string, providerId: string) => ({
@@ -157,11 +160,16 @@ export const getProgramByIdRepo = async (id: string, providerId: string) => {
   return await Program.findOne(buildOwnerFilter(id, providerId));
 };
 
-export const updateProgramRepo = async (id: string, providerId: string, data: Partial<IProgram>) => {
+export const updateProgramRepo = async (
+  id: string,
+  providerId: string,
+  data: Partial<IProgram>,
+  session?: mongoose.ClientSession
+) => {
   return await Program.findOneAndUpdate(
     buildOwnerFilter(id, providerId),
     { $set: data },
-    { returnDocument: 'after', runValidators: true }
+    { returnDocument: 'after', runValidators: true, session }
   );
 };
 
@@ -261,7 +269,7 @@ export const getAverageFillRate = async (
   );
 };
 
-// TOP PROGRAMS that display in training provider dashboard
+// TOP PROGRAMS that display in training provider dashboard - most enrollcount program fetch first
 export const getTopPrograms = async (
   trainingProviderId: string
 ) => {
@@ -656,7 +664,142 @@ export const updateProgramFields = async (
     { new: true, runValidators: true }
   );
 }
+//send upcoming programs
 
+export const getUpcomingPrograms = async (
+  trainingProviderId: string,
+  page: number = 1,
+  limit: number = 5
+) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const skip = (page - 1) * limit;
+
+  const result = await Program.aggregate([
+    {
+      $match: {
+        createdBy: toObjectId(trainingProviderId),
+        status: PROGRAM_SAVED_STATUS.PUBLISHED,
+        startDate: { $gte: today },
+      },
+    },
+    {
+      $lookup: {
+        from: "enrollments",
+        let: { programId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ["$programId", "$$programId"],
+              },
+              currentStage: {
+                $nin: [
+                  ENROLLMENT_STAGE.REJECTED,
+                  ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+                ],
+              },
+            },
+          },
+          {
+            $count: "count",
+          },
+        ],
+        as: "enrollmentStats",
+      },
+    },
+    {
+      $addFields: {
+        enrolledCount: {
+          $ifNull: [
+            { $arrayElemAt: ["$enrollmentStats.count", 0] },
+            0,
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        fillRate: {
+          $cond: [
+            { $gt: ["$maxParticipants", 0] },
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    "$enrolledCount",
+                    "$maxParticipants",
+                  ],
+                },
+                100,
+              ],
+            },
+            0,
+          ],
+        },
+        daysToGo: {
+          $dateDiff: {
+            startDate: today,
+            endDate: "$startDate",
+            unit: "day",
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        programStatus: getProgramEnrollmentStatusExpression(),
+      },
+    },
+    {
+      $sort: {
+        startDate: 1,
+        _id: 1,
+      },
+    },
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              startDate: 1,
+              endDate: 1,
+              enrolledCount: 1,
+              minParticipants: 1,
+              maxParticipants: 1,
+              daysToGo: 1,
+              programStatus: 1,
+              fillRate: {
+                $round: ["$fillRate", 0],
+              },
+            },
+          },
+        ],
+        metadata: [
+          { $count: "total" },
+        ],
+      },
+    },
+  ]);
+
+  const programs = result[0]?.data ?? [];
+  const total = result[0]?.metadata[0]?.total ?? 0;
+
+  return {
+    programs,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
 
 
 

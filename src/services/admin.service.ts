@@ -8,7 +8,6 @@ import {
   getUserByIdRepo,
   deactivateUserRepo,
   activateUserRepo,
-  getUsersByEmailsRepo,
   createUserRepo,
   updateOneUser,
   getDistinctManagerIdsRepo,
@@ -20,6 +19,7 @@ import {
   getUserByEmailRepo,
   searchUsersRepo,
   rejectUserRepo,
+  getUsersByEmailsGlobalRepo,
 } from "../repositories/user.repository.js";
 import UploadJob from "../models/uploadJob.model.js";
 import { uploadQueue } from "../queue/bullConfig.js";
@@ -591,7 +591,7 @@ export const processBulkUserRows = async (
     }
   }
 
-  const existingUsers = referencedEmails.size > 0 ? await getUsersByEmailsRepo([...referencedEmails]) : [];
+  const existingUsers = referencedEmails.size > 0 ? await getUsersByEmailsGlobalRepo([...referencedEmails]) : [];
   const byEmail = new Map<string, any>(existingUsers.map((u) => [u.email, u]));
 
   const managerRefResolves = (email: unknown): boolean => {
