@@ -49,8 +49,9 @@ export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterPar
     },
   });
 
-  const filter: any = { 
+  const filter: any = {
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
+    enrolmentsFrozen: { $ne: true },
     _id: { $nin: enrolledProgramIds },
    };
 
@@ -495,6 +496,7 @@ export const getEmployeeProgramsListRepo = async ({
 
   const filter: any = {
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
+    enrolmentsFrozen: { $ne: true },
     _id: { $nin: enrolledProgramIds },
   };
 

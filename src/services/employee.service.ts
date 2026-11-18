@@ -120,6 +120,13 @@ export const enrollInProgramService = async (
       throw new AppError(MESSAGES.ENROLLDATE_LESSTHAN_STARTDATE, HTTP_STATUS.CONFLICT)
    }
 
+   // Freezing leaves `status` as PUBLISHED (the program itself is still
+   // running, only its roster is locked) — getEmployeeProgramByIdRepo's
+   // published-only filter doesn't catch this, so it's checked explicitly.
+   if ((program as any).enrolmentsFrozen) {
+      throw new AppError(MESSAGES.ENROLMENTS_FROZEN, HTTP_STATUS.CONFLICT);
+   }
+
    // 2. Check if already enrolled (active or pending)
    const existing = await findExistingEnrollmentRepo(userId, programId);
    if (existing) {
