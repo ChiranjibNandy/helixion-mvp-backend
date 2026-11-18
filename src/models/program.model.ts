@@ -119,6 +119,20 @@ const programSchema = new Schema<IProgram>(
          ),
       },
 
+      enrolmentsFrozen: {
+         type:    Boolean,
+         default: false,
+      },
+
+      enrolmentsFrozenBy: {
+         type: Schema.Types.ObjectId,
+         ref:  "User",
+      },
+
+      enrolmentsFrozenAt: {
+         type: Date,
+      },
+
       batchId: {
          type: String,
       },

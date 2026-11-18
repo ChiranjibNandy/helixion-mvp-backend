@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "../constants/messages.js";
-import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, STAY_TYPE } from "../constants/enum.js";
+import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, ENROLLMENT_CANCELLATION_REASON, STAY_TYPE } from "../constants/enum.js";
 import { objectIdSchema } from "./common.validator.js";
 
 export const baseProgramSchema = z.object({
@@ -143,9 +143,15 @@ export const cancelEnrollmentParamsSchema = z.object({
   enrollmentId: objectIdSchema,
 });
 
-export const cancelEnrollmentBodySchema = z.object({
-  notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
-});
+export const cancelEnrollmentBodySchema = z
+  .object({
+    reason: z.enum(Object.values(ENROLLMENT_CANCELLATION_REASON)),
+    notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
+  })
+  .refine(
+    (data) => data.reason !== ENROLLMENT_CANCELLATION_REASON.OTHER || !!data.notes?.length,
+    { message: MESSAGES.CANCELLATION_NOTE_REQUIRED, path: ["notes"] }
+  );
 
 export const cancelProgramBodySchema = z
   .object({
@@ -155,4 +161,21 @@ export const cancelProgramBodySchema = z
   .refine(
     (data) => data.reason !== PROGRAM_CANCELLATION_REASON.OTHER || !!data.note?.length,
     { message: MESSAGES.CANCELLATION_NOTE_REQUIRED, path: ["note"] }
+  );
+
+const enrollmentIdsSchema = z.array(objectIdSchema).min(1, MESSAGES.NO_ELIGIBLE_ENROLLMENTS_SELECTED);
+
+export const confirmEnrollmentsBulkBodySchema = z.object({
+  enrollmentIds: enrollmentIdsSchema,
+});
+
+export const cancelEnrollmentsBulkBodySchema = z
+  .object({
+    enrollmentIds: enrollmentIdsSchema,
+    reason: z.enum(Object.values(ENROLLMENT_CANCELLATION_REASON)),
+    notes: z.string().trim().max(500, MESSAGES.NOTES_TOO_LONG).optional(),
+  })
+  .refine(
+    (data) => data.reason !== ENROLLMENT_CANCELLATION_REASON.OTHER || !!data.notes?.length,
+    { message: MESSAGES.CANCELLATION_NOTE_REQUIRED, path: ["notes"] }
   );

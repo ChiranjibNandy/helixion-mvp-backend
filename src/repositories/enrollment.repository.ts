@@ -4,7 +4,7 @@ import programModel from "../models/program.model.js";
 import { toObjectId } from "../utils/mongo.js";
 import { IEnrollment } from "../interfaces/enrollment.interface.js";
 import { Types } from "mongoose";
-import { ENROLLMENT_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY, ACTOR_TYPE, ENROLLMENT_REJECTION_REASON } from "../constants/enum.js";
+import { ENROLLMENT_STATUS, ENROLLMENT_STAGE, REIMBURSEMENT_STATUS, TP_NOT_YET_VISIBLE_STAGES, MANAGER_CHAIN_STATUS, TOUR_STATUS, TRAINING_DEPT_SENIOR_ACTION, ENROLLMENT_STATUS_SUMMARY, ACTOR_TYPE, ENROLLMENT_REJECTION_REASON, ENROLLMENT_CANCELLATION_REASON } from "../constants/enum.js";
 import { IUser } from "../interfaces/user.interface.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -77,7 +77,7 @@ export const getProgramParticipantsRepo = async (programId: string) => {
 export const getProgramEnrollmentsForManagementRepo = async (programId: string) => {
   return await enrollmentModel
     .find({ programId: toObjectId(programId) })
-    .populate({ path: "employeeId", select: "_id name email employeeCode" })
+    .populate({ path: "employeeId", select: "_id name email employeeCode designation" })
     .populate({ path: "orgId", select: "_id name", model: "Organization" })
     .sort({ createdAt: -1 });
 };
@@ -994,6 +994,7 @@ export const cancelEnrollmentByTpRepo = async (
   enrollmentId: string,
   programId: string,
   providerId: string,
+  reason: ENROLLMENT_CANCELLATION_REASON,
   notes: string | undefined
 ) => {
   return await enrollmentModel.findOneAndUpdate(
@@ -1006,6 +1007,12 @@ export const cancelEnrollmentByTpRepo = async (
       $set: {
         currentStage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
         "statusSummary.enrollmentStatus": ENROLLMENT_STATUS_SUMMARY.CANCELLED,
+        cancellation: {
+          reason,
+          note: notes || undefined,
+          cancelledBy: toObjectId(providerId),
+          cancelledAt: new Date(),
+        },
       },
       $push: {
         timeline: {
@@ -1020,6 +1027,84 @@ export const cancelEnrollmentByTpRepo = async (
     },
     { new: true }
   );
+};
+
+export const confirmEnrollmentsBulkByTpRepo = async (
+  enrollmentIds: string[],
+  programId: string,
+  providerId: string
+) => {
+  const filter = {
+    _id: { $in: enrollmentIds.map(toObjectId) },
+    programId: toObjectId(programId),
+    currentStage: ENROLLMENT_STAGE.TP_PENDING_CONFIRMATION,
+  };
+
+  const affected = await enrollmentModel.find(filter);
+  if (affected.length === 0) return affected;
+
+  await enrollmentModel.updateMany(filter, {
+    $set: {
+      currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+      "tpConfirmation.confirmedBy": toObjectId(providerId),
+      "tpConfirmation.confirmedAt": new Date(),
+      "tpConfirmation.notes": "",
+    },
+    $push: {
+      timeline: {
+        stage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
+        actorId: toObjectId(providerId),
+        actorType: ACTOR_TYPE.PROVIDER,
+        action: "confirm",
+        note: "",
+        at: new Date(),
+      },
+    },
+  });
+
+  return affected;
+};
+
+export const cancelEnrollmentsBulkByTpRepo = async (
+  enrollmentIds: string[],
+  programId: string,
+  providerId: string,
+  reason: ENROLLMENT_CANCELLATION_REASON,
+  notes: string | undefined
+) => {
+  const filter = {
+    _id: { $in: enrollmentIds.map(toObjectId) },
+    programId: toObjectId(programId),
+    currentStage: { $in: CANCELLABLE_STAGES },
+  };
+
+  const affected = await enrollmentModel.find(filter);
+  if (affected.length === 0) return affected;
+
+  await enrollmentModel.updateMany(filter, {
+    $set: {
+      currentStage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+      "statusSummary.enrollmentStatus": ENROLLMENT_STATUS_SUMMARY.CANCELLED,
+      cancellation: {
+        reason,
+        note: notes || undefined,
+        cancelledBy: toObjectId(providerId),
+        cancelledAt: new Date(),
+      },
+    },
+    $push: {
+      timeline: {
+        stage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
+        actorId: toObjectId(providerId),
+        actorType: ACTOR_TYPE.PROVIDER,
+        action: "cancel",
+        note: notes || "",
+        at: new Date(),
+      },
+    },
+  });
+
+  return affected;
 };
 
 export const cancelProgramEnrollmentsRepo = async (

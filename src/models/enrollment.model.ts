@@ -15,6 +15,7 @@ import {
    TOUR_CTD_ACTION,
    ENROLLMENT_STATUS,
    ENROLLMENT_REJECTION_REASON,
+   ENROLLMENT_CANCELLATION_REASON,
 } from "../constants/enum.js";
 
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
@@ -102,6 +103,18 @@ const enrollmentSchema = new Schema<IEnrollment>(
       rejectionReason: {
          type: String,
          enum: Object.values(ENROLLMENT_REJECTION_REASON),
+      },
+
+      cancellation: {
+         type: new Schema(
+            {
+               reason:      { type: String, enum: Object.values(ENROLLMENT_CANCELLATION_REASON), required: true },
+               note:        { type: String, trim: true },
+               cancelledBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+               cancelledAt: { type: Date, required: true },
+            },
+            { _id: false }
+         ),
       },
 
       /**

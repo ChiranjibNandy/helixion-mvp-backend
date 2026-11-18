@@ -46,10 +46,14 @@ export interface IProgram {
 
    cancellation?: {
       reason: PROGRAM_CANCELLATION_REASON;
-      note?: string; 
+      note?: string;
       cancelledBy: Types.ObjectId;
       cancelledAt: Date;
    };
+
+   enrolmentsFrozen?: boolean;
+   enrolmentsFrozenBy?: Types.ObjectId;
+   enrolmentsFrozenAt?: Date;
 
    /** Batch ID for bulk-uploaded programs */
    batchId?: string;

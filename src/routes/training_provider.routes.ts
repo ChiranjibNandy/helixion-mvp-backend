@@ -10,6 +10,8 @@ import {
   cancelEnrollmentParamsSchema,
   cancelEnrollmentBodySchema,
   cancelProgramBodySchema,
+  confirmEnrollmentsBulkBodySchema,
+  cancelEnrollmentsBulkBodySchema,
 } from "../validators/training_provider.validator.js";
 import {
   bulkCreateProgram,
@@ -26,6 +28,9 @@ import {
   getProgramEnrollmentsForManagement,
   cancelEnrollment,
   cancelProgram,
+  confirmEnrollmentsBulk,
+  cancelEnrollmentsBulk,
+  freezeProgramEnrollments,
 } from "../controllers/training_provider.controller.js";
 import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
@@ -182,6 +187,24 @@ router.patch(
   "/programs/:id/cancel",
   validate({ params: programIdParamSchema, body: cancelProgramBodySchema }),
   cancelProgram
+);
+
+router.patch(
+  "/programs/:id/enrollments/confirm-bulk",
+  validate({ params: programIdParamSchema, body: confirmEnrollmentsBulkBodySchema }),
+  confirmEnrollmentsBulk
+);
+
+router.patch(
+  "/programs/:id/enrollments/cancel-bulk",
+  validate({ params: programIdParamSchema, body: cancelEnrollmentsBulkBodySchema }),
+  cancelEnrollmentsBulk
+);
+
+router.patch(
+  "/programs/:id/freeze-enrollments",
+  validate({ params: programIdParamSchema }),
+  freezeProgramEnrollments
 );
 
 router.get(
