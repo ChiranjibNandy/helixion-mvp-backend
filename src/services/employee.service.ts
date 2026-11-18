@@ -77,6 +77,7 @@ export const getAvailableProgramsService = async (params: {
    venue?: string;
    fromDate?: string;
    toDate?: string;
+   userId: string;
 }) => {
    return await getAvailableProgramsPaginatedRepo(params);
 };
@@ -89,6 +90,7 @@ export const getEmployeeProgramsListService = async (params: {
    fromDate?: string;
    toDate?: string;
    hidePast?: boolean;
+   userId: string;
 }) => {
    return await getEmployeeProgramsListRepo(params);
 };

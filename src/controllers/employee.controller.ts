@@ -62,6 +62,11 @@ export const getEmployeeDashboard =
 
 export const getEmployeeProgramsList = async (req: Request, res: Response, next: NextFunction) => {
    try {
+      const userId = req.userId;
+      if(!userId) {
+         throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
       const { page, limit, search, venue, fromDate, toDate, hidePast } = req.query as any;
 
       const result = await getEmployeeProgramsListService({
@@ -71,7 +76,8 @@ export const getEmployeeProgramsList = async (req: Request, res: Response, next:
          venue,
          fromDate,
          toDate,
-         hidePast
+         hidePast,
+         userId,
       });
 
       return res.status(HTTP_STATUS.OK).json({
