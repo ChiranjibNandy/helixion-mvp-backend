@@ -140,6 +140,14 @@ export enum PROGRAM_CANCELLATION_REASON {
   OTHER = "other",
 }
 
+export enum ENROLLMENT_CANCELLATION_REASON {
+  EMPLOYEE_UNAVAILABLE = "employee_unavailable",
+  DUPLICATE_NOMINATION = "duplicate_nomination",
+  BUDGET_CONSTRAINTS = "budget_constraints",
+  ROLE_CHANGE = "role_change",
+  OTHER = "other",
+}
+
 // ─── User status ──────────────────────────────────────────────────────────────
 export enum USER_STATUS {
   ACTIVE = "active",

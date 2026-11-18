@@ -14,6 +14,7 @@ import {
    TRAVEL_TYPE,
    TOUR_CTD_ACTION,
    ENROLLMENT_REJECTION_REASON,
+   ENROLLMENT_CANCELLATION_REASON,
 } from "../constants/enum.js";
 
 export interface IManagerChainItem {
@@ -65,6 +66,13 @@ export interface IEnrollment {
 
    /** Set only when currentStage === REJECTED, explains which gate rejected it */
    rejectionReason?: ENROLLMENT_REJECTION_REASON;
+
+   cancellation?: {
+      reason: ENROLLMENT_CANCELLATION_REASON;
+      note?: string;
+      cancelledBy: Types.ObjectId;
+      cancelledAt: Date;
+   };
 
    statusSummary: {
       enrollmentStatus: ENROLLMENT_STATUS_SUMMARY;         // submitted | recommended | approved | rejected

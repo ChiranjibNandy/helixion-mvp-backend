@@ -18,6 +18,9 @@ import {
    getProgramEnrollmentsForManagementService,
    cancelEnrollmentService,
    cancelProgramService,
+   confirmEnrollmentsBulkService,
+   cancelEnrollmentsBulkService,
+   freezeProgramEnrolmentsService,
 } from "../services/enrollmentManagement.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
@@ -294,12 +297,13 @@ export const cancelEnrollment = async (
       }
 
       const { programId, enrollmentId } = req.params;
-      const { notes } = req.body;
+      const { reason, notes } = req.body;
 
       const result = await cancelEnrollmentService(
          String(programId),
          String(enrollmentId),
          providerId,
+         reason,
          notes
       );
 
@@ -332,6 +336,82 @@ export const cancelProgram = async (
       return res.status(HTTP_STATUS.OK).json({
          success: true,
          message: MESSAGES.PROGRAM_CANCELLED,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const confirmEnrollmentsBulk = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { id: programId } = req.params;
+      const { enrollmentIds } = req.body;
+
+      const result = await confirmEnrollmentsBulkService(String(programId), enrollmentIds, providerId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ENROLLMENTS_CONFIRMED_BULK,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const cancelEnrollmentsBulk = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { id: programId } = req.params;
+      const { enrollmentIds, reason, notes } = req.body;
+
+      const result = await cancelEnrollmentsBulkService(String(programId), enrollmentIds, providerId, reason, notes);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ENROLLMENTS_CANCELLED_BULK,
+         data: result,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const freezeProgramEnrollments = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+) => {
+   try {
+      const providerId = req.userId as string;
+      if (!providerId) {
+         throw new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+      }
+
+      const { id: programId } = req.params;
+      const result = await freezeProgramEnrolmentsService(String(programId), providerId);
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.ENROLMENTS_FROZEN_SUCCESS,
          data: result,
       });
    } catch (error) {
