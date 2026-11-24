@@ -44,6 +44,8 @@ export interface IProgram {
 
    status: PROGRAM_SAVED_STATUS;
 
+   isFreeze: boolean;
+
    cancellation?: {
       reason: PROGRAM_CANCELLATION_REASON;
       note?: string; 
@@ -60,4 +62,11 @@ export interface IProgram {
 
    createdAt: Date;
    updatedAt: Date;
+}
+
+
+export interface IUpdateProgramFreezeStatus {
+   programId: string;
+   providerId: string;
+   isFreeze: boolean;
 }

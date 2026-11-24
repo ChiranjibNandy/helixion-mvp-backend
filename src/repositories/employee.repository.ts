@@ -119,7 +119,8 @@ export const getListedProgramsRepo = async (
     {
       $match: {
         status:
-          PROGRAM_SAVED_STATUS.PUBLISHED
+          PROGRAM_SAVED_STATUS.PUBLISHED,
+        isFreeze:false
       }
     },
 

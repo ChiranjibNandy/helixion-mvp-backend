@@ -5,7 +5,7 @@ import { MESSAGES } from "../constants/messages.js";
 
 const stayOptionSchema = new Schema<IStayOption>(
    {
-      type:  { type: String, enum: Object.values(STAY_TYPE), required: true },
+      type: { type: String, enum: Object.values(STAY_TYPE), required: true },
       price: { type: Number, min: 0, required: true },
    },
    { _id: false }
@@ -14,16 +14,16 @@ const stayOptionSchema = new Schema<IStayOption>(
 const programSchema = new Schema<IProgram>(
    {
       createdBy: {
-         type:     Schema.Types.ObjectId,
-         ref:      "User",
+         type: Schema.Types.ObjectId,
+         ref: "User",
          required: true,
-         index:    true,
+         index: true,
       },
 
       title: {
-         type:     String,
+         type: String,
          required: true,
-         trim:     true,
+         trim: true,
       },
 
       trainingInstitute: {
@@ -67,7 +67,7 @@ const programSchema = new Schema<IProgram>(
        * a schema migration.
        */
       stayOptions: {
-         type:    [stayOptionSchema],
+         type: [stayOptionSchema],
          default: [],
       },
 
@@ -81,7 +81,7 @@ const programSchema = new Schema<IProgram>(
 
       minParticipants: {
          type: Number,
-         min:  1,
+         min: 1,
       },
 
       maxParticipants: {
@@ -96,22 +96,28 @@ const programSchema = new Schema<IProgram>(
       },
 
       confirmedEnrollmentCount: {
-         type:    Number,
+         type: Number,
          default: 0,
-         min:     0,
+         min: 0,
       },
 
       status: {
-         type:    String,
-         enum:    Object.values(PROGRAM_SAVED_STATUS),
+         type: String,
+         enum: Object.values(PROGRAM_SAVED_STATUS),
          default: PROGRAM_SAVED_STATUS.DRAFT,
+      },
+
+      isFreeze: {
+         type: Boolean,
+         required: true,
+         default: false,
       },
 
       cancellation: {
          type: new Schema(
             {
-               reason:      { type: String, enum: Object.values(PROGRAM_CANCELLATION_REASON), required: true },
-               note:        { type: String, trim: true },
+               reason: { type: String, enum: Object.values(PROGRAM_CANCELLATION_REASON), required: true },
+               note: { type: String, trim: true },
                cancelledBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
                cancelledAt: { type: Date, required: true },
             },

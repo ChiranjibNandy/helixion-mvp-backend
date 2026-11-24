@@ -6,7 +6,6 @@ import Program from '../models/program.model.js'
 import { GetPublishedProgramsParams } from '../types/program.js';
 import { getUTCStartOfDay } from '../utils/date.js';
 import { toObjectId } from '../utils/mongo.js';
-import { UPCOMING_PROGRAMS_DAYS_THRESHOLD } from '../constants/program.js';
 import { getProgramEnrollmentStatusExpression } from '../utils/program.helpers.js';
 
 /** Reusable filter for owner-scoped program queries */
@@ -49,10 +48,10 @@ export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterPar
     },
   });
 
-  const filter: any = { 
+  const filter: any = {
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
     _id: { $nin: enrolledProgramIds },
-   };
+  };
 
   if (search) filter.title = { $regex: search, $options: "i" };
   if (venue) filter.venue = { $regex: venue, $options: "i" };
@@ -495,6 +494,7 @@ export const getEmployeeProgramsListRepo = async ({
 
   const filter: any = {
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
+    isFreeze: false,
     _id: { $nin: enrolledProgramIds },
   };
 
@@ -799,6 +799,34 @@ export const getUpcomingPrograms = async (
       totalPages: Math.ceil(total / limit),
     },
   };
+};
+
+// Freeze or unfreeze a program
+export const updateProgramFreezeStatusRepository = async (
+  programId: string,
+  providerId: string,
+  isFreeze: boolean
+) => {
+  return await Program.findOneAndUpdate(
+    {
+      _id: toObjectId(programId),
+      createdBy: toObjectId(providerId),
+    },
+    {
+      $set: { isFreeze },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+};
+
+export const findFrozenProgramRepo = async (programId: string) => {
+  return await Program.findOne({
+    _id: toObjectId(programId),
+    isFreeze: true,
+  }).select('_id isFreeze');
 };
 
 

@@ -10,6 +10,7 @@ import {
   cancelEnrollmentParamsSchema,
   cancelEnrollmentBodySchema,
   cancelProgramBodySchema,
+  updateProgramFreezeStatusSchema,
 } from "../validators/training_provider.validator.js";
 import {
   bulkCreateProgram,
@@ -31,7 +32,7 @@ import { ORG_ROLE } from "../constants/enum.js";
 import { authenticate, authorizeRole, requirePasswordChange } from "../middlewares/authorizeRole.middleware.js";
 import { upload, uploadBulkFile } from "../middlewares/multer.middleware.js";
 import { rateLimiter } from "../middlewares/rateLimit.middleware.js";
-import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController, updatePublishedProgram } from "../controllers/program.controller.js";
+import { getProgramParticipantsController, getPrograms, searchPublishedProgramsController, updateProgramFreezeStatusController, updatePublishedProgram } from "../controllers/program.controller.js";
 import { searchUsersQuerySchema } from "../validators/common.validator.js";
 import { generateProgramInvoice, getInvoiceCompanies, getInvoicePreviewData, listProgramInvoices, downloadInvoicePdf } from "../controllers/invoice.controller.js";
 import { generateInvoiceBodySchema, invoiceIdParamsSchema, invoiceProgramParamsSchema } from "../validators/invoice.validator.js";
@@ -137,6 +138,15 @@ router.delete(
   "/programs/:id",
   deleteDraft
 );
+
+//freeze the program
+
+router.patch(
+   "/programs/:programId/freeze",
+   validate(updateProgramFreezeStatusSchema),
+   updateProgramFreezeStatusController
+);
+
 //get training provider dashboard data
 router.get(
   "/dashboard",

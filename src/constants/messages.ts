@@ -103,6 +103,9 @@ export const MESSAGES = {
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
   PROGRAM_UPDATES_SUCCESS: "program updated successfully",
+  PROGRAM_ENROLL_FROZEN_SUCCESS: "Program enrollment frozen successfully",
+  ISFREEZE_TYPE: "isFreeze must be a boolean value",
+  PROGRAM_ENROLLMENTS_FROZEN:"Enrolments for this program are closed. You cannot enrol in this program.",
   PROGRAM_NOT_FOUND: "Program not found",
   INVOICE_PROGRAM_NOT_ENDED: "Invoice can be generated only after the program has ended",
   INVOICE_NO_BILLABLE_PARTICIPANTS: "No attended participants without an invoice for this program",
@@ -169,6 +172,7 @@ export const MESSAGES = {
   FEEDBACK_ADDED_SUCCESSFULLY: "Feedback added successfully",
   FEEDBACK_ALREADY_SUBMITTED: "Feedback has already been submitted for this program",
   INVALID_PROGRAM_ID: "Invalid program ID",
+  PROGRAM_ID_REQUIRED: "Program ID is required",
 
   //settings
   GST_NUMBER_INVALID: "Invalid GSTIN format.",

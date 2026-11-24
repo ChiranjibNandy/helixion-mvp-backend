@@ -4,80 +4,80 @@ import { PROGRAM_SAVED_STATUS, PROGRAM_CANCELLATION_REASON, STAY_TYPE } from "..
 import { objectIdSchema } from "./common.validator.js";
 
 export const baseProgramSchema = z.object({
-   title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
+  title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED),
 
-   startDate: z.union([z.string(), z.date()]).optional(),
-   endDate: z.union([z.string(), z.date()]).optional(),
-   venue: z.string().optional(),
-   city: z.string().optional(),
-   state: z.string().optional(),
+  startDate: z.union([z.string(), z.date()]).optional(),
+  endDate: z.union([z.string(), z.date()]).optional(),
+  venue: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
 
-   singleOccupancyFee: z.coerce.number().min(0).optional(),
-   twinSharingFee: z.coerce.number().min(0).optional(),
-   nonResidentialFee: z.coerce.number().min(0).optional(),
+  singleOccupancyFee: z.coerce.number().min(0).optional(),
+  twinSharingFee: z.coerce.number().min(0).optional(),
+  nonResidentialFee: z.coerce.number().min(0).optional(),
 
 
-   brochureUrl: z.string().optional(),
-   minParticipants: z.coerce.number().min(1).optional(),
-   maxParticipants: z.coerce.number().min(1).optional(),
+  brochureUrl: z.string().optional(),
+  minParticipants: z.coerce.number().min(1).optional(),
+  maxParticipants: z.coerce.number().min(1).optional(),
 
-   status: z.enum([PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED]),
+  status: z.enum([PROGRAM_SAVED_STATUS.DRAFT, PROGRAM_SAVED_STATUS.PUBLISHED]),
 });
 
 // Create Programm Conditional validation
 export const createProgramSchema = baseProgramSchema.superRefine((data, ctx) => {
-   if (data.status === PROGRAM_SAVED_STATUS.PUBLISHED) {
-      if (!data.startDate) {
-         ctx.addIssue({ code: "custom", message: MESSAGES.START_DATE_REQUIRED, path: ["startDate"] });
-      }
+  if (data.status === PROGRAM_SAVED_STATUS.PUBLISHED) {
+    if (!data.startDate) {
+      ctx.addIssue({ code: "custom", message: MESSAGES.START_DATE_REQUIRED, path: ["startDate"] });
+    }
 
-      if (!data.endDate) {
-         ctx.addIssue({ code: "custom", message: MESSAGES.END_DATE_REQUIRED, path: ["endDate"] });
-      }
+    if (!data.endDate) {
+      ctx.addIssue({ code: "custom", message: MESSAGES.END_DATE_REQUIRED, path: ["endDate"] });
+    }
 
-      if (!data.venue) {
-         ctx.addIssue({ code: "custom", message: MESSAGES.VENUE_REQUIRED, path: ["venue"] });
-      }
+    if (!data.venue) {
+      ctx.addIssue({ code: "custom", message: MESSAGES.VENUE_REQUIRED, path: ["venue"] });
+    }
 
-      if (!data.minParticipants) {
-         ctx.addIssue({ code: "custom", message: MESSAGES.MIN_PARTICIPANT_REQUIRED, path: ["minParticipants"] });
-      }
+    if (!data.minParticipants) {
+      ctx.addIssue({ code: "custom", message: MESSAGES.MIN_PARTICIPANT_REQUIRED, path: ["minParticipants"] });
+    }
 
-      if (!data.maxParticipants) {
-         ctx.addIssue({ code: "custom", message: MESSAGES.MAX_PARTICIPANT_REQUIRED, path: ["maxParticipants"] });
-      }
-   }
+    if (!data.maxParticipants) {
+      ctx.addIssue({ code: "custom", message: MESSAGES.MAX_PARTICIPANT_REQUIRED, path: ["maxParticipants"] });
+    }
+  }
 });
 
 // Update Program validation (for drafts)
 export const updateProgramSchema = z
-   .object({
-      title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
+  .object({
+    title: z.string().min(1, MESSAGES.PROGRAM_TITLE_REQUIRED).optional(),
 
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-      venue: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    venue: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
 
-      singleOccupancyFee: z.coerce.number().min(0).optional(),
-      twinSharingFee: z.coerce.number().min(0).optional(),
-      nonResidentialFee: z.coerce.number().min(0).optional(),
+    singleOccupancyFee: z.coerce.number().min(0).optional(),
+    twinSharingFee: z.coerce.number().min(0).optional(),
+    nonResidentialFee: z.coerce.number().min(0).optional(),
 
-      minParticipants: z.coerce.number().min(1).optional(),
-      maxParticipants: z.coerce.number().min(1).optional(),
-   })
-   .refine(
-      (data) =>
-         data.minParticipants === undefined ||
-         data.maxParticipants === undefined ||
-         data.maxParticipants > data.minParticipants,
-      {
-         message:
-            MESSAGES.MAX_PARTICIPANTS_INVALID,
-         path: ["maxParticipants"],
-      }
-   );
+    minParticipants: z.coerce.number().min(1).optional(),
+    maxParticipants: z.coerce.number().min(1).optional(),
+  })
+  .refine(
+    (data) =>
+      data.minParticipants === undefined ||
+      data.maxParticipants === undefined ||
+      data.maxParticipants > data.minParticipants,
+    {
+      message:
+        MESSAGES.MAX_PARTICIPANTS_INVALID,
+      path: ["maxParticipants"],
+    }
+  );
 
 //validation for bulk program creation
 
@@ -156,3 +156,21 @@ export const cancelProgramBodySchema = z
     (data) => data.reason !== PROGRAM_CANCELLATION_REASON.OTHER || !!data.note?.length,
     { message: MESSAGES.CANCELLATION_NOTE_REQUIRED, path: ["note"] }
   );
+
+export const updateProgramFreezeStatusSchema = {
+  params: z.object({
+    programId: z
+      .string()
+      .min(1, MESSAGES.PROGRAM_ID_REQUIRED)
+      .regex(
+        /^[0-9a-fA-F]{24}$/,
+        MESSAGES.INVALID_PROGRAM_ID
+      ),
+  }),
+
+  body: z.object({
+    isFreeze: z.boolean({
+      message: MESSAGES.ISFREEZE_TYPE,
+    }),
+  }),
+};
