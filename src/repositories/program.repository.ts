@@ -49,10 +49,10 @@ export const getAvailableProgramsPaginatedRepo = async (params: ProgramFilterPar
     },
   });
 
-  const filter: any = { 
+  const filter: any = {
     status: PROGRAM_SAVED_STATUS.PUBLISHED,
     _id: { $nin: enrolledProgramIds },
-   };
+  };
 
   if (search) filter.title = { $regex: search, $options: "i" };
   if (venue) filter.venue = { $regex: venue, $options: "i" };
@@ -799,6 +799,27 @@ export const getUpcomingPrograms = async (
       totalPages: Math.ceil(total / limit),
     },
   };
+};
+
+// Freeze or unfreeze a program
+export const updateProgramFreezeStatusRepository = async (
+  programId: string,
+  providerId: string,
+  isFreeze: boolean
+) => {
+  return await Program.findOneAndUpdate(
+    {
+      _id: toObjectId(programId),
+      createdBy: toObjectId(providerId),
+    },
+    {
+      $set: { isFreeze },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
 };
 
 
