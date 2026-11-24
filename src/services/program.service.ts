@@ -132,11 +132,9 @@ export const updateProgramFreezeStatusService = async ({
    }
 
    return {
-      data: {
-         _id: updatedProgram._id,
-         title: updatedProgram.title,
-         status: updatedProgram.status,
-         isFreeze: updatedProgram.isFreeze,
-      },
+      _id: updatedProgram._id,
+      title: updatedProgram.title,
+      status: updatedProgram.status,
+      isFreeze: updatedProgram.isFreeze,
    };
 };

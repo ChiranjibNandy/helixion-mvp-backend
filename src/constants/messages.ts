@@ -103,6 +103,7 @@ export const MESSAGES = {
   DRAFT_PUBLISHED: "Program published successfully",
   DRAFT_DELETED: "Draft deleted successfully",
   PROGRAM_UPDATES_SUCCESS: "program updated successfully",
+  PROGRAM_ENROLL_FROZEN_SUCCESS:"Program enrollment frozen successfully",
   PROGRAM_NOT_FOUND: "Program not found",
   INVOICE_PROGRAM_NOT_ENDED: "Invoice can be generated only after the program has ended",
   INVOICE_NO_BILLABLE_PARTICIPANTS: "No attended participants without an invoice for this program",

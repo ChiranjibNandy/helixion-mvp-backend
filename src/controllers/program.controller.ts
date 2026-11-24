@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getProgramParticipantsService, getProgramsService, getPublishedProgramsService, updatePublishedProgramService } from "../services/program.service.js";
+import { getProgramParticipantsService, getProgramsService, getPublishedProgramsService, updateProgramFreezeStatusService, updatePublishedProgramService } from "../services/program.service.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
 import { AppError } from "../utils/appError.js";
@@ -114,7 +114,7 @@ export const updatePublishedProgram = async (req: Request, res: Response, next: 
       if (!userId) {
          throw new AppError(MESSAGES.USER_ID_REQUIRED, HTTP_STATUS.UNAUTHORIZED)
       }
-      
+
       const program = await updatePublishedProgramService(String(id), {
          title,
          minParticipants,
@@ -125,6 +125,29 @@ export const updatePublishedProgram = async (req: Request, res: Response, next: 
          success: true,
          message: MESSAGES.PROGRAM_UPDATES_SUCCESS,
          data: program,
+      });
+   } catch (error) {
+      next(error);
+   }
+};
+
+export const updateProgramFreezeStatusController = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const { programId } = req.params;
+      const { isFreeze } = req.body;
+
+      const providerId = req.userId
+
+      const result = await updateProgramFreezeStatusService({
+         programId: String(programId),
+         providerId: String(providerId),
+         isFreeze,
+      });
+
+      return res.status(HTTP_STATUS.OK).json({
+         success: true,
+         message: MESSAGES.PROGRAM_ENROLL_FROZEN_SUCCESS,
+         data: result,
       });
    } catch (error) {
       next(error);
