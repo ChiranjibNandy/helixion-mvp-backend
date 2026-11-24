@@ -63,3 +63,10 @@ export interface IProgram {
    createdAt: Date;
    updatedAt: Date;
 }
+
+
+export interface IUpdateProgramFreezeStatus {
+   programId: string;
+   providerId: string;
+   isFreeze: boolean;
+}

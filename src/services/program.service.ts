@@ -1,10 +1,11 @@
 import { mapUserBasicDetail } from "../mapper/user.mapper.js";
 import { getProgramParticipantsRepo } from "../repositories/enrollment.repository.js";
-import { getPublishedProgramsRepo, findProgramById, getPrograms, getProgramByIdRepo, updateProgramFields } from "../repositories/program.repository.js";
+import { getPublishedProgramsRepo, findProgramById, getPrograms, getProgramByIdRepo, updateProgramFields, updateProgramFreezeStatusRepository } from "../repositories/program.repository.js";
 import { GetPublishedProgramsServiceParams } from "../types/program.js";
 import { AppError } from "../utils/appError.js";
 import { HTTP_STATUS } from "../constants/httpStatus.js";
 import { MESSAGES } from "../constants/messages.js";
+import { IUpdateProgramFreezeStatus } from "../interfaces/program.interface.js";
 
 export const getPublishedProgramsService = async ({
    userId,
@@ -98,7 +99,7 @@ export const updatePublishedProgramService = async (
    const existingProgram = await getProgramByIdRepo(programId, userId);
 
    if (!existingProgram) {
-      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND , HTTP_STATUS.NOT_FOUND);
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
 
    // Extract only allowed fields
@@ -110,4 +111,32 @@ export const updatePublishedProgramService = async (
    const updatedProgram = await updateProgramFields(programId, updatePayload);
 
    return updatedProgram;
-} 
+}
+
+export const updateProgramFreezeStatusService = async ({
+   programId,
+   providerId,
+   isFreeze,
+}: IUpdateProgramFreezeStatus) => {
+
+   // Update freeze status
+   const updatedProgram =
+      await updateProgramFreezeStatusRepository(
+         programId,
+         providerId,
+         isFreeze
+      );
+
+   if (!updatedProgram) {
+      throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND)
+   }
+
+   return {
+      data: {
+         _id: updatedProgram._id,
+         title: updatedProgram.title,
+         status: updatedProgram.status,
+         isFreeze: updatedProgram.isFreeze,
+      },
+   };
+};
