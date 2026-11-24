@@ -44,6 +44,8 @@ export interface IProgram {
 
    status: PROGRAM_SAVED_STATUS;
 
+   isFreeze: boolean;
+
    cancellation?: {
       reason: PROGRAM_CANCELLATION_REASON;
       note?: string; 
