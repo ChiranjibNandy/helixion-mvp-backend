@@ -10,6 +10,7 @@ import {
   cancelEnrollmentParamsSchema,
   cancelEnrollmentBodySchema,
   cancelProgramBodySchema,
+  updateProgramFreezeStatusSchema,
 } from "../validators/training_provider.validator.js";
 import {
   bulkCreateProgram,
@@ -138,8 +139,11 @@ router.delete(
   deleteDraft
 );
 
+//freeze the program
+
 router.patch(
    "/programs/:programId/freeze",
+   validate(updateProgramFreezeStatusSchema),
    updateProgramFreezeStatusController
 );
 
