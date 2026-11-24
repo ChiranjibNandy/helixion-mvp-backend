@@ -115,6 +115,13 @@ export const enrollInProgramService = async (
    if (!program) {
       throw new AppError(MESSAGES.PROGRAM_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
    }
+
+   if (program.isFreeze) {
+      throw new AppError(
+         MESSAGES.PROGRAM_ENROLLMENTS_FROZEN,
+         HTTP_STATUS.CONFLICT
+      );
+   }
    let now = new Date()
    if (program.startDate < now) {
       throw new AppError(MESSAGES.ENROLLDATE_LESSTHAN_STARTDATE, HTTP_STATUS.CONFLICT)
@@ -823,8 +830,8 @@ export const submitTourFormService = async (
 
          const template =
             travelType === TRAVEL_TYPE.COMPANY_ASSISTED
-               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_SUBMITTED(programTitle,employee.name)
-               : NOTIFICATION_TEMPLATES.SELF_TRAVEL_SELECTED(programTitle,employee.name);
+               ? NOTIFICATION_TEMPLATES.TRAVEL_REQUEST_SUBMITTED(programTitle, employee.name)
+               : NOTIFICATION_TEMPLATES.SELF_TRAVEL_SELECTED(programTitle, employee.name);
 
          await createNotifications(
             managerIds,
