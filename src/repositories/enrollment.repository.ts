@@ -1043,11 +1043,12 @@ export const confirmEnrollmentsBulkByTpRepo = async (
   const affected = await enrollmentModel.find(filter);
   if (affected.length === 0) return affected;
 
+  const now = new Date();
   await enrollmentModel.updateMany(filter, {
     $set: {
       currentStage: ENROLLMENT_STAGE.TOUR_PENDING_EMPLOYEE,
       "tpConfirmation.confirmedBy": toObjectId(providerId),
-      "tpConfirmation.confirmedAt": new Date(),
+      "tpConfirmation.confirmedAt": now,
       "tpConfirmation.notes": "",
     },
     $push: {
@@ -1057,7 +1058,7 @@ export const confirmEnrollmentsBulkByTpRepo = async (
         actorType: ACTOR_TYPE.PROVIDER,
         action: "confirm",
         note: "",
-        at: new Date(),
+        at: now,
       },
     },
   });
@@ -1081,6 +1082,7 @@ export const cancelEnrollmentsBulkByTpRepo = async (
   const affected = await enrollmentModel.find(filter);
   if (affected.length === 0) return affected;
 
+  const now = new Date();
   await enrollmentModel.updateMany(filter, {
     $set: {
       currentStage: ENROLLMENT_STAGE.CANCELLED_BY_PROVIDER,
@@ -1089,7 +1091,7 @@ export const cancelEnrollmentsBulkByTpRepo = async (
         reason,
         note: notes || undefined,
         cancelledBy: toObjectId(providerId),
-        cancelledAt: new Date(),
+        cancelledAt: now,
       },
     },
     $push: {
@@ -1099,7 +1101,7 @@ export const cancelEnrollmentsBulkByTpRepo = async (
         actorType: ACTOR_TYPE.PROVIDER,
         action: "cancel",
         note: notes || "",
-        at: new Date(),
+        at: now,
       },
     },
   });
